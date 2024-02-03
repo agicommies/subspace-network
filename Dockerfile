@@ -1,34 +1,37 @@
-# **NOTE**: This docker file expects to be run in a directory outside of subspace.
-# It also expects two build arguments, the bittensor snapshot directory, and the bittensor
-# snapshot file name.
+# An example on how to build:
+# $ docker build -t subspace . --platform linux/x86_64 -f Dockerfile
 
-# This runs typically via the following command:
-# $ docker build -t subspace . --platform linux/x86_64 --build-arg SNAPSHOT_DIR="DIR_NAME" --build-arg SNAPSHOT_FILE="FILENAME.TAR.GZ"  -f subspace/Dockerfile
-
-
-FROM ubuntu:22.04
-
-# This is being set so that no interactive components are allowed when updating.
-ARG DEBIAN_FRONTEND=noninteractive
-# show backtraces
-ENV RUST_BACKTRACE 1
-
-# Necessary libraries for Rust execution
-RUN apt-get update && apt-get install -y curl build-essential protobuf-compiler clang git
+FROM debian:12-slim AS builder
 
 WORKDIR /subspace
+# Disables any interactive prompts.
+ARG DEBIAN_FRONTEND=noninteractive
 
-COPY ./scripts ./scripts
-# Install cargo and Rust
-
-RUN apt-get update && apt-get install -y clang 
-ENV PATH="/root/.cargo/bin:${PATH}"
-RUN ./scripts/install_rust_env.sh
-
-# Copy the source code
 COPY . .
-# Cargo build
-RUN cargo build --release --locked
 
+# Dependencies using during the build stage.
+RUN apt update && apt install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    build-essential \
+    protobuf-compiler \
+    libclang-dev \
+    git
 
+ENV PATH=/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
+# Installs rust with a minimal footprint and adds the WASM chain. 
+RUN curl https://sh.rustup.rs -sSf | \
+    sh -s -- -y --profile=minimal --default-toolchain=nightly-2024-02-01
+
+RUN cargo build -p node-subspace --release --locked
+
+FROM debian:12-slim
+
+WORKDIR /subspace
+# Enable extensive backtraces
+ENV RUST_BACKTRACE=1
+
+COPY --from=builder /subspace/target/release/node-subspace /subspace/node-subspace
+
+ENTRYPOINT ["/subspace/node-subspace"]
