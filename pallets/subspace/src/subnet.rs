@@ -929,12 +929,7 @@ impl<T: Config> Pallet<T> {
 
 	pub fn get_uid_key_tuples(netuid: u16) -> Vec<(u16, T::AccountId)> {
 		let n = Self::get_subnet_n(netuid);
-		let mut uid_key_tuples = Vec::<(u16, T::AccountId)>::new();
-		for uid in 0..n {
-			let key = Self::get_key_for_uid(netuid, uid);
-			uid_key_tuples.push((uid, key));
-		}
-		uid_key_tuples
+		(0..n).iter().map(|uid| (*uid, Self::get_key_for_uid(netuid, uid))).collect()
 	}
 
 	pub fn get_names(netuid: u16) -> Vec<Vec<u8>> {
