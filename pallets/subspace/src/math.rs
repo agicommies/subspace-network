@@ -105,25 +105,18 @@ pub fn is_zero(vector: &Vec<I32F32>) -> bool {
 pub fn exp_safe(input: I32F32) -> I32F32 {
 	let min_input: I32F32 = I32F32::from_num(-20); // <= 1/exp(-20) = 485 165 195,4097903
 	let max_input: I32F32 = I32F32::from_num(20); // <= exp(20) = 485 165 195,4097903
-	let mut safe_input: I32F32 = input;
-	if input < min_input {
-		safe_input = min_input;
+	let mut safe_input: I32F32 = if input < min_input {
+		min_input
 	} else if max_input < input {
-		safe_input = max_input;
-	}
-	let output: I32F32;
+		max_input
+	} else {
+		input
+	};
 	match exp(safe_input) {
-		Ok(val) => {
-			output = val;
-		},
-		Err(_err) =>
-			if safe_input <= 0 {
-				output = I32F32::from_num(0);
-			} else {
-				output = I32F32::max_value();
-			},
+		Ok(val) => val,
+		Err(_) if safe_input <= 0 => I32F32::from_num(0),
+		Err(_) => I32F32::max_value(),
 	}
-	output
 }
 
 // Sigmoid safe function with I32F32 output of I32F32 input with offset kappa and (recommended)
