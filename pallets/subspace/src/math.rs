@@ -410,7 +410,7 @@ pub fn matmul(matrix: &Vec<Vec<I32F32>>, vector: &Vec<I32F32>) -> Vec<I32F32> {
 	if matrix[0].len() == 0 {
 		return vec![]
 	}
-	assert!(matrix.len() == vector.len());
+	assert_eq!(matrix.len(), vector.len());
 	let mut result: Vec<I32F32> = vec![I32F32::from_num(0.0); matrix[0].len()];
 	for i in 0..matrix.len() {
 		for j in 0..matrix[i].len() {
@@ -430,7 +430,7 @@ pub fn matmul_transpose(matrix: &Vec<Vec<I32F32>>, vector: &Vec<I32F32>) -> Vec<
 	if matrix[0].len() == 0 {
 		return vec![]
 	}
-	assert!(matrix[0].len() == vector.len());
+	assert_eq!(matrix[0].len(), vector.len());
 	let mut result: Vec<I32F32> = vec![I32F32::from_num(0.0); matrix.len()];
 	for i in 0..matrix.len() {
 		for j in 0..matrix[i].len() {
@@ -608,7 +608,7 @@ pub fn weighted_median(
 	if n == 1 {
 		return score[partition_idx[0]]
 	}
-	assert!(stake.len() == score.len());
+	assert_eq!(stake.len(), score.len());
 	let mid_idx: usize = n / 2;
 	let pivot: I32F32 = score[partition_idx[mid_idx]];
 	let mut lo_stake: I32F32 = I32F32::from_num(0);
@@ -712,7 +712,7 @@ pub fn weighted_median_col_sparse(
 
 // Element-wise product of two matrices.
 pub fn hadamard(mat1: &Vec<Vec<I32F32>>, mat2: &Vec<Vec<I32F32>>) -> Vec<Vec<I32F32>> {
-	assert!(mat1.len() == mat2.len());
+	assert_eq!(mat1.len(), mat2.len());
 	if mat1.len() == 0 {
 		return vec![vec![]; 1]
 	}
@@ -770,9 +770,9 @@ pub fn mat_ema(new: &Vec<Vec<I32F32>>, old: &Vec<Vec<I32F32>>, alpha: I32F32) ->
 	}
 	let one_minus_alpha: I32F32 = I32F32::from_num(1.0) - alpha;
 	let mut result: Vec<Vec<I32F32>> = vec![vec![I32F32::from_num(0.0); new[0].len()]; new.len()];
-	assert!(new.len() == old.len());
+	assert_eq!(new.len(), old.len());
 	for i in 0..new.len() {
-		assert!(new[i].len() == old[i].len());
+		assert_eq!(new[i].len(), old[i].len());
 		for j in 0..new[i].len() {
 			result[i][j] = alpha * new[i][j] + one_minus_alpha * old[i][j]
 		}
@@ -841,23 +841,23 @@ mod tests {
 	}
 
 	fn assert_vec_compare(va: &Vec<I32F32>, vb: &Vec<I32F32>, epsilon: I32F32) {
-		assert!(va.len() == vb.len());
+		assert_eq!(va.len(), vb.len());
 		for i in 0..va.len() {
 			assert_float_compare(va[i], vb[i], epsilon);
 		}
 	}
 
 	fn assert_vec_compare_64(va: &Vec<I64F64>, vb: &Vec<I64F64>, epsilon: I64F64) {
-		assert!(va.len() == vb.len());
+		assert_eq!(va.len(), vb.len());
 		for i in 0..va.len() {
 			assert_float_compare_64(va[i], vb[i], epsilon);
 		}
 	}
 
 	fn assert_mat_compare(ma: &Vec<Vec<I32F32>>, mb: &Vec<Vec<I32F32>>, epsilon: I32F32) {
-		assert!(ma.len() == mb.len());
+		assert_eq!(ma.len(), mb.len());
 		for row in 0..ma.len() {
-			assert!(ma[row].len() == mb[row].len());
+			assert_eq!(ma[row].len(), mb[row].len());
 			for col in 0..ma[row].len() {
 				assert_float_compare(ma[row][col], mb[row][col], epsilon)
 			}
@@ -869,11 +869,11 @@ mod tests {
 		mb: &Vec<Vec<(u16, I32F32)>>,
 		epsilon: I32F32,
 	) {
-		assert!(ma.len() == mb.len());
+		assert_eq!(ma.len(), mb.len());
 		for row in 0..ma.len() {
-			assert!(ma[row].len() == mb[row].len());
+			assert_eq!(ma[row].len(), mb[row].len());
 			for j in 0..ma[row].len() {
-				assert!(ma[row][j].0 == mb[row][j].0); // u16
+				assert_eq!(ma[row][j].0, mb[row][j].0); // u16
 				assert_float_compare(ma[row][j].1, mb[row][j].1, epsilon) // I32F32
 			}
 		}
