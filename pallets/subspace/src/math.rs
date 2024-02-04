@@ -1139,8 +1139,7 @@ mod tests {
 			0.9999999981,
 		];
 		assert_eq!(&consensus, &target);
-		let trust: Vec<I32F32> =
-			fixed_vec![0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.];
+		let trust: Vec<I32F32> = fixed_vec![0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.];
 		let consensus: Vec<I32F32> = trust
 			.iter()
 			.map(|t: &I32F32| sigmoid_safe(*t, I32F32::from_num(40), I32F32::from_num(0.5)))
@@ -1192,8 +1191,7 @@ mod tests {
 		let target: Vec<bool> =
 			vec![true, false, true, false, true, false, true, false, true, false];
 		assert_eq!(&result, &target);
-		let vector: Vec<I32F32> =
-			fixed_vec![0.9, 0., 0.8, 0.1, 0.7, 0.2, 0.6, 0.3, 0.5, 0.4];
+		let vector: Vec<I32F32> = fixed_vec![0.9, 0., 0.8, 0.1, 0.7, 0.2, 0.6, 0.3, 0.5, 0.4];
 		let result = is_topk(&vector, 5);
 		let target: Vec<bool> =
 			vec![true, false, true, false, true, false, true, false, true, false];
@@ -1328,7 +1326,11 @@ mod tests {
 
 		let x: Vec<I32F32> = fixed_vec![1., 1., 10.];
 		let y: Vec<I32F32> = fixed_vec![2., 3., 2.];
-		let result: Vec<I32F32> = vec![I32F32::from_num(1.) / I32F32::from_num(2.), I32F32::from_num(1.) / I32F32::from_num(3.), I32F32::from_num(5.)];
+		let result: Vec<I32F32> = vec![
+			I32F32::from_num(1.) / I32F32::from_num(2.),
+			I32F32::from_num(1.) / I32F32::from_num(3.),
+			I32F32::from_num(5.),
+		];
 		assert_eq!(result, vecdiv(&x, &y));
 	}
 
@@ -2010,10 +2012,8 @@ mod tests {
 				)
 			);
 
-			let stake: Vec<I32F32> =
-				fixed_vec![0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
-			let score: Vec<I32F32> =
-				fixed_vec![0.8, 0.8, 0.2, 0.2, 1.0, 1.0, 0.6, 0.6, 0.4, 0.4];
+			let stake: Vec<I32F32> = fixed_vec![0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
+			let score: Vec<I32F32> = fixed_vec![0.8, 0.8, 0.2, 0.2, 1.0, 1.0, 0.6, 0.6, 0.4, 0.4];
 			let majority: I32F32 = I32F32::from_num(0.51);
 			assert_eq!(
 				I32F32::from_num(0.6),
