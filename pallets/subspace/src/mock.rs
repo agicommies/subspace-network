@@ -27,13 +27,10 @@ frame_support::construct_runtime!(
 	}
 );
 
-#[allow(dead_code)]
 pub type SubspaceCall = pallet_subspace::Call<Test>;
 
-#[allow(dead_code)]
 pub type BalanceCall = pallet_balances::Call<Test>;
 
-#[allow(dead_code)]
 pub type TestRuntimeCall = frame_system::Call<Test>;
 
 parameter_types! {
@@ -41,14 +38,12 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 42;
 }
 
-#[allow(dead_code)]
 pub type AccountId = U256;
 
 // The address format for describing accounts.
 pub type Address = AccountId;
 
 // Balance of an account.
-#[allow(dead_code)]
 pub type Balance = u64;
 
 parameter_types! {
@@ -106,7 +101,6 @@ impl pallet_subspace::Config for Test {
 }
 
 // Build genesis storage according to the mock runtime.
-#[allow(dead_code)]
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	sp_tracing::try_init_simple();
 	<frame_system::GenesisConfig<Test>>::default().build_storage().unwrap().into()
