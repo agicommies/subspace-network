@@ -252,7 +252,7 @@ impl<T: Config> Pallet<T> {
 			.collect();
 		let registration_block = Self::get_registration_block_for_uid(netuid, uid as u16);
 
-		let module_stats = ModuleStats {
+		ModuleStats {
 			stake_from,
 			emission: emission.into(),
 			incentive: incentive.into(),
@@ -260,8 +260,6 @@ impl<T: Config> Pallet<T> {
 			last_update: last_update.into(),
 			registration_block: registration_block.into(),
 			weights,
-		};
-
-		module_stats
+		}
 	}
 }
