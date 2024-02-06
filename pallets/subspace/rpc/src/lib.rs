@@ -1,30 +1,38 @@
+use subspace_runtime_api::ModuleInfo;
+pub use subspace_runtime_api::SubspaceRuntimeApi;
 use jsonrpsee::{
-	core::{Error as JsonRpseeError, RpcResult},
+	core::{
+		Error as JsonRpseeError,
+		RpcResult,
+	},
 	proc_macros::rpc,
-	types::error::{CallError, ErrorObject},
+	types::error::{
+		CallError,
+		ErrorObject,
+	},
 };
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{
-	traits::{Block as BlockT, IdentifyAccount, Verify},
-	MultiSignature,
-};
+use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
-use subspace_runtime_api::ModuleInfo;
-pub use subspace_runtime_api::SubspaceRuntimeApi;
+use sp_runtime::{
+	MultiSignature,
+	traits::{
+		Verify,
+		IdentifyAccount,
+	}
+};
 
 type Signature = MultiSignature;
 type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
 #[rpc(client, server)]
-pub trait SubspaceApi<BlockHash, AccountId> {
+pub trait SubspaceApi<BlockHash, AccountId>
+{
 	#[method(name = "subspace_getModuleInfo")]
-	fn get_module_info(
-		&self,
-		key: AccountId,
-		netuid: u16,
-		at: Option<BlockHash>,
-	) -> RpcResult<ModuleInfo>;
+	fn get_module_info(&self, key: AccountId, netuid: u16, at: Option<BlockHash>) -> RpcResult<ModuleInfo>;
+
+
 }
 
 pub struct SubspacePallet<C, Block> {
@@ -44,16 +52,11 @@ where
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
 	C::Api: SubspaceRuntimeApi<Block>,
 {
-	fn get_module_info(
-		&self,
-		key: AccountId,
-		netuid: u16,
-		at: Option<<Block as BlockT>::Hash>,
-	) -> RpcResult<ModuleInfo> {
+	fn get_module_info(&self, key: AccountId, netuid: u16, at: Option<<Block as BlockT>::Hash>) -> RpcResult<ModuleInfo> {
 		let api = self.client.runtime_api();
 		let at = at.unwrap_or_else(|| self.client.info().best_hash);
 
-		let value = api.get_module_info(at, key, netuid).map_err(runtime_error_into_rpc_err);
+		let value = api.get_module_info(at, key, netuid, ).map_err(runtime_error_into_rpc_err);
 		Ok(value.unwrap())
 	}
 }

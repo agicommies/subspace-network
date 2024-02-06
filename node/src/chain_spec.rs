@@ -1,6 +1,6 @@
 use node_subspace_runtime::{
-	AccountId, AuraConfig, BalancesConfig, GrandpaConfig, Precompiles, RuntimeGenesisConfig,
-	Signature, SubspaceModuleConfig, SudoConfig, SystemConfig, WASM_BINARY,
+	AccountId, AuraConfig, BalancesConfig, GrandpaConfig, Signature,
+	SubspaceModuleConfig, SudoConfig, SystemConfig, WASM_BINARY, Precompiles, RuntimeGenesisConfig
 };
 use sc_service::ChainType;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -74,8 +74,8 @@ struct SubspaceJSONState {
 	version: u32,
 }
 
-pub fn generate_config(network: &str) -> Result<ChainSpec, String> {
-	let path: PathBuf = std::path::PathBuf::from(format!("./snapshots/{network}.json"));
+pub fn generate_config(network: String) -> Result<ChainSpec, String> {
+	let path: PathBuf = std::path::PathBuf::from(format!("./snapshots/{}.json", network));
 	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
 
 	// We mmap the file into memory first, as this is *a lot* faster than using
@@ -119,9 +119,9 @@ pub fn generate_config(network: &str) -> Result<ChainSpec, String> {
 			),
 		));
 
-		// Add modules
+		// Add  modules
 		modules.push(Vec::new());
-		for module in state.modules[netuid].iter() {
+		for (_uid, module) in state.modules[netuid].iter().enumerate() {
 			modules[netuid].push((
 				sp_runtime::AccountId32::from(
 					// module_key
@@ -136,14 +136,14 @@ pub fn generate_config(network: &str) -> Result<ChainSpec, String> {
 		for (key_str, key_stake_to) in state.stake_to[netuid].iter() {
 			stake_to[netuid].push((
 				sp_runtime::AccountId32::from(
-					<sr25519::Public as Ss58Codec>::from_ss58check(key_str).unwrap(),
+					<sr25519::Public as Ss58Codec>::from_ss58check(&key_str).unwrap(),
 				),
 				key_stake_to
 					.iter()
 					.map(|(a, b)| {
 						(
 							sp_runtime::AccountId32::from(
-								<sr25519::Public as Ss58Codec>::from_ss58check(a).unwrap(),
+								<sr25519::Public as Ss58Codec>::from_ss58check(&a).unwrap(),
 							),
 							*b,
 						)
@@ -155,7 +155,7 @@ pub fn generate_config(network: &str) -> Result<ChainSpec, String> {
 
 	let mut processed_balances: Vec<(sp_runtime::AccountId32, u64)> = Vec::new();
 	for (key_str, amount) in state.balances.iter() {
-		let key = <sr25519::Public as Ss58Codec>::from_ss58check(key_str).unwrap();
+		let key = <sr25519::Public as Ss58Codec>::from_ss58check(&key_str).unwrap();
 		let key_account = sp_runtime::AccountId32::from(key);
 
 		processed_balances.push((key_account, *amount));
@@ -209,14 +209,14 @@ pub fn generate_config(network: &str) -> Result<ChainSpec, String> {
 }
 
 pub fn mainnet_config() -> Result<ChainSpec, String> {
-	generate_config("main")
+	return generate_config("main".to_string())
 }
 
 pub fn devnet_config() -> Result<ChainSpec, String> {
-	generate_config("dev")
+	return generate_config("dev".to_string())
 }
 pub fn testnet_config() -> Result<ChainSpec, String> {
-	generate_config("test")
+	return generate_config("test".to_string())
 }
 
 // Configure initial storage state for FRAME modules.
@@ -231,11 +231,7 @@ fn network_genesis(
 	block: u32,
 ) -> RuntimeGenesisConfig {
 	use node_subspace_runtime::EVMConfig;
-
-	let (aura_authorities, grandpa_authorities): (Vec<_>, Vec<_>) =
-		initial_authorities.into_iter().unzip();
-	let grandpa_authorities = grandpa_authorities.into_iter().map(|a| (a, 1)).collect();
-
+	
 	RuntimeGenesisConfig {
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
@@ -244,10 +240,16 @@ fn network_genesis(
 		},
 		balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of 1 << 60.
-			balances,
+			//balances: balances.iter().cloned().map(|k| k).collect(),
+			balances: balances.iter().cloned().map(|(k, balance)| (k, balance)).collect(),
 		},
-		aura: AuraConfig { authorities: aura_authorities },
-		grandpa: GrandpaConfig { authorities: grandpa_authorities, ..Default::default() },
+		aura: AuraConfig {
+			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
+		},
+		grandpa: GrandpaConfig {
+			authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
+			..Default::default()
+		},
 		sudo: SudoConfig {
 			// Assign network admin rights.
 			key: Some(root_key),

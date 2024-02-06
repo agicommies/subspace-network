@@ -1,9 +1,10 @@
 use crate::test_mock::*;
 use frame_support::{
 	assert_ok,
-	dispatch::{DispatchClass, DispatchInfo, GetDispatchInfo, Pays},
+	dispatch::{DispatchInfo, GetDispatchInfo},
 	sp_runtime::DispatchError,
 	traits::Currency,
+	dispatch::{DispatchClass, Pays},
 };
 use frame_system::Config;
 use ndarray::stack_new_axis;
