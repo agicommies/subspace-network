@@ -29,10 +29,10 @@ jobs:
         with:
           context: .
           build-args: |
-            AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
-            AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-            SCCACHE_BUCKET="agicommies-subspace-cache"
-            SCCACHE_ENDPOINT="${{ vars.SCCACHE_ENDPOINT }}"
-            SCCACHE_REGION="auto"
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            SCCACHE_BUCKET=agicommies-subspace-cache
+            SCCACHE_ENDPOINT=${{ vars.SCCACHE_ENDPOINT }}
+            SCCACHE_REGION=auto
           push: true
           tags: ghcr.io/agicommies/subspace:${{ steps.commit.outputs.short }}

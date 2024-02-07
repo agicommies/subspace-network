@@ -44,9 +44,12 @@ RUN if [ -n "$SCCACHE_BUCKET" ]; then \
 FROM debian:12-slim
 
 WORKDIR /subspace
+
+COPY --from=builder /subspace/target/release/node-subspace /usr/local/bin
+
+RUN mkdir -p ./snapshots
+RUN ln -s -T /node-data/snapshots ./snapshots
+
 # Enable extensive backtraces
 ENV RUST_BACKTRACE=1
-
-COPY --from=builder /subspace/target/release/node-subspace /subspace/node-subspace
-
-ENTRYPOINT ["/subspace/node-subspace"]
+ENTRYPOINT ["node-subspace"]
