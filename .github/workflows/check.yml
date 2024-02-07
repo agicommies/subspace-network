@@ -1,48 +1,75 @@
 name: Check Set-Up & Build
 
-# Controls when the action will run.
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   check:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    concurrency:
+      group: rust-check
+      cancel-in-progress: true
+
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
 
-      - name: Set-Up
-        run: sudo apt install -y git clang curl libssl-dev llvm libudev-dev protobuf-compiler
+      # Cache cargo's registry
+      - name: Rust registry cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: registry-main-cache
+          cache-targets: false
+          cache-on-failure: true
+          cache-all-crates: false
+          save-if: ${{ github.ref_name == 'main' }}
 
-      - name: Install Rustup
+      - name: Install Rust
         run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source ~/.cargo/env
-          rustup default stable
-          rustup update nightly
-          rustup update stable
-          rustup target add wasm32-unknown-unknown --toolchain nightly
+          rustup set profile minimal
+          rustup show
 
-      - name: Check Build
+      - name: Ensure the code is formatted
+        id: fmt
+        uses: actions-rs/cargo@v1
+        continue-on-error: true
+        with:
+          command: fmt
+          args: -- --check
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          version: 3.20.1
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install sccache
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SCCACHE_BUCKET: "agicommies-subspace-cache"
+          SCCACHE_ENDPOINT: ${{ vars.SCCACHE_ENDPOINT }}
+          SCCACHE_REGION: auto
         run: |
-          SKIP_WASM_BUILD=1 cargo check --release
+          curl https://github.com/mozilla/sccache/releases/download/v0.7.6/sccache-v0.7.6-x86_64-unknown-linux-musl.tar.gz \
+            -Lo sccache-v0.7.6-x86_64-unknown-linux-musl.tar.gz
+          tar -xzf sccache-v0.7.6-x86_64-unknown-linux-musl.tar.gz --strip-components=1 sccache-v0.7.6-x86_64-unknown-linux-musl/sccache
+          ./sccache --start-server
+          echo "RUSTC_WRAPPER=${{ github.workspace }}/sccache" >> "$GITHUB_ENV"
+
+      - name: Ensure Clippy is happy
+        id: clippy
+        uses: actions-rs/clippy-check@v1
+        continue-on-error: true
+        with:
+          args: --color=always --all-features --timings -- -D warnings
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: ${{ github.workspace }}/sccache --show-stats
 
       - name: Run tests
         run: |
           cargo test
-
-      - name: Check Build for Benchmarking
-        run: >
-          pushd node &&
-          cargo check --features=runtime-benchmarks --release
