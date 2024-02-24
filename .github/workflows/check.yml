@@ -21,6 +21,12 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
+      
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          version: 3.20.1
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
@@ -36,7 +42,7 @@ jobs:
           command: fmt
           args: -- --check
 
-      - name: Check code errors
+      - name: Check Clippy errors
         uses: actions-rs/clippy-check@v1
         env:
           SKIP_WASM_BUILD: 1
@@ -49,7 +55,7 @@ jobs:
           SKIP_WASM_BUILD: 1
         run: cargo test
 
-      - name: Check build for benchmarking
+      - name: Check Build for Benchmarking
         run: |
           pushd node
           cargo check --features=runtime-benchmarks --release
