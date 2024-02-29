@@ -4,28 +4,24 @@ use substrate_fixed::{
 	types::{I32F32, I64F64},
 };
 
-#[allow(dead_code)]
 pub fn bottom_k_u16(vector: &Vec<u16>, k: usize) -> Vec<u16> {
 	let mut vec_clone = vector.clone();
 	vec_clone.sort(); // Sorting in ascending order
 	vec_clone.into_iter().take(k).collect()
 }
 
-#[allow(dead_code)]
 pub fn top_k_u16(vector: &Vec<u16>, k: usize) -> Vec<u16> {
 	let mut vec_clone = vector.clone();
 	vec_clone.sort(); // Sorting in ascending order
 	vec_clone.into_iter().rev().take(k).collect()
 }
 
-#[allow(dead_code)]
 pub fn top_k_u64(vector: &Vec<u64>, k: usize) -> Vec<u64> {
 	let mut vec_clone = vector.clone();
 	vec_clone.sort(); // Sorting in ascending order
 	vec_clone.into_iter().rev().take(k).collect()
 }
 
-#[allow(dead_code)]
 pub fn top_percentile_u16(vector: &Vec<u16>, percentile: I32F32) -> Vec<u16> {
 	let mut vec_clone = vector.clone();
 	vec_clone.sort(); // Sorting in ascending order
@@ -33,102 +29,44 @@ pub fn top_percentile_u16(vector: &Vec<u16>, percentile: I32F32) -> Vec<u16> {
 	vec_clone.into_iter().rev().take(k).collect()
 }
 
-#[allow(dead_code)]
-pub fn fixed(val: f32) -> I32F32 {
-	I32F32::from_num(val)
-}
-
-#[allow(dead_code)]
-pub fn fixed_to_u16(x: I32F32) -> u16 {
-	x.to_num::<u16>()
-}
-
-#[allow(dead_code)]
-pub fn fixed_to_u64(x: I32F32) -> u64 {
-	x.to_num::<u64>()
-}
-
-#[allow(dead_code)]
-pub fn fixed64_to_u64(x: I64F64) -> u64 {
-	x.to_num::<u64>()
-}
-
-#[allow(dead_code)]
-pub fn fixed64_to_fixed32(x: I64F64) -> I32F32 {
-	I32F32::from_num(x)
-}
-
-#[allow(dead_code)]
-pub fn u16_to_fixed(x: u16) -> I32F32 {
-	I32F32::from_num(x)
-}
-
-#[allow(dead_code)]
 pub fn u16_proportion_to_fixed(x: u16) -> I32F32 {
 	I32F32::from_num(x) / I32F32::from_num(u16::MAX)
 }
 
-#[allow(dead_code)]
 pub fn fixed_proportion_to_u16(x: I32F32) -> u16 {
-	fixed_to_u16(x * I32F32::from_num(u16::MAX))
+	(x * I32F32::from_num(u16::MAX)).to_num()
 }
 
-#[allow(dead_code)]
-pub fn vec_fixed64_to_fixed32(vec: Vec<I64F64>) -> Vec<I32F32> {
-	vec.into_iter().map(|e| fixed64_to_fixed32(e)).collect()
-}
-
-#[allow(dead_code)]
-pub fn vec_u16_proportions_to_fixed(vec: Vec<u16>) -> Vec<I32F32> {
-	vec.into_iter().map(|e| u16_proportion_to_fixed(e)).collect()
-}
-
-#[allow(dead_code)]
 pub fn vec_fixed_proportions_to_u16(vec: Vec<I32F32>) -> Vec<u16> {
 	vec.into_iter().map(|e| fixed_proportion_to_u16(e)).collect()
 }
 
-#[allow(dead_code)]
-pub fn sum(x: &Vec<I32F32>) -> I32F32 {
-	x.iter().sum()
-}
-
 // Return true when vector sum is zero.
-#[allow(dead_code)]
 pub fn is_zero(vector: &Vec<I32F32>) -> bool {
-	let vector_sum: I32F32 = sum(&vector);
+	let vector_sum: I32F32 = vector.iter().sum();
 	vector_sum == I32F32::from_num(0)
 }
 
 // Exp safe function with I32F32 output of I32F32 input.
-#[allow(dead_code)]
 pub fn exp_safe(input: I32F32) -> I32F32 {
 	let min_input: I32F32 = I32F32::from_num(-20); // <= 1/exp(-20) = 485 165 195,4097903
 	let max_input: I32F32 = I32F32::from_num(20); // <= exp(20) = 485 165 195,4097903
-	let mut safe_input: I32F32 = input;
-	if input < min_input {
-		safe_input = min_input;
+	let safe_input: I32F32 = if input < min_input {
+		min_input
 	} else if max_input < input {
-		safe_input = max_input;
-	}
-	let output: I32F32;
+		max_input
+	} else {
+		input
+	};
 	match exp(safe_input) {
-		Ok(val) => {
-			output = val;
-		},
-		Err(_err) =>
-			if safe_input <= 0 {
-				output = I32F32::from_num(0);
-			} else {
-				output = I32F32::max_value();
-			},
+		Ok(val) => val,
+		Err(_) if safe_input <= 0 => I32F32::from_num(0),
+		Err(_) => I32F32::max_value(),
 	}
-	output
 }
 
 // Sigmoid safe function with I32F32 output of I32F32 input with offset kappa and (recommended)
 // scaling 0 < rho <= 40.
-#[allow(dead_code)]
 pub fn sigmoid_safe(input: I32F32, rho: I32F32, kappa: I32F32) -> I32F32 {
 	let one: I32F32 = I32F32::from_num(1);
 	let offset: I32F32 = input.saturating_sub(kappa); // (input - kappa)
@@ -141,7 +79,6 @@ pub fn sigmoid_safe(input: I32F32, rho: I32F32, kappa: I32F32) -> I32F32 {
 }
 
 // Returns a bool vector where an item is true if the vector item is in topk values.
-#[allow(dead_code)]
 pub fn is_topk(vector: &Vec<I32F32>, k: usize) -> Vec<bool> {
 	let n: usize = vector.len();
 	let mut result: Vec<bool> = vec![true; n];
@@ -157,18 +94,16 @@ pub fn is_topk(vector: &Vec<I32F32>, k: usize) -> Vec<bool> {
 }
 
 // Returns a normalized (sum to 1 except 0) copy of the input vector.
-#[allow(dead_code)]
 pub fn normalize(x: &Vec<I32F32>) -> Vec<I32F32> {
-	let x_sum: I32F32 = sum(x);
-	if x_sum != I32F32::from_num(0.0 as f32) {
-		return x.iter().map(|xi| xi / x_sum).collect()
-	} else {
+	let x_sum: I32F32 = x.iter().sum();
+	if x_sum == I32F32::from_num(0.0 as f32) {
 		x.clone()
+	} else {
+		x.iter().map(|xi| xi / x_sum).collect()
 	}
 }
 
 // Normalizes (sum to 1 except 0) the input vector directly in-place.
-#[allow(dead_code)]
 pub fn inplace_normalize(x: &mut Vec<I32F32>) {
 	let x_sum: I32F32 = x.iter().sum();
 	if x_sum == I32F32::from_num(0.0) {
@@ -180,7 +115,6 @@ pub fn inplace_normalize(x: &mut Vec<I32F32>) {
 }
 
 // Normalizes (sum to 1 except 0) the I64F64 input vector directly in-place.
-#[allow(dead_code)]
 pub fn inplace_normalize_64(x: &mut Vec<I64F64>) {
 	let x_sum: I64F64 = x.iter().sum();
 	if x_sum == I64F64::from_num(0) {
@@ -192,7 +126,6 @@ pub fn inplace_normalize_64(x: &mut Vec<I64F64>) {
 }
 
 /// Returns x / y for input vectors x and y, if y == 0 return 0.
-#[allow(dead_code)]
 pub fn vecdiv(x: &Vec<I32F32>, y: &Vec<I32F32>) -> Vec<I32F32> {
 	assert_eq!(x.len(), y.len());
 	let n = x.len();
@@ -206,7 +139,6 @@ pub fn vecdiv(x: &Vec<I32F32>, y: &Vec<I32F32>) -> Vec<I32F32> {
 }
 
 // Normalizes (sum to 1 except 0) each row (dim=0) of a matrix in-place.
-#[allow(dead_code)]
 pub fn inplace_row_normalize(x: &mut Vec<Vec<I32F32>>) {
 	for i in 0..x.len() {
 		let row_sum: I32F32 = x[i].iter().sum();
@@ -217,7 +149,6 @@ pub fn inplace_row_normalize(x: &mut Vec<Vec<I32F32>>) {
 }
 
 // Normalizes (sum to 1 except 0) each row (dim=0) of a sparse matrix in-place.
-#[allow(dead_code)]
 pub fn inplace_row_normalize_sparse(sparse_matrix: &mut Vec<Vec<(u16, I32F32)>>) {
 	for sparse_row in sparse_matrix.iter_mut() {
 		let row_sum: I32F32 = sparse_row.iter().map(|(_j, value)| *value).sum();
@@ -228,7 +159,6 @@ pub fn inplace_row_normalize_sparse(sparse_matrix: &mut Vec<Vec<(u16, I32F32)>>)
 }
 
 // Sum across each row (dim=0) of a matrix.
-#[allow(dead_code)]
 pub fn row_sum(x: &Vec<Vec<I32F32>>) -> Vec<I32F32> {
 	if x.len() == 0 {
 		return vec![]
@@ -247,7 +177,6 @@ pub fn row_sum(x: &Vec<Vec<I32F32>>) -> Vec<I32F32> {
 }
 
 // Sum across each row (dim=0) of a sparse matrix.
-#[allow(dead_code)]
 pub fn row_sum_sparse(sparse_matrix: &Vec<Vec<(u16, I32F32)>>) -> Vec<I32F32> {
 	let rows = sparse_matrix.len();
 	let mut result: Vec<I32F32> = vec![I32F32::from_num(0); rows];
@@ -260,7 +189,6 @@ pub fn row_sum_sparse(sparse_matrix: &Vec<Vec<(u16, I32F32)>>) -> Vec<I32F32> {
 }
 
 // Sum across each column (dim=1) of a matrix.
-#[allow(dead_code)]
 pub fn col_sum(x: &Vec<Vec<I32F32>>) -> Vec<I32F32> {
 	if x.len() == 0 {
 		return vec![]
@@ -280,7 +208,6 @@ pub fn col_sum(x: &Vec<Vec<I32F32>>) -> Vec<I32F32> {
 }
 
 // Sum across each column (dim=1) of a sparse matrix.
-#[allow(dead_code)]
 pub fn col_sum_sparse(sparse_matrix: &Vec<Vec<(u16, I32F32)>>, columns: u16) -> Vec<I32F32> {
 	let mut result: Vec<I32F32> = vec![I32F32::from_num(0); columns as usize];
 	for sparse_row in sparse_matrix.iter() {
@@ -292,7 +219,6 @@ pub fn col_sum_sparse(sparse_matrix: &Vec<Vec<(u16, I32F32)>>, columns: u16) -> 
 }
 
 // Normalizes (sum to 1 except 0) each column (dim=1) of a sparse matrix in-place.
-#[allow(dead_code)]
 pub fn inplace_col_normalize_sparse(sparse_matrix: &mut Vec<Vec<(u16, I32F32)>>, columns: u16) {
 	let mut col_sum: Vec<I32F32> = vec![I32F32::from_num(0.0); columns as usize]; // assume square matrix, rows=cols
 	for sparse_row in sparse_matrix.iter() {
@@ -311,7 +237,6 @@ pub fn inplace_col_normalize_sparse(sparse_matrix: &mut Vec<Vec<(u16, I32F32)>>,
 }
 
 // Normalizes (sum to 1 except 0) each column (dim=1) of a matrix in-place.
-#[allow(dead_code)]
 pub fn inplace_col_normalize(x: &mut Vec<Vec<I32F32>>) {
 	if x.len() == 0 {
 		return
@@ -338,7 +263,6 @@ pub fn inplace_col_normalize(x: &mut Vec<Vec<I32F32>>) {
 }
 
 // Apply mask to vector, mask=true will mask out, i.e. set to 0.
-#[allow(dead_code)]
 pub fn inplace_mask_vector(mask: &Vec<bool>, vector: &mut Vec<I32F32>) {
 	if mask.len() == 0 {
 		return
@@ -353,7 +277,6 @@ pub fn inplace_mask_vector(mask: &Vec<bool>, vector: &mut Vec<I32F32>) {
 }
 
 // Apply mask to matrix, mask=true will mask out, i.e. set to 0.
-#[allow(dead_code)]
 pub fn inplace_mask_matrix(mask: &Vec<Vec<bool>>, matrix: &mut Vec<Vec<I32F32>>) {
 	if mask.len() == 0 {
 		return
@@ -373,7 +296,6 @@ pub fn inplace_mask_matrix(mask: &Vec<Vec<bool>>, matrix: &mut Vec<Vec<I32F32>>)
 }
 
 // Apply row mask to matrix, mask=true will mask out, i.e. set to 0.
-#[allow(dead_code)]
 pub fn inplace_mask_rows(mask: &Vec<bool>, matrix: &mut Vec<Vec<I32F32>>) {
 	let rows = matrix.len();
 	if rows == 0 {
@@ -390,7 +312,6 @@ pub fn inplace_mask_rows(mask: &Vec<bool>, matrix: &mut Vec<Vec<I32F32>>) {
 }
 
 // Mask out the diagonal of the input matrix in-place.
-#[allow(dead_code)]
 pub fn inplace_mask_diag(matrix: &mut Vec<Vec<I32F32>>) {
 	if matrix.len() == 0 {
 		return
@@ -406,7 +327,6 @@ pub fn inplace_mask_diag(matrix: &mut Vec<Vec<I32F32>>) {
 }
 
 // Return a new sparse matrix that replaces masked rows with an empty vector placeholder.
-#[allow(dead_code)]
 pub fn mask_rows_sparse(
 	mask: &Vec<bool>,
 	sparse_matrix: &Vec<Vec<(u16, I32F32)>>,
@@ -423,7 +343,6 @@ pub fn mask_rows_sparse(
 }
 
 // Return a new sparse matrix with a masked out diagonal of input sparse matrix.
-#[allow(dead_code)]
 pub fn mask_diag_sparse(sparse_matrix: &Vec<Vec<(u16, I32F32)>>) -> Vec<Vec<(u16, I32F32)>> {
 	let n: usize = sparse_matrix.len();
 	let mut result: Vec<Vec<(u16, I32F32)>> = vec![vec![]; n];
@@ -438,7 +357,6 @@ pub fn mask_diag_sparse(sparse_matrix: &Vec<Vec<(u16, I32F32)>>) -> Vec<Vec<(u16
 }
 
 // Remove cells from sparse matrix where the mask function of two vectors is true.
-#[allow(dead_code)]
 pub fn vec_mask_sparse_matrix(
 	sparse_matrix: &Vec<Vec<(u16, I32F32)>>,
 	first_vector: &Vec<u64>,
@@ -458,7 +376,6 @@ pub fn vec_mask_sparse_matrix(
 }
 
 // Row-wise matrix-vector hadamard product.
-#[allow(dead_code)]
 pub fn row_hadamard(matrix: &Vec<Vec<I32F32>>, vector: &Vec<I32F32>) -> Vec<Vec<I32F32>> {
 	if matrix.len() == 0 {
 		return vec![vec![]]
@@ -477,7 +394,6 @@ pub fn row_hadamard(matrix: &Vec<Vec<I32F32>>, vector: &Vec<I32F32>) -> Vec<Vec<
 }
 
 // Row-wise sparse matrix-vector hadamard product.
-#[allow(dead_code)]
 pub fn row_hadamard_sparse(
 	sparse_matrix: &Vec<Vec<(u16, I32F32)>>,
 	vector: &Vec<I32F32>,
@@ -492,7 +408,6 @@ pub fn row_hadamard_sparse(
 }
 
 // Row-wise matrix-vector product, column-wise sum: result_j = SUM(i) vector_i * matrix_ij.
-#[allow(dead_code)]
 pub fn matmul(matrix: &Vec<Vec<I32F32>>, vector: &Vec<I32F32>) -> Vec<I32F32> {
 	if matrix.len() == 0 {
 		return vec![]
@@ -513,7 +428,6 @@ pub fn matmul(matrix: &Vec<Vec<I32F32>>, vector: &Vec<I32F32>) -> Vec<I32F32> {
 }
 
 // Column-wise matrix-vector product, row-wise sum: result_i = SUM(j) vector_j * matrix_ij.
-#[allow(dead_code)]
 pub fn matmul_transpose(matrix: &Vec<Vec<I32F32>>, vector: &Vec<I32F32>) -> Vec<I32F32> {
 	if matrix.len() == 0 {
 		return vec![]
@@ -535,7 +449,6 @@ pub fn matmul_transpose(matrix: &Vec<Vec<I32F32>>, vector: &Vec<I32F32>) -> Vec<
 }
 
 // Row-wise sparse_matrix-vector product, column-wise sum: result_j = SUM(i) vector_i * matrix_ij.
-#[allow(dead_code)]
 pub fn matmul_sparse(
 	sparse_matrix: &Vec<Vec<(u16, I32F32)>>,
 	vector: &Vec<I32F32>,
@@ -553,7 +466,6 @@ pub fn matmul_sparse(
 }
 
 // Column-wise sparse_matrix-vector product, row-wise sum: result_i = SUM(j) vector_j * matrix_ij.
-#[allow(dead_code)]
 pub fn matmul_transpose_sparse(
 	sparse_matrix: &Vec<Vec<(u16, I32F32)>>,
 	vector: &Vec<I32F32>,
@@ -571,7 +483,6 @@ pub fn matmul_transpose_sparse(
 }
 
 // Set inplace matrix values above column threshold to threshold value.
-#[allow(dead_code)]
 pub fn inplace_col_clip(x: &mut Vec<Vec<I32F32>>, col_threshold: &Vec<I32F32>) {
 	for i in 0..x.len() {
 		for j in 0..x[i].len() {
@@ -583,7 +494,6 @@ pub fn inplace_col_clip(x: &mut Vec<Vec<I32F32>>, col_threshold: &Vec<I32F32>) {
 }
 
 // Return sparse matrix with values above column threshold set to threshold value.
-#[allow(dead_code)]
 pub fn col_clip_sparse(
 	sparse_matrix: &Vec<Vec<(u16, I32F32)>>,
 	col_threshold: &Vec<I32F32>,
@@ -604,7 +514,6 @@ pub fn col_clip_sparse(
 }
 
 // Set matrix values below threshold to lower, and equal-above to upper.
-#[allow(dead_code)]
 pub fn clip(
 	x: &Vec<Vec<I32F32>>,
 	threshold: I32F32,
@@ -627,7 +536,6 @@ pub fn clip(
 }
 
 // Set inplace matrix values below threshold to lower, and equal-above to upper.
-#[allow(dead_code)]
 pub fn inplace_clip(x: &mut Vec<Vec<I32F32>>, threshold: I32F32, upper: I32F32, lower: I32F32) {
 	for i in 0..x.len() {
 		for j in 0..x[i].len() {
@@ -642,7 +550,6 @@ pub fn inplace_clip(x: &mut Vec<Vec<I32F32>>, threshold: I32F32, upper: I32F32, 
 
 // Set sparse matrix values below threshold to lower, and equal-above to upper.
 // Does not add missing elements (0 value assumed) when lower!=0.
-#[allow(dead_code)]
 pub fn clip_sparse(
 	sparse_matrix: &Vec<Vec<(u16, I32F32)>>,
 	threshold: I32F32,
@@ -691,7 +598,6 @@ pub fn clip_sparse(
 //     * 'median': ( I32F32 ):
 //         - median via random pivot binary search.
 //
-#[allow(dead_code)]
 pub fn weighted_median(
 	stake: &Vec<I32F32>,
 	score: &Vec<I32F32>,
@@ -752,7 +658,6 @@ pub fn weighted_median(
 
 /// Column-wise weighted median, e.g. stake-weighted median scores per server (column) over all
 /// validators (rows).
-#[allow(dead_code)]
 pub fn weighted_median_col(
 	stake: &Vec<I32F32>,
 	score: &Vec<Vec<I32F32>>,
@@ -791,7 +696,6 @@ pub fn weighted_median_col(
 
 /// Column-wise weighted median, e.g. stake-weighted median scores per server (column) over all
 /// validators (rows).
-#[allow(dead_code)]
 pub fn weighted_median_col_sparse(
 	stake: &Vec<I32F32>,
 	score: &Vec<Vec<(u16, I32F32)>>,
@@ -825,7 +729,6 @@ pub fn weighted_median_col_sparse(
 }
 
 // Element-wise product of two matrices.
-#[allow(dead_code)]
 pub fn hadamard(mat1: &Vec<Vec<I32F32>>, mat2: &Vec<Vec<I32F32>>) -> Vec<Vec<I32F32>> {
 	assert!(mat1.len() == mat2.len());
 	if mat1.len() == 0 {
@@ -845,7 +748,6 @@ pub fn hadamard(mat1: &Vec<Vec<I32F32>>, mat2: &Vec<Vec<I32F32>>) -> Vec<Vec<I32
 }
 
 // Element-wise product of two sparse matrices.
-#[allow(dead_code)]
 pub fn hadamard_sparse(
 	mat1: &Vec<Vec<(u16, I32F32)>>,
 	mat2: &Vec<Vec<(u16, I32F32)>>,
@@ -877,7 +779,6 @@ pub fn hadamard_sparse(
 // Return matrix exponential moving average: `alpha * a_ij + one_minus_alpha * b_ij`.
 // `alpha` is the EMA coefficient, how much to add of the new observation, typically small,
 // higher alpha discounts older observations faster.
-#[allow(dead_code)]
 pub fn mat_ema(new: &Vec<Vec<I32F32>>, old: &Vec<Vec<I32F32>>, alpha: I32F32) -> Vec<Vec<I32F32>> {
 	if new.len() == 0 {
 		return vec![vec![]; 1]
@@ -900,7 +801,6 @@ pub fn mat_ema(new: &Vec<Vec<I32F32>>, old: &Vec<Vec<I32F32>>, alpha: I32F32) ->
 // Return sparse matrix exponential moving average: `alpha * a_ij + one_minus_alpha * b_ij`.
 // `alpha` is the EMA coefficient, how much to add of the new observation, typically small,
 // higher alpha discounts older observations faster.
-#[allow(dead_code)]
 pub fn mat_ema_sparse(
 	new: &Vec<Vec<(u16, I32F32)>>,
 	old: &Vec<Vec<(u16, I32F32)>>,
@@ -929,7 +829,6 @@ pub fn mat_ema_sparse(
 }
 
 // Return sparse matrix only with elements >= threshold of an input sparse matrix.
-#[allow(dead_code)]
 pub fn sparse_threshold(w: &Vec<Vec<(u16, I32F32)>>, threshold: I32F32) -> Vec<Vec<(u16, I32F32)>> {
 	let mut sparse_threshold_result: Vec<Vec<(u16, I32F32)>> = vec![vec![]; w.len()];
 	for (uid_i, weights_i) in w.iter().enumerate() {
@@ -998,8 +897,8 @@ mod tests {
 		}
 	}
 
-	fn vec_to_fixed(vector: &Vec<f32>) -> Vec<I32F32> {
-		vector.iter().map(|x| I32F32::from_num(*x)).collect()
+	macro_rules! fixed_vec {
+		() => {};
 	}
 
 	#[test]
