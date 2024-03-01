@@ -59,7 +59,7 @@ mod tests {
             vec![]
         };
         ($($x:expr),+ $(,)?) => {
-            vec![$($x.into()),+]
+            vec![$(I32F32::from_num($x)),+]
         };
     }
 
