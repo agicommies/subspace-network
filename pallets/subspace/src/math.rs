@@ -12,15 +12,9 @@ pub fn fixed_proportion_to_u16(x: I32F32) -> u16 {
     (x * I32F32::from_num(u16::MAX)).to_num()
 }
 
-#[allow(dead_code)]
-pub fn sum(x: &Vec<I32F32>) -> I32F32 {
-    x.iter().sum()
-}
-
 // Return true when vector sum is zero.
 pub fn is_zero(vector: &Vec<I32F32>) -> bool {
-    let vector_sum: I32F32 = vector.iter().sum();
-    vector_sum == I32F32::from_num(0)
+    vector.iter().sum::<I32F32>() == I32F32::from_num(0)
 }
 
 // Exp safe function with I32F32 output of I32F32 input.
@@ -879,8 +873,13 @@ mod tests {
         }
     }
 
-    fn vec_to_fixed(vector: &Vec<f32>) -> Vec<I32F32> {
-        vector.iter().map(|x| I32F32::from_num(*x)).collect()
+    macro_rules! fixed_vec {
+        () => {
+            vec![]
+        };
+        ($($x:expr),+ $(,)?) => {
+            vec![$($x.into()),+]
+        };
     }
 
     #[test]
@@ -952,15 +951,9 @@ mod tests {
 
     #[test]
     fn test_math_vec_to_fixed() {
-        let vector: Vec<f32> = vec![0., 1., 2., 3.];
-        let target: Vec<I32F32> = vec![
-            I32F32::from_num(0.),
-            I32F32::from_num(1.),
-            I32F32::from_num(2.),
-            I32F32::from_num(3.),
-        ];
-        let result = vec_to_fixed(&vector);
-        assert_vec_compare(&result, &target, I32F32::from_num(0));
+        let vector: Vec<I32F32> = fixed_vec![0., 1., 2., 3.];
+        let target: Vec<I32F32> = fixed_vec![0., 1., 2., 3.,];
+        assert_vec_compare(&vector, &target, I32F32::from_num(0));
     }
 
     // Reshape vector to matrix with specified number of rows, cast to I32F32.
@@ -996,18 +989,7 @@ mod tests {
     #[test]
     fn test_math_vec_to_mat_fixed() {
         let vector: Vec<f32> = vec![0., 1., 2., 0., 10., 100.];
-        let target: Vec<Vec<I32F32>> = vec![
-            vec![
-                I32F32::from_num(0.),
-                I32F32::from_num(1.),
-                I32F32::from_num(2.),
-            ],
-            vec![
-                I32F32::from_num(0.),
-                I32F32::from_num(10.),
-                I32F32::from_num(100.),
-            ],
-        ];
+        let target: Vec<Vec<I32F32>> = vec![fixed_vec![0., 1., 2.,], fixed_vec![0., 10., 100.,]];
         let mat = vec_to_mat_fixed(&vector, 2, false);
         assert_mat_compare(&mat, &target, I32F32::from_num(0));
     }
@@ -1123,7 +1105,7 @@ mod tests {
             .iter()
             .map(|t: &I32F32| sigmoid_safe(*t, I32F32::max_value(), I32F32::max_value()))
             .collect();
-        let target: Vec<I32F32> = vec_to_fixed(&vec![
+        let target: Vec<I32F32> = fixed_vec![
             0.0000000019,
             0.0000000019,
             0.0000000019,
@@ -1131,13 +1113,13 @@ mod tests {
             0.0000000019,
             0.0000000019,
             0.5,
-        ]);
+        ];
         assert_eq!(&consensus, &target);
         let consensus: Vec<I32F32> = trust
             .iter()
             .map(|t: &I32F32| sigmoid_safe(*t, I32F32::min_value(), I32F32::min_value()))
             .collect();
-        let target: Vec<I32F32> = vec_to_fixed(&vec![
+        let target: Vec<I32F32> = fixed_vec![
             0.5,
             0.0000000019,
             0.0000000019,
@@ -1145,7 +1127,7 @@ mod tests {
             0.0000000019,
             0.0000000019,
             0.0000000019,
-        ]);
+        ];
         assert_eq!(&consensus, &target);
         let consensus: Vec<I32F32> = trust
             .iter()
@@ -1162,8 +1144,7 @@ mod tests {
         ];
         let target: Vec<I32F32> = target.iter().map(|c: &f64| I32F32::from_num(*c)).collect();
         assert_eq!(&consensus, &target);
-        let trust: Vec<I32F32> =
-            vec_to_fixed(&vec![0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]);
+        let trust: Vec<I32F32> = fixed_vec![0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.];
         let consensus: Vec<I32F32> = trust
             .iter()
             .map(|t: &I32F32| sigmoid_safe(*t, I32F32::from_num(40), I32F32::from_num(0.5)))
@@ -1187,11 +1168,11 @@ mod tests {
 
     #[test]
     fn test_math_is_topk() {
-        let vector: Vec<I32F32> = vec_to_fixed(&vec![]);
+        let vector: Vec<I32F32> = fixed_vec![];
         let result = is_topk(&vector, 5);
         let target: Vec<bool> = vec![];
         assert_eq!(&result, &target);
-        let vector: Vec<I32F32> = vec_to_fixed(&vec![0., 1., 2., 3., 4., 5., 6., 7., 8., 9.]);
+        let vector: Vec<I32F32> = fixed_vec![0., 1., 2., 3., 4., 5., 6., 7., 8., 9.];
         let result = is_topk(&vector, 0);
         let target: Vec<bool> = vec![
             false, false, false, false, false, false, false, false, false, false,
@@ -1207,26 +1188,25 @@ mod tests {
         assert_eq!(&result, &target);
         let result = is_topk(&vector, 100);
         assert_eq!(&result, &target);
-        let vector: Vec<I32F32> = vec_to_fixed(&vec![9., 8., 7., 6., 5., 4., 3., 2., 1., 0.]);
+        let vector: Vec<I32F32> = fixed_vec![9., 8., 7., 6., 5., 4., 3., 2., 1., 0.];
         let result = is_topk(&vector, 5);
         let target: Vec<bool> = vec![
             true, true, true, true, true, false, false, false, false, false,
         ];
         assert_eq!(&result, &target);
-        let vector: Vec<I32F32> = vec_to_fixed(&vec![9., 0., 8., 1., 7., 2., 6., 3., 5., 4.]);
+        let vector: Vec<I32F32> = fixed_vec![9., 0., 8., 1., 7., 2., 6., 3., 5., 4.];
         let result = is_topk(&vector, 5);
         let target: Vec<bool> = vec![
             true, false, true, false, true, false, true, false, true, false,
         ];
         assert_eq!(&result, &target);
-        let vector: Vec<I32F32> =
-            vec_to_fixed(&vec![0.9, 0., 0.8, 0.1, 0.7, 0.2, 0.6, 0.3, 0.5, 0.4]);
+        let vector: Vec<I32F32> = fixed_vec![0.9, 0., 0.8, 0.1, 0.7, 0.2, 0.6, 0.3, 0.5, 0.4];
         let result = is_topk(&vector, 5);
         let target: Vec<bool> = vec![
             true, false, true, false, true, false, true, false, true, false,
         ];
         assert_eq!(&result, &target);
-        let vector: Vec<I32F32> = vec_to_fixed(&vec![0., 1., 2., 3., 4., 5., 5., 5., 5., 6.]);
+        let vector: Vec<I32F32> = fixed_vec![0., 1., 2., 3., 4., 5., 5., 5., 5., 6.];
         let result = is_topk(&vector, 5);
         let target: Vec<bool> = vec![
             false, false, false, false, false, true, true, true, true, true,
@@ -1236,21 +1216,9 @@ mod tests {
 
     #[test]
     fn test_math_sum() {
-        assert!(sum(&vec![]) == I32F32::from_num(0));
-        assert!(
-            sum(&vec![
-                I32F32::from_num(1.0),
-                I32F32::from_num(10.0),
-                I32F32::from_num(30.0)
-            ]) == I32F32::from_num(41)
-        );
-        assert!(
-            sum(&vec![
-                I32F32::from_num(-1.0),
-                I32F32::from_num(10.0),
-                I32F32::from_num(30.0)
-            ]) == I32F32::from_num(39)
-        );
+        assert!(fixed_vec![].iter().sum::<I32F32>() == I32F32::from_num(0));
+        assert!(fixed_vec![1.0, 10.0, 30.0].iter().sum::<I32F32>() == I32F32::from_num(41));
+        assert!(fixed_vec![-1.0, 10.0, 30.0].iter().sum::<I32F32>() == I32F32::from_num(39));
     }
 
     #[test]
@@ -1259,63 +1227,35 @@ mod tests {
         let x: Vec<I32F32> = vec![];
         let y: Vec<I32F32> = normalize(&x);
         assert_vec_compare(&x, &y, epsilon);
-        let x: Vec<I32F32> = vec![
-            I32F32::from_num(1.0),
-            I32F32::from_num(10.0),
-            I32F32::from_num(30.0),
-        ];
+        let x: Vec<I32F32> = fixed_vec![1.0, 10.0, 30.0,];
         let y: Vec<I32F32> = normalize(&x);
         assert_vec_compare(
             &y,
-            &vec![
-                I32F32::from_num(0.0243902437),
-                I32F32::from_num(0.243902439),
-                I32F32::from_num(0.7317073171),
-            ],
+            &fixed_vec![0.0243902437, 0.243902439, 0.7317073171,],
             epsilon,
         );
-        assert_float_compare(sum(&y), I32F32::from_num(1.0), epsilon);
-        let x: Vec<I32F32> = vec![
-            I32F32::from_num(-1.0),
-            I32F32::from_num(10.0),
-            I32F32::from_num(30.0),
-        ];
+        assert_float_compare(y.iter().sum(), I32F32::from_num(1.0), epsilon);
+        let x: Vec<I32F32> = fixed_vec![-1.0, 10.0, 30.0];
         let y: Vec<I32F32> = normalize(&x);
         assert_vec_compare(
             &y,
-            &vec![
-                I32F32::from_num(-0.0256410255),
-                I32F32::from_num(0.2564102563),
-                I32F32::from_num(0.769230769),
-            ],
+            &fixed_vec![-0.0256410255, 0.2564102563, 0.769230769],
             epsilon,
         );
-        assert_float_compare(sum(&y), I32F32::from_num(1.0), epsilon);
+        assert_float_compare(y.iter().sum(), I32F32::from_num(1.0), epsilon);
     }
 
     #[test]
     fn test_math_inplace_normalize() {
         let epsilon: I32F32 = I32F32::from_num(0.0001);
-        let mut x1: Vec<I32F32> = vec![
-            I32F32::from_num(1.0),
-            I32F32::from_num(10.0),
-            I32F32::from_num(30.0),
-        ];
+        let mut x1: Vec<I32F32> = fixed_vec![1.0, 10.0, 30.0,];
         inplace_normalize(&mut x1);
         assert_vec_compare(
             &x1,
-            &vec![
-                I32F32::from_num(0.0243902437),
-                I32F32::from_num(0.243902439),
-                I32F32::from_num(0.7317073171),
-            ],
+            &fixed_vec![0.0243902437, 0.243902439, 0.7317073171],
             epsilon,
         );
-        let mut x2: Vec<I32F32> = vec![
-            I32F32::from_num(-1.0),
-            I32F32::from_num(10.0),
-            I32F32::from_num(30.0),
-        ];
+        let mut x2: Vec<I32F32> = fixed_vec![-1.0, 10.0, 30.0,];
         inplace_normalize(&mut x2);
         assert_vec_compare(
             &x2,
@@ -1339,11 +1279,7 @@ mod tests {
         inplace_normalize_64(&mut x1);
         assert_vec_compare_64(
             &x1,
-            &vec![
-                I64F64::from_num(0.0243902437),
-                I64F64::from_num(0.243902439),
-                I64F64::from_num(0.7317073171),
-            ],
+            &fixed_vec![0.0243902437, 0.243902439, 0.7317073171],
             epsilon,
         );
         let mut x2: Vec<I64F64> = vec![
@@ -1365,19 +1301,23 @@ mod tests {
 
     #[test]
     fn test_math_vecdiv() {
-        let x: Vec<I32F32> = vec_to_fixed(&vec![]);
-        let y: Vec<I32F32> = vec_to_fixed(&vec![]);
-        let result: Vec<I32F32> = vec_to_fixed(&vec![]);
+        let x: Vec<I32F32> = fixed_vec![];
+        let y: Vec<I32F32> = fixed_vec![];
+        let result: Vec<I32F32> = fixed_vec![];
         assert_eq!(result, vecdiv(&x, &y));
 
-        let x: Vec<I32F32> = vec_to_fixed(&vec![0., 1., 0., 1.]);
-        let y: Vec<I32F32> = vec_to_fixed(&vec![0., 1., 1., 0.]);
-        let result: Vec<I32F32> = vec_to_fixed(&vec![0., 1., 0., 0.]);
+        let x: Vec<I32F32> = fixed_vec![0., 1., 0., 1.];
+        let y: Vec<I32F32> = fixed_vec![0., 1., 1., 0.];
+        let result: Vec<I32F32> = fixed_vec![0., 1., 0., 0.];
         assert_eq!(result, vecdiv(&x, &y));
 
-        let x: Vec<I32F32> = vec_to_fixed(&vec![1., 1., 10.]);
-        let y: Vec<I32F32> = vec_to_fixed(&vec![2., 3., 2.]);
-        let result: Vec<I32F32> = vec![fixed(1.) / fixed(2.), fixed(1.) / fixed(3.), fixed(5.)];
+        let x: Vec<I32F32> = fixed_vec![1., 1., 10.];
+        let y: Vec<I32F32> = fixed_vec![2., 3., 2.];
+        let result: Vec<I32F32> = vec![
+            I32F32::from_num(1.) / I32F32::from_num(2.),
+            I32F32::from_num(1.) / I32F32::from_num(3.),
+            I32F32::from_num(5.),
+        ];
         assert_eq!(result, vecdiv(&x, &y));
     }
 
@@ -1474,18 +1414,18 @@ mod tests {
     #[test]
     fn test_math_inplace_mask_vector() {
         let mask: Vec<bool> = vec![false, false, false];
-        let mut vector: Vec<I32F32> = vec_to_fixed(&vec![0., 1., 2.]);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![0., 1., 2.]);
+        let mut vector: Vec<I32F32> = fixed_vec![0., 1., 2.];
+        let target: Vec<I32F32> = fixed_vec![0., 1., 2.];
         inplace_mask_vector(&mask, &mut vector);
         assert_vec_compare(&vector, &target, I32F32::from_num(0));
         let mask: Vec<bool> = vec![false, true, false];
-        let mut vector: Vec<I32F32> = vec_to_fixed(&vec![0., 1., 2.]);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![0., 0., 2.]);
+        let mut vector: Vec<I32F32> = fixed_vec![0., 1., 2.];
+        let target: Vec<I32F32> = fixed_vec![0., 0., 2.];
         inplace_mask_vector(&mask, &mut vector);
         assert_vec_compare(&vector, &target, I32F32::from_num(0));
         let mask: Vec<bool> = vec![true, true, true];
-        let mut vector: Vec<I32F32> = vec_to_fixed(&vec![0., 1., 2.]);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![0., 0., 0.]);
+        let mut vector: Vec<I32F32> = fixed_vec![0., 1., 2.];
+        let target: Vec<I32F32> = fixed_vec![0., 0., 0.];
         inplace_mask_vector(&mask, &mut vector);
         assert_vec_compare(&vector, &target, I32F32::from_num(0));
     }
@@ -1697,7 +1637,7 @@ mod tests {
 
     #[test]
     fn test_math_row_hadamard() {
-        let vector: Vec<I32F32> = vec_to_fixed(&vec![1., 2., 3., 4.]);
+        let vector: Vec<I32F32> = fixed_vec![1., 2., 3., 4.];
         let matrix: Vec<f32> = vec![1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.];
         let matrix = vec_to_mat_fixed(&matrix, 4, false);
         let result = row_hadamard(&matrix, &vector);
@@ -1708,7 +1648,7 @@ mod tests {
 
     #[test]
     fn test_math_row_hadamard_sparse() {
-        let vector: Vec<I32F32> = vec_to_fixed(&vec![1., 2., 3., 4.]);
+        let vector: Vec<I32F32> = fixed_vec![1., 2., 3., 4.];
         let matrix: Vec<f32> = vec![1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let result = row_hadamard_sparse(&matrix, &vector);
@@ -1734,7 +1674,7 @@ mod tests {
         let matrix: Vec<f32> = vec![1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.];
         let matrix = vec_to_mat_fixed(&matrix, 4, false);
         let result = row_sum(&matrix);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![6., 15., 24., 33.]);
+        let target: Vec<I32F32> = fixed_vec![6., 15., 24., 33.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
     }
 
@@ -1743,22 +1683,22 @@ mod tests {
         let matrix: Vec<f32> = vec![1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let result = row_sum_sparse(&matrix);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![6., 15., 24., 33.]);
+        let target: Vec<I32F32> = fixed_vec![6., 15., 24., 33.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
         let matrix: Vec<f32> = vec![0., 2., 3., 4., 0., 6., 7., 8., 0., 10., 11., 12.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let result = row_sum_sparse(&matrix);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![5., 10., 15., 33.]);
+        let target: Vec<I32F32> = fixed_vec![5., 10., 15., 33.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
         let matrix: Vec<f32> = vec![1., 2., 3., 0., 0., 0., 7., 8., 9., 10., 11., 12.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let result = row_sum_sparse(&matrix);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![6., 0., 24., 33.]);
+        let target: Vec<I32F32> = fixed_vec![6., 0., 24., 33.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
         let matrix: Vec<f32> = vec![0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let result = row_sum_sparse(&matrix);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![0., 0., 0., 0.]);
+        let target: Vec<I32F32> = fixed_vec![0., 0., 0., 0.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
     }
 
@@ -1767,7 +1707,7 @@ mod tests {
         let matrix: Vec<f32> = vec![1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.];
         let matrix = vec_to_mat_fixed(&matrix, 4, false);
         let result = col_sum(&matrix);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![22., 26., 30.]);
+        let target: Vec<I32F32> = fixed_vec![22., 26., 30.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
     }
 
@@ -1776,62 +1716,62 @@ mod tests {
         let matrix: Vec<f32> = vec![1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let result = col_sum_sparse(&matrix, 3);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![22., 26., 30.]);
+        let target: Vec<I32F32> = fixed_vec![22., 26., 30.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
         let matrix: Vec<f32> = vec![0., 2., 3., 4., 0., 6., 7., 8., 0., 10., 11., 12.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let result = col_sum_sparse(&matrix, 3);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![21., 21., 21.]);
+        let target: Vec<I32F32> = fixed_vec![21., 21., 21.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
         let matrix: Vec<f32> = vec![1., 0., 3., 4., 0., 6., 7., 0., 9., 10., 0., 12.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let result = col_sum_sparse(&matrix, 3);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![22., 0., 30.]);
+        let target: Vec<I32F32> = fixed_vec![22., 0., 30.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
         let matrix: Vec<f32> = vec![0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let result = col_sum_sparse(&matrix, 3);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![0., 0., 0.]);
+        let target: Vec<I32F32> = fixed_vec![0., 0., 0.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
     }
 
     #[test]
     fn test_math_matmul() {
-        let vector: Vec<I32F32> = vec_to_fixed(&vec![1., 2., 3., 4.]);
+        let vector: Vec<I32F32> = fixed_vec![1., 2., 3., 4.];
         let matrix: Vec<f32> = vec![1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.];
         let matrix = vec_to_mat_fixed(&matrix, 4, false);
         let result = matmul(&matrix, &vector);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![70., 80., 90.]);
+        let target: Vec<I32F32> = fixed_vec![70., 80., 90.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
     }
 
     #[test]
     fn test_math_matmul_transpose() {
-        let vector: Vec<I32F32> = vec_to_fixed(&vec![1., 2., 3.]);
+        let vector: Vec<I32F32> = fixed_vec![1., 2., 3.];
         let matrix: Vec<f32> = vec![1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.];
         let matrix = vec_to_mat_fixed(&matrix, 4, false);
         let result = matmul_transpose(&matrix, &vector);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![14., 32., 50., 68.]);
+        let target: Vec<I32F32> = fixed_vec![14., 32., 50., 68.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
     }
 
     #[test]
     fn test_math_sparse_matmul() {
-        let vector: Vec<I32F32> = vec_to_fixed(&vec![1., 2., 3., 4.]);
+        let vector: Vec<I32F32> = fixed_vec![1., 2., 3., 4.];
         let matrix: Vec<f32> = vec![1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let result = matmul_sparse(&matrix, &vector, 3);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![70., 80., 90.]);
+        let target: Vec<I32F32> = fixed_vec![70., 80., 90.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
         let matrix: Vec<f32> = vec![0., 2., 3., 4., 0., 6., 7., 8., 0., 10., 11., 12.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let result = matmul_sparse(&matrix, &vector, 3);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![69., 70., 63.]);
+        let target: Vec<I32F32> = fixed_vec![69., 70., 63.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
         let matrix: Vec<f32> = vec![0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let result = matmul_sparse(&matrix, &vector, 3);
-        let target: Vec<I32F32> = vec_to_fixed(&vec![0., 0., 0.]);
+        let target: Vec<I32F32> = fixed_vec![0., 0., 0.];
         assert_vec_compare(&result, &target, I32F32::from_num(0));
     }
 
@@ -1866,7 +1806,7 @@ mod tests {
 
     #[test]
     fn test_math_inplace_col_clip() {
-        let vector: Vec<I32F32> = vec_to_fixed(&vec![0., 5., 12.]);
+        let vector: Vec<I32F32> = fixed_vec![0., 5., 12.];
         let matrix: Vec<f32> = vec![0., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.];
         let mut matrix = vec_to_mat_fixed(&matrix, 4, false);
         let target: Vec<f32> = vec![0., 2., 3., 0., 5., 6., 0., 5., 9., 0., 5., 12.];
@@ -1877,7 +1817,7 @@ mod tests {
 
     #[test]
     fn test_math_col_clip_sparse() {
-        let vector: Vec<I32F32> = vec_to_fixed(&vec![0., 5., 12.]);
+        let vector: Vec<I32F32> = fixed_vec![0., 5., 12.];
         let matrix: Vec<f32> = vec![0., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12.];
         let matrix = vec_to_sparse_mat_fixed(&matrix, 4, false);
         let target: Vec<f32> = vec![0., 2., 3., 0., 5., 6., 0., 5., 9., 0., 5., 12.];
@@ -1946,12 +1886,12 @@ mod tests {
     #[test]
     fn test_math_weighted_median() {
         let mut rng = thread_rng();
-        let zero: I32F32 = fixed(0.);
-        let one: I32F32 = fixed(1.);
+        let zero: I32F32 = I32F32::from_num(0.);
+        let one: I32F32 = I32F32::from_num(1.);
         for _ in 0..100 {
-            let stake: Vec<I32F32> = vec_to_fixed(&vec![]);
-            let score: Vec<I32F32> = vec_to_fixed(&vec![]);
-            let majority: I32F32 = fixed(0.51);
+            let stake: Vec<I32F32> = fixed_vec![];
+            let score: Vec<I32F32> = fixed_vec![];
+            let majority: I32F32 = I32F32::from_num(0.51);
             assert_eq!(
                 zero,
                 weighted_median(
@@ -1964,9 +1904,9 @@ mod tests {
                 )
             );
 
-            let stake: Vec<I32F32> = normalize(&vec_to_fixed(&vec![0.51]));
-            let score: Vec<I32F32> = vec_to_fixed(&vec![1.]);
-            let majority: I32F32 = fixed(0.51);
+            let stake: Vec<I32F32> = normalize(&fixed_vec![0.51]);
+            let score: Vec<I32F32> = fixed_vec![1.];
+            let majority: I32F32 = I32F32::from_num(0.51);
             assert_eq!(
                 one,
                 weighted_median(
@@ -1979,9 +1919,9 @@ mod tests {
                 )
             );
 
-            let stake: Vec<I32F32> = vec_to_fixed(&vec![0.49, 0.51]);
-            let score: Vec<I32F32> = vec_to_fixed(&vec![0.5, 1.]);
-            let majority: I32F32 = fixed(0.51);
+            let stake: Vec<I32F32> = fixed_vec![0.49, 0.51];
+            let score: Vec<I32F32> = fixed_vec![0.5, 1.];
+            let majority: I32F32 = I32F32::from_num(0.51);
             assert_eq!(
                 one,
                 weighted_median(
@@ -1994,11 +1934,11 @@ mod tests {
                 )
             );
 
-            let stake: Vec<I32F32> = vec_to_fixed(&vec![0.51, 0.49]);
-            let score: Vec<I32F32> = vec_to_fixed(&vec![0.5, 1.]);
-            let majority: I32F32 = fixed(0.51);
+            let stake: Vec<I32F32> = fixed_vec![0.51, 0.49];
+            let score: Vec<I32F32> = fixed_vec![0.5, 1.];
+            let majority: I32F32 = I32F32::from_num(0.51);
             assert_eq!(
-                fixed(0.5),
+                I32F32::from_num(0.5),
                 weighted_median(
                     &stake,
                     &score,
@@ -2009,9 +1949,9 @@ mod tests {
                 )
             );
 
-            let stake: Vec<I32F32> = vec_to_fixed(&vec![0.49, 0., 0.51]);
-            let score: Vec<I32F32> = vec_to_fixed(&vec![0.5, 0.7, 1.]);
-            let majority: I32F32 = fixed(0.51);
+            let stake: Vec<I32F32> = fixed_vec![0.49, 0., 0.51];
+            let score: Vec<I32F32> = fixed_vec![0.5, 0.7, 1.];
+            let majority: I32F32 = I32F32::from_num(0.51);
             assert_eq!(
                 one,
                 weighted_median(
@@ -2024,11 +1964,11 @@ mod tests {
                 )
             );
 
-            let stake: Vec<I32F32> = vec_to_fixed(&vec![0.49, 0.01, 0.5]);
-            let score: Vec<I32F32> = vec_to_fixed(&vec![0.5, 0.7, 1.]);
-            let majority: I32F32 = fixed(0.51);
+            let stake: Vec<I32F32> = fixed_vec![0.49, 0.01, 0.5];
+            let score: Vec<I32F32> = fixed_vec![0.5, 0.7, 1.];
+            let majority: I32F32 = I32F32::from_num(0.51);
             assert_eq!(
-                fixed(0.7),
+                I32F32::from_num(0.7),
                 weighted_median(
                     &stake,
                     &score,
@@ -2039,11 +1979,11 @@ mod tests {
                 )
             );
 
-            let stake: Vec<I32F32> = vec_to_fixed(&vec![0.49, 0.51, 0.0]);
-            let score: Vec<I32F32> = vec_to_fixed(&vec![0.5, 0.7, 1.]);
-            let majority: I32F32 = fixed(0.51);
+            let stake: Vec<I32F32> = fixed_vec![0.49, 0.51, 0.0];
+            let score: Vec<I32F32> = fixed_vec![0.5, 0.7, 1.];
+            let majority: I32F32 = I32F32::from_num(0.51);
             assert_eq!(
-                fixed(0.7),
+                I32F32::from_num(0.7),
                 weighted_median(
                     &stake,
                     &score,
@@ -2054,9 +1994,9 @@ mod tests {
                 )
             );
 
-            let stake: Vec<I32F32> = vec_to_fixed(&vec![0.0, 0.49, 0.51]);
-            let score: Vec<I32F32> = vec_to_fixed(&vec![0.5, 0.7, 1.]);
-            let majority: I32F32 = fixed(0.51);
+            let stake: Vec<I32F32> = fixed_vec![0.0, 0.49, 0.51];
+            let score: Vec<I32F32> = fixed_vec![0.5, 0.7, 1.];
+            let majority: I32F32 = I32F32::from_num(0.51);
             assert_eq!(
                 one,
                 weighted_median(
@@ -2069,9 +2009,9 @@ mod tests {
                 )
             );
 
-            let stake: Vec<I32F32> = vec_to_fixed(&vec![0.0, 0.49, 0.0, 0.51]);
-            let score: Vec<I32F32> = vec_to_fixed(&vec![0.5, 0.5, 1., 1.]);
-            let majority: I32F32 = fixed(0.51);
+            let stake: Vec<I32F32> = fixed_vec![0.0, 0.49, 0.0, 0.51];
+            let score: Vec<I32F32> = fixed_vec![0.5, 0.5, 1., 1.];
+            let majority: I32F32 = I32F32::from_num(0.51);
             assert_eq!(
                 one,
                 weighted_median(
@@ -2084,9 +2024,9 @@ mod tests {
                 )
             );
 
-            let stake: Vec<I32F32> = vec_to_fixed(&vec![0.0, 0.49, 0.0, 0.51, 0.0]);
-            let score: Vec<I32F32> = vec_to_fixed(&vec![0.5, 0.5, 1., 1., 0.5]);
-            let majority: I32F32 = fixed(0.51);
+            let stake: Vec<I32F32> = fixed_vec![0.0, 0.49, 0.0, 0.51, 0.0];
+            let score: Vec<I32F32> = fixed_vec![0.5, 0.5, 1., 1., 0.5];
+            let majority: I32F32 = I32F32::from_num(0.51);
             assert_eq!(
                 one,
                 weighted_median(
@@ -2099,11 +2039,11 @@ mod tests {
                 )
             );
 
-            let stake: Vec<I32F32> = vec_to_fixed(&vec![0.2, 0.2, 0.2, 0.2, 0.2]);
-            let score: Vec<I32F32> = vec_to_fixed(&vec![0.8, 0.2, 1., 0.6, 0.4]);
-            let majority: I32F32 = fixed(0.51);
+            let stake: Vec<I32F32> = fixed_vec![0.2, 0.2, 0.2, 0.2, 0.2];
+            let score: Vec<I32F32> = fixed_vec![0.8, 0.2, 1., 0.6, 0.4];
+            let majority: I32F32 = I32F32::from_num(0.51);
             assert_eq!(
-                fixed(0.6),
+                I32F32::from_num(0.6),
                 weighted_median(
                     &stake,
                     &score,
@@ -2114,13 +2054,11 @@ mod tests {
                 )
             );
 
-            let stake: Vec<I32F32> =
-                vec_to_fixed(&vec![0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
-            let score: Vec<I32F32> =
-                vec_to_fixed(&vec![0.8, 0.8, 0.2, 0.2, 1.0, 1.0, 0.6, 0.6, 0.4, 0.4]);
-            let majority: I32F32 = fixed(0.51);
+            let stake: Vec<I32F32> = fixed_vec![0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
+            let score: Vec<I32F32> = fixed_vec![0.8, 0.8, 0.2, 0.2, 1.0, 1.0, 0.6, 0.6, 0.4, 0.4];
+            let majority: I32F32 = I32F32::from_num(0.51);
             assert_eq!(
-                fixed(0.6),
+                I32F32::from_num(0.6),
                 weighted_median(
                     &stake,
                     &score,
@@ -2132,7 +2070,7 @@ mod tests {
             );
 
             let n: usize = 100;
-            for majority in vec_to_fixed(&vec![
+            for majority in fixed_vec![
                 0.,
                 0.0000001,
                 0.25,
@@ -2145,7 +2083,7 @@ mod tests {
                 0.5100000000001,
                 0.9999999,
                 1.,
-            ]) {
+            ] {
                 for allow_equal in [false, true] {
                     let mut stake: Vec<I32F32> = vec![];
                     let mut score: Vec<I32F32> = vec![];
@@ -2223,79 +2161,97 @@ mod tests {
 
     #[test]
     fn test_math_weighted_median_col() {
-        let stake: Vec<I32F32> = vec_to_fixed(&vec![]);
+        let stake: Vec<I32F32> = fixed_vec![];
         let weights: Vec<Vec<I32F32>> = vec![vec![]];
-        let median: Vec<I32F32> = vec_to_fixed(&vec![]);
-        assert_eq!(median, weighted_median_col(&stake, &weights, fixed(0.5)));
+        let median: Vec<I32F32> = fixed_vec![];
+        assert_eq!(
+            median,
+            weighted_median_col(&stake, &weights, I32F32::from_num(0.5))
+        );
 
-        let stake: Vec<I32F32> = vec_to_fixed(&vec![0., 0.]);
+        let stake: Vec<I32F32> = fixed_vec![0., 0.];
         let weights: Vec<f32> = vec![0., 0., 0., 0.];
         let weights: Vec<Vec<I32F32>> = vec_to_mat_fixed(&weights, 2, false);
-        let median: Vec<I32F32> = vec_to_fixed(&vec![0., 0.]);
-        assert_eq!(median, weighted_median_col(&stake, &weights, fixed(0.5)));
+        let median: Vec<I32F32> = fixed_vec![0., 0.];
+        assert_eq!(
+            median,
+            weighted_median_col(&stake, &weights, I32F32::from_num(0.5))
+        );
 
-        let stake: Vec<I32F32> = vec_to_fixed(&vec![0., 0.75, 0.25, 0.]);
+        let stake: Vec<I32F32> = fixed_vec![0., 0.75, 0.25, 0.];
         let weights: Vec<f32> = vec![0., 0.1, 0., 0., 0.2, 0.4, 0., 0.3, 0.1, 0., 0.4, 0.5];
         let weights: Vec<Vec<I32F32>> = vec_to_mat_fixed(&weights, 4, false);
-        let median: Vec<I32F32> = vec_to_fixed(&vec![0., 0.3, 0.4]);
-        assert_eq!(median, weighted_median_col(&stake, &weights, fixed(0.24)));
-        let median: Vec<I32F32> = vec_to_fixed(&vec![0., 0.2, 0.4]);
-        assert_eq!(median, weighted_median_col(&stake, &weights, fixed(0.26)));
-        let median: Vec<I32F32> = vec_to_fixed(&vec![0., 0.2, 0.1]);
-        assert_eq!(median, weighted_median_col(&stake, &weights, fixed(0.76)));
+        let median: Vec<I32F32> = fixed_vec![0., 0.3, 0.4];
+        assert_eq!(
+            median,
+            weighted_median_col(&stake, &weights, I32F32::from_num(0.24))
+        );
+        let median: Vec<I32F32> = fixed_vec![0., 0.2, 0.4];
+        assert_eq!(
+            median,
+            weighted_median_col(&stake, &weights, I32F32::from_num(0.26))
+        );
+        let median: Vec<I32F32> = fixed_vec![0., 0.2, 0.1];
+        assert_eq!(
+            median,
+            weighted_median_col(&stake, &weights, I32F32::from_num(0.76))
+        );
 
-        let stake: Vec<I32F32> = vec_to_fixed(&vec![0., 0.3, 0.2, 0.5]);
+        let stake: Vec<I32F32> = fixed_vec![0., 0.3, 0.2, 0.5];
         let weights: Vec<f32> = vec![0., 0.1, 0., 0., 0.2, 0.4, 0., 0.3, 0.1, 0., 0., 0.5];
         let weights: Vec<Vec<I32F32>> = vec_to_mat_fixed(&weights, 4, false);
-        let median: Vec<I32F32> = vec_to_fixed(&vec![0., 0., 0.4]);
-        assert_eq!(median, weighted_median_col(&stake, &weights, fixed(0.51)));
+        let median: Vec<I32F32> = fixed_vec![0., 0., 0.4];
+        assert_eq!(
+            median,
+            weighted_median_col(&stake, &weights, I32F32::from_num(0.51))
+        );
     }
 
     #[test]
     fn test_math_weighted_median_col_sparse() {
-        let stake: Vec<I32F32> = vec_to_fixed(&vec![]);
+        let stake: Vec<I32F32> = fixed_vec![];
         let weights: Vec<Vec<(u16, I32F32)>> = vec![vec![]];
-        let median: Vec<I32F32> = vec_to_fixed(&vec![]);
+        let median: Vec<I32F32> = fixed_vec![];
         assert_eq!(
             median,
-            weighted_median_col_sparse(&stake, &weights, 0, fixed(0.5))
+            weighted_median_col_sparse(&stake, &weights, 0, I32F32::from_num(0.5))
         );
 
-        let stake: Vec<I32F32> = vec_to_fixed(&vec![0., 0.]);
+        let stake: Vec<I32F32> = fixed_vec![0., 0.];
         let weights: Vec<f32> = vec![0., 0., 0., 0.];
         let weights: Vec<Vec<(u16, I32F32)>> = vec_to_sparse_mat_fixed(&weights, 2, false);
-        let median: Vec<I32F32> = vec_to_fixed(&vec![0., 0.]);
+        let median: Vec<I32F32> = fixed_vec![0., 0.];
         assert_eq!(
             median,
-            weighted_median_col_sparse(&stake, &weights, 2, fixed(0.5))
+            weighted_median_col_sparse(&stake, &weights, 2, I32F32::from_num(0.5))
         );
 
-        let stake: Vec<I32F32> = vec_to_fixed(&vec![0., 0.75, 0.25, 0.]);
+        let stake: Vec<I32F32> = fixed_vec![0., 0.75, 0.25, 0.];
         let weights: Vec<f32> = vec![0., 0.1, 0., 0., 0.2, 0.4, 0., 0.3, 0.1, 0., 0.4, 0.5];
         let weights: Vec<Vec<(u16, I32F32)>> = vec_to_sparse_mat_fixed(&weights, 4, false);
-        let median: Vec<I32F32> = vec_to_fixed(&vec![0., 0.3, 0.4]);
+        let median: Vec<I32F32> = fixed_vec![0., 0.3, 0.4];
         assert_eq!(
             median,
-            weighted_median_col_sparse(&stake, &weights, 3, fixed(0.24))
+            weighted_median_col_sparse(&stake, &weights, 3, I32F32::from_num(0.24))
         );
-        let median: Vec<I32F32> = vec_to_fixed(&vec![0., 0.2, 0.4]);
+        let median: Vec<I32F32> = fixed_vec![0., 0.2, 0.4];
         assert_eq!(
             median,
-            weighted_median_col_sparse(&stake, &weights, 3, fixed(0.26))
+            weighted_median_col_sparse(&stake, &weights, 3, I32F32::from_num(0.26))
         );
-        let median: Vec<I32F32> = vec_to_fixed(&vec![0., 0.2, 0.1]);
+        let median: Vec<I32F32> = fixed_vec![0., 0.2, 0.1];
         assert_eq!(
             median,
-            weighted_median_col_sparse(&stake, &weights, 3, fixed(0.76))
+            weighted_median_col_sparse(&stake, &weights, 3, I32F32::from_num(0.76))
         );
 
-        let stake: Vec<I32F32> = vec_to_fixed(&vec![0., 0.3, 0.2, 0.5]);
+        let stake: Vec<I32F32> = fixed_vec![0., 0.3, 0.2, 0.5];
         let weights: Vec<f32> = vec![0., 0.1, 0., 0., 0.2, 0.4, 0., 0.3, 0.1, 0., 0., 0.5];
         let weights: Vec<Vec<(u16, I32F32)>> = vec_to_sparse_mat_fixed(&weights, 4, false);
-        let median: Vec<I32F32> = vec_to_fixed(&vec![0., 0., 0.4]);
+        let median: Vec<I32F32> = fixed_vec![0., 0., 0.4];
         assert_eq!(
             median,
-            weighted_median_col_sparse(&stake, &weights, 3, fixed(0.51))
+            weighted_median_col_sparse(&stake, &weights, 3, I32F32::from_num(0.51))
         );
     }
 
