@@ -2090,13 +2090,9 @@ mod tests {
                     let mut last_score: I32F32 = zero;
                     for i in 0..n {
                         if allow_equal {
-                            match rng.gen_range(0..2) {
-                                1 => stake.push(one),
-                                _ => stake.push(zero),
-                            }
-                            match rng.gen_range(0..2) {
-                                1 => last_score += one,
-                                _ => (),
+                            stake.push(if rng.gen_range(0..2) == 1 { one } else { zero });
+                            if rng.gen_range(0..2) == 1 {
+                                last_score += one;
                             }
                             score.push(last_score);
                         } else {
