@@ -111,7 +111,7 @@ mod tests {
     }
 
     fn assert_float_compare(a: I32F32, b: I32F32, epsilon: I32F32) {
-        assert!(I32F32::abs(a - b) <= epsilon, "a({:?}) != b({:?})", a, b);
+        assert!(I32F32::abs(a - b) <= epsilon, "a({a:?}) != b({b:?})");
     }
 
     fn assert_vec_compare(va: &[I32F32], vb: &[I32F32], epsilon: I32F32) {
