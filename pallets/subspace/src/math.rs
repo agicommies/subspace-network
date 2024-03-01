@@ -117,7 +117,7 @@ mod tests {
     fn assert_vec_compare(va: &[I32F32], vb: &[I32F32], epsilon: I32F32) {
         assert!(va.len() == vb.len());
         for (a, b) in va.iter().zip(vb.iter()) {
-            assert_float_compare(va[i], vb[i], epsilon);
+            assert_float_compare(*a, *b, epsilon);
         }
     }
 
