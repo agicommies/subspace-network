@@ -104,7 +104,7 @@ mod tests {
     fn normalize(x: &[I32F32]) -> Vec<I32F32> {
         let x_sum: I32F32 = x.iter().sum();
         if x_sum == I32F32::from_num(0.0) {
-            x.into()
+            x.to_vec()
         } else {
             x.iter().map(|xi| xi / x_sum).collect()
         }
