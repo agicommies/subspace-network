@@ -2,18 +2,18 @@ use sp_std::{vec, vec::Vec};
 use substrate_fixed::types::I32F32;
 
 // Return true when vector sum is zero.
-pub fn is_zero(vector: &Vec<I32F32>) -> bool {
+pub fn is_zero(vector: &[I32F32]) -> bool {
     vector.iter().sum::<I32F32>() == I32F32::from_num(0)
 }
 
 // Normalizes (sum to 1 except 0) the input vector directly in-place.
-pub fn inplace_normalize(x: &mut Vec<I32F32>) {
+pub fn inplace_normalize(x: &mut [I32F32]) {
     let x_sum: I32F32 = x.iter().sum();
     if x_sum == I32F32::from_num(0.0) {
         return;
     }
-    for i in 0..x.len() {
-        x[i] = x[i] / x_sum;
+    for i in x.iter_mut() {
+        *i /= x_sum;
     }
 }
 
@@ -26,7 +26,7 @@ pub fn fixed_proportion_to_u16(x: I32F32) -> u16 {
 }
 
 // Return a new sparse matrix with a masked out diagonal of input sparse matrix.
-pub fn mask_diag_sparse(sparse_matrix: &Vec<Vec<(u16, I32F32)>>) -> Vec<Vec<(u16, I32F32)>> {
+pub fn mask_diag_sparse(sparse_matrix: &[Vec<(u16, I32F32)>]) -> Vec<Vec<(u16, I32F32)>> {
     let n: usize = sparse_matrix.len();
     let mut result: Vec<Vec<(u16, I32F32)>> = vec![vec![]; n];
     for (i, sparse_row) in sparse_matrix.iter().enumerate() {
@@ -40,7 +40,7 @@ pub fn mask_diag_sparse(sparse_matrix: &Vec<Vec<(u16, I32F32)>>) -> Vec<Vec<(u16
 }
 
 /// Normalizes (sum to 1 except 0) each row (dim=0) of a sparse matrix in-place.
-pub fn inplace_row_normalize_sparse(sparse_matrix: &mut Vec<Vec<(u16, I32F32)>>) {
+pub fn inplace_row_normalize_sparse(sparse_matrix: &mut [Vec<(u16, I32F32)>]) {
     for sparse_row in sparse_matrix.iter_mut() {
         let row_sum: I32F32 = sparse_row.iter().map(|(_j, value)| *value).sum();
         if row_sum > I32F32::from_num(0.0) {
@@ -52,11 +52,7 @@ pub fn inplace_row_normalize_sparse(sparse_matrix: &mut Vec<Vec<(u16, I32F32)>>)
 #[cfg(test)]
 mod tests {
     use crate::math::*;
-    use rand::{seq::SliceRandom, thread_rng, Rng};
-    use substrate_fixed::{
-        transcendental::exp,
-        types::{I32F32, I64F64, I96F32},
-    };
+    use substrate_fixed::types::{I32F32, I64F64, I96F32};
 
     macro_rules! fixed_vec {
         () => {
