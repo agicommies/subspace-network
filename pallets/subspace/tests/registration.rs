@@ -94,9 +94,7 @@ fn test_delegate_register() {
         let stake_amount: u64 = 10_000_000_000;
         SubspaceModule::add_balance_to_account(&key, stake_amount * n as u64);
         for module_key in module_keys {
-            eprintln!("burn {module_key}_1: {}", SubspaceModule::get_burn());
-            delegate_register_module(netuid, key, module_key, stake_amount).expect("foo");
-            eprintln!("burn {module_key}_2: {}", SubspaceModule::get_burn());
+            delegate_register_module(netuid, key, module_key, stake_amount).expect("failed to register module");
             let key_balance = SubspaceModule::get_balance_u64(&key);
             let stake_to_module = SubspaceModule::get_stake_to_module(netuid, &key, &module_key);
             println!("key_balance: {key_balance}\n stake_to_module: {stake_to_module}");
