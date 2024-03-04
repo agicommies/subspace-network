@@ -57,7 +57,7 @@ impl<T: Config> Pallet<T> {
         // --- 6. Ensure the module key is not already registered,
         // and namespace is not already taken.
         ensure!(
-            !Self::key_registered(netuid, &key),
+            !Self::key_registered(netuid, &module_key),
             Error::<T>::KeyAlreadyRegistered
         );
 
