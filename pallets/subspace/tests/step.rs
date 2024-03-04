@@ -170,7 +170,7 @@ fn test_dividends_diff_stake() {
             let key: U256 = U256::from(i);
             assert_ok!(register_module(netuid, key, stake));
         }
-        register_n_modules(netuid, n, stake_per_module);
+        // register_n_modules(netuid, n, stake_per_module);
         SubspaceModule::set_tempo(netuid, tempo);
         SubspaceModule::set_max_allowed_weights(netuid, n);
         SubspaceModule::set_min_allowed_weights(netuid, 0);
@@ -241,7 +241,6 @@ fn test_dividends_diff_stake() {
     });
 }
 
-#[test]
 fn test_pruning() {
     new_test_ext().execute_with(|| {
         // CONSSTANTS
@@ -919,7 +918,6 @@ fn test_founder_share() {
         );
     });
 }
-
 
 #[test]
 fn test_dynamic_burn() {

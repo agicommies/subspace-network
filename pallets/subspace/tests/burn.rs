@@ -149,12 +149,12 @@ fn test_min_burn() {
         params = SubspaceModule::global_params();
         for i in 1..n {
             assert_ok!(register_module(netuid, keys[i], stakes[i]));
-            println!("params: {:?}", params);
+            eprintln!("params: {:?}\n n: {i}", params);
 
             let key_stake_after = SubspaceModule::get_total_stake_to(netuid, &keys[i]);
             assert_eq!(
                 key_stake_after,
-                stakes[i] - params.min_burn,
+                stakes[i] - SubspaceModule::get_burn(),
                 "key_stake_after: {:?} stakes[i]: {:?}",
                 key_stake_after,
                 stakes[i]

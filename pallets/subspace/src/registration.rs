@@ -91,7 +91,7 @@ impl<T: Config> Pallet<T> {
 
         // Make sure that the registration went through.
         ensure!(
-            Self::key_registered(netuid, &key),
+            Self::key_registered(netuid, &module_key),
             Error::<T>::NotRegistered
         );
 
