@@ -77,9 +77,12 @@ impl<T: Config> Pallet<T> {
         // Make sure that the burn rate is at least 0.1 $ COMAI, it can't be
         // zero, because the whole dynamic burn system would get broken.
         ensure!(params.min_burn >= 100_000_000, Error::<T>::InvalidMinBurn);
-        
+
         // Make sure that the maximum burn is larger than minimum burn
-        ensure!(params.max_burn > params.min_burn, Error::<T>::InvalidMaxBurn);
+        ensure!(
+            params.max_burn > params.min_burn,
+            Error::<T>::InvalidMaxBurn
+        );
 
         Ok(())
     }
