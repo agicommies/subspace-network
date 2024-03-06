@@ -1,7 +1,9 @@
 mod mock;
 
+use frame_support::assert_err;
 use mock::*;
 use sp_core::U256;
+use sp_runtime::{DispatchError, ModuleError};
 
 /********************************************
     subscribing::subscribe() tests
@@ -15,8 +17,7 @@ fn test_min_stake() {
         let _tempo: u16 = 13;
         let netuid: u16 = 0;
         let min_stake = 100_000_000;
-        let max_registrations_per_block = 100;
-        let reg_this_block: u16 = 100;
+        let max_registrations_per_block = 10;
 
         register_module(netuid, U256::from(0), 0).expect("register module failed");
         SubspaceModule::set_min_stake(netuid, min_stake);
@@ -26,15 +27,17 @@ fn test_min_stake() {
 
         let min_stake_to_register = SubspaceModule::get_min_stake(netuid);
 
-        for key in 1..=reg_this_block {
-		    let key = U256::from(key);
+        for key in 1..=max_registrations_per_block {
+			let key = U256::from(key);
             register_module(netuid, key, min_stake_to_register).unwrap_or_else(|_| {
 				panic!("register module failed for key: {key:?} and min_stake_to_register: {min_stake_to_register:?}")
 			});
             println!("registered module with key: {key:?} and min_stake_to_register: {min_stake_to_register:?}");
         }
+
         let registrations_this_block = SubspaceModule::get_registrations_this_block();
         println!("registrations_this_block: {registrations_this_block:?}");
+		assert_err!(register_module(netuid, U256::from(max_registrations_per_block + 1), min_stake_to_register), DispatchError::Module(ModuleError { index: 2, error: [15, 0, 0, 0], message: Some("TooManyRegistrationsPerBlock") }));
         assert_eq!(registrations_this_block, max_registrations_per_block);
 
         step_block(1);
