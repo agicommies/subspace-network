@@ -81,36 +81,6 @@ struct SubspaceJSONState {
     version: u32,
 }
 
-fn new_account_id(id: &str) -> sp_runtime::AccountId32 {
-    sp_runtime::AccountId32::from(<sr25519::Public as Ss58Codec>::from_ss58check(id).unwrap())
-}
-
-fn deserialize_subnet(
-    (
-        name,
-        tempo,
-        immunity_period,
-        min_allowed_weights,
-        max_allowed_weights,
-        max_allowed_uids,
-        burn_rate,
-        min_stake,
-        founder,
-    ): JSONSubnet,
-) -> Subnet {
-    (
-        name.as_bytes().to_vec(),
-        tempo,
-        immunity_period,
-        min_allowed_weights,
-        max_allowed_weights,
-        max_allowed_uids,
-        burn_rate,
-        min_stake,
-        new_account_id(&founder),
-    )
-}
-
 pub fn generate_config(network: String) -> Result<ChainSpec, String> {
     let path: PathBuf = std::path::PathBuf::from(format!("./snapshots/{}.json", network));
     let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
@@ -269,4 +239,34 @@ fn network_genesis(
         ethereum: Default::default(),
         base_fee: Default::default(),
     }
+}
+
+fn new_account_id(id: &str) -> sp_runtime::AccountId32 {
+    sp_runtime::AccountId32::from(<sr25519::Public as Ss58Codec>::from_ss58check(id).unwrap())
+}
+
+fn deserialize_subnet(
+    (
+        name,
+        tempo,
+        immunity_period,
+        min_allowed_weights,
+        max_allowed_weights,
+        max_allowed_uids,
+        burn_rate,
+        min_stake,
+        founder,
+    ): JSONSubnet,
+) -> Subnet {
+    (
+        name.as_bytes().to_vec(),
+        tempo,
+        immunity_period,
+        min_allowed_weights,
+        max_allowed_weights,
+        max_allowed_uids,
+        burn_rate,
+        min_stake,
+        new_account_id(&founder),
+    )
 }
