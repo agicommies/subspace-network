@@ -81,6 +81,10 @@ struct SubspaceJSONState {
     version: u32,
 }
 
+fn new_account_id(id: &str) -> sp_runtime::AccountId32 {
+    sp_runtime::AccountId32::from(<sr25519::Public as Ss58Codec>::from_ss58check(id).unwrap())
+}
+
 pub fn generate_config(network: String) -> Result<ChainSpec, String> {
     let path: PathBuf = std::path::PathBuf::from(format!("./snapshots/{}.json", network));
     let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
@@ -126,52 +130,35 @@ pub fn generate_config(network: String) -> Result<ChainSpec, String> {
             max_allowed_uids,
             burn_rate,
             min_stake,
-            sp_runtime::AccountId32::from(
-                <sr25519::Public as Ss58Codec>::from_ss58check(&founder).unwrap(),
-            ),
+            new_account_id(&founder),
         ));
 
         // Add  modules
-        modules.push(Vec::new());
-        for module in state.modules[netuid].iter() {
+        modules.push(vec![]);
+        for (id, name, address, weights) in state.modules[netuid].iter() {
             modules[netuid].push((
-                sp_runtime::AccountId32::from(
-                    // module_key
-                    <sr25519::Public as Ss58Codec>::from_ss58check(&module.0).unwrap(),
-                ),
-                module.1.as_bytes().to_vec(),                     // name
-                module.2.as_bytes().to_vec(),                     // address
-                module.3.iter().map(|(a, b)| (*a, *b)).collect(), // weights: Convert to tuples
+                new_account_id(id),
+                name.as_bytes().to_vec(),
+                address.as_bytes().to_vec(),
+                weights.iter().map(|(a, b)| (*a, *b)).collect(),
             ));
         }
+
+        // Add stake to
         stake_to.push(Vec::new());
-        for (key_str, key_stake_to) in state.stake_to[netuid].iter() {
+        for (key, key_stake_to) in state.stake_to[netuid].iter() {
             stake_to[netuid].push((
-                sp_runtime::AccountId32::from(
-                    <sr25519::Public as Ss58Codec>::from_ss58check(key_str).unwrap(),
-                ),
-                key_stake_to
-                    .iter()
-                    .map(|(a, b)| {
-                        (
-                            sp_runtime::AccountId32::from(
-                                <sr25519::Public as Ss58Codec>::from_ss58check(a).unwrap(),
-                            ),
-                            *b,
-                        )
-                    })
-                    .collect(),
+                new_account_id(key),
+                key_stake_to.iter().map(|(a, b)| (new_account_id(a), *b)).collect(),
             ));
         }
     }
 
-    let mut processed_balances: Vec<(sp_runtime::AccountId32, u64)> = Vec::new();
-    for (key_str, amount) in state.balances.iter() {
-        let key = <sr25519::Public as Ss58Codec>::from_ss58check(key_str).unwrap();
-        let key_account = sp_runtime::AccountId32::from(key);
-
-        processed_balances.push((key_account, *amount));
-    }
+    let processed_balances: Vec<(sp_runtime::AccountId32, u64)> = state
+        .balances
+        .iter()
+        .map(|(id, amount)| (new_account_id(id), *amount))
+        .collect();
 
     // Give front-ends necessary data to present to users
     let mut properties = sc_service::Properties::new();
@@ -180,43 +167,42 @@ pub fn generate_config(network: String) -> Result<ChainSpec, String> {
     properties.insert("ss58Format".into(), 13116.into());
 
     Ok(ChainSpec::from_genesis(
-        // Name
-        "commune",
-        // ID
-        "commune",
+        "commune", // Name
+        "commune", // ID
         ChainType::Development,
         move || {
+            // Sudo account
+            let root =
+                Ss58Codec::from_ss58check("5FXymAnjbb7p57pNyfdLb6YCdzm73ZhVq6oFF1AdCEPEg8Uw")
+                    .unwrap();
+
+            // Initial PoA authorities (Validators)
+            // aura | grandpa
+            let initial_authorities = vec![
+                // Keys for debug
+                authority_keys_from_seed("Alice"),
+                authority_keys_from_seed("Bob"),
+            ];
             network_genesis(
                 wasm_binary,
-                // Initial PoA authorities (Validators)
-                // aura | grandpa
-                vec![
-                    // Keys for debug
-                    authority_keys_from_seed("Alice"),
-                    authority_keys_from_seed("Bob"),
-                ],
-                // Sudo account
-                Ss58Codec::from_ss58check("5FXymAnjbb7p57pNyfdLb6YCdzm73ZhVq6oFF1AdCEPEg8Uw")
-                    .unwrap(),
-                // Pre-funded a
-                processed_balances.clone(), // balances
-                modules.clone(),            // modules,
-                subnets.clone(),            // subnets,
-                stake_to.clone(),           // stake_to,
-                state.block,
+                initial_authorities,
+                root,
+                processed_balances.clone(),
+                SubspaceModuleConfig {
+                    // Add names to storage.
+                    modules: modules.clone(),
+                    subnets: subnets.clone(),
+                    block: state.block,
+                    stake_to: stake_to.clone(),
+                },
             )
         },
-        // Bootnodes
-        vec![],
-        // Telemetry
-        None,
-        // Protocol ID
-        Some("commune"),
-        None,
-        // Properties
-        Some(properties),
-        // Extensions
-        None,
+        vec![],           // Bootnodes
+        None,             // Telemetry
+        Some("commune"),  // Protocol ID
+        None,             //
+        Some(properties), // Properties
+        None,             // Extensions
     ))
 }
 
@@ -234,10 +220,7 @@ fn network_genesis(
     initial_authorities: Vec<(AuraId, GrandpaId)>,
     root_key: AccountId,
     balances: Vec<(AccountId, u64)>,
-    modules: Vec<Vec<(AccountId, Vec<u8>, Vec<u8>, Vec<(u16, u16)>)>>,
-    subnets: Vec<(Vec<u8>, u16, u16, u16, u16, u16, u16, u64, AccountId)>,
-    stake_to: Vec<Vec<(AccountId, Vec<(AccountId, u64)>)>>,
-    block: u32,
+    module: SubspaceModuleConfig,
 ) -> RuntimeGenesisConfig {
     use node_subspace_runtime::EVMConfig;
 
@@ -253,10 +236,10 @@ fn network_genesis(
             balances: balances.to_vec(),
         },
         aura: AuraConfig {
-            authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
+            authorities: initial_authorities.iter().map(|(x, _)| (x.clone())).collect(),
         },
         grandpa: GrandpaConfig {
-            authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
+            authorities: initial_authorities.iter().map(|(_, x)| (x.clone(), 1)).collect(),
             ..Default::default()
         },
         sudo: SudoConfig {
@@ -264,27 +247,19 @@ fn network_genesis(
             key: Some(root_key),
         },
         transaction_payment: Default::default(),
-        subspace_module: SubspaceModuleConfig {
-            // Add names to storage.
-            modules,
-            subnets,
-            block,
-            stake_to,
-        },
+        subspace_module: module,
         // EVM Compatibility
         evm_chain_id: Default::default(),
         evm: EVMConfig {
             accounts: Precompiles::used_addresses()
                 .map(|addr| {
-                    (
-                        addr,
-                        fp_evm::GenesisAccount {
-                            balance: Default::default(),
-                            code: Default::default(),
-                            nonce: Default::default(),
-                            storage: Default::default(),
-                        },
-                    )
+                    let account = fp_evm::GenesisAccount {
+                        balance: Default::default(),
+                        code: Default::default(),
+                        nonce: Default::default(),
+                        storage: Default::default(),
+                    };
+                    (addr, account)
                 })
                 .collect(),
             _marker: Default::default(),
