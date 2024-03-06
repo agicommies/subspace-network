@@ -85,6 +85,32 @@ fn new_account_id(id: &str) -> sp_runtime::AccountId32 {
     sp_runtime::AccountId32::from(<sr25519::Public as Ss58Codec>::from_ss58check(id).unwrap())
 }
 
+fn deserialize_subnet(
+    (
+        name,
+        tempo,
+        immunity_period,
+        min_allowed_weights,
+        max_allowed_weights,
+        max_allowed_uids,
+        burn_rate,
+        min_stake,
+        founder,
+    ): JSONSubnet,
+) -> Subnet {
+    (
+        name.as_bytes().to_vec(),
+        tempo,
+        immunity_period,
+        min_allowed_weights,
+        max_allowed_weights,
+        max_allowed_uids,
+        burn_rate,
+        min_stake,
+        new_account_id(&founder),
+    )
+}
+
 pub fn generate_config(network: String) -> Result<ChainSpec, String> {
     let path: PathBuf = std::path::PathBuf::from(format!("./snapshots/{}.json", network));
     let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
@@ -104,35 +130,11 @@ pub fn generate_config(network: String) -> Result<ChainSpec, String> {
     let state: SubspaceJSONState =
         json::from_slice(&bytes).map_err(|e| format!("Error parsing genesis file: {}", e))?;
 
-    let mut subnets: Vec<Subnet> = Vec::new();
+    let subnets: Vec<Subnet> = state.subnets.into_iter().map(deserialize_subnet).collect();
     let mut modules: Vec<Vec<Module>> = Vec::new();
     let mut stake_to: Vec<Vec<StakeTo>> = Vec::new();
 
-    for (netuid, subnet) in state.subnets.into_iter().enumerate() {
-        let (
-            name,
-            tempo,
-            immunity_period,
-            min_allowed_weights,
-            max_allowed_weights,
-            max_allowed_uids,
-            burn_rate,
-            min_stake,
-            founder,
-        ) = subnet;
-
-        subnets.push((
-            name.as_bytes().to_vec(),
-            tempo,
-            immunity_period,
-            min_allowed_weights,
-            max_allowed_weights,
-            max_allowed_uids,
-            burn_rate,
-            min_stake,
-            new_account_id(&founder),
-        ));
-
+    for netuid in 0..subnets.len() {
         // Add  modules
         modules.push(vec![]);
         for (id, name, address, weights) in state.modules[netuid].iter() {
