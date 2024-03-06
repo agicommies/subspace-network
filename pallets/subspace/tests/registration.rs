@@ -15,7 +15,7 @@ fn test_min_stake() {
         let _tempo: u16 = 13;
         let netuid: u16 = 0;
         let min_stake = 100_000_000;
-        let max_registrations_per_block = 10;
+        let max_registrations_per_block = 100;
         let reg_this_block: u16 = 100;
 
         register_module(netuid, U256::from(0), 0).expect("register module failed");
@@ -24,15 +24,13 @@ fn test_min_stake() {
         step_block(1);
         assert_eq!(SubspaceModule::get_registrations_this_block(), 0);
 
-        let n = U256::from(reg_this_block); // Example: if you want a list of numbers from 1 to 9
-        let keys_list: Vec<U256> = (1..n.as_u64()) // Assuming n fits into a u64 for simplicity
-            .map(U256::from)
-            .collect();
-
         let min_stake_to_register = SubspaceModule::get_min_stake(netuid);
 
-        for key in keys_list {
-            register_module(netuid, key, min_stake_to_register);
+        for key in 1..=reg_this_block {
+		    let key = U256::from(key);
+            register_module(netuid, key, min_stake_to_register).unwrap_or_else(|_| {
+				panic!("register module failed for key: {key:?} and min_stake_to_register: {min_stake_to_register:?}")
+			});
             println!("registered module with key: {key:?} and min_stake_to_register: {min_stake_to_register:?}");
         }
         let registrations_this_block = SubspaceModule::get_registrations_this_block();
