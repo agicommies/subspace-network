@@ -196,6 +196,11 @@ fn network_genesis(
 ) -> RuntimeGenesisConfig {
     use node_subspace_runtime::EVMConfig;
 
+    let (aura, grandpa): (Vec<_>, Vec<_>) = initial_authorities
+        .into_iter()
+        .map(|(aura, grandpa)| (aura, (grandpa, 1)))
+        .unzip();
+
     RuntimeGenesisConfig {
         system: SystemConfig {
             // Add Wasm runtime to storage.
@@ -207,11 +212,9 @@ fn network_genesis(
             //balances: balances.iter().cloned().map(|k| k).collect(),
             balances: balances.to_vec(),
         },
-        aura: AuraConfig {
-            authorities: initial_authorities.iter().map(|(x, _)| (x.clone())).collect(),
-        },
+        aura: AuraConfig { authorities: aura },
         grandpa: GrandpaConfig {
-            authorities: initial_authorities.iter().map(|(_, x)| (x.clone(), 1)).collect(),
+            authorities: grandpa,
             ..Default::default()
         },
         sudo: SudoConfig {
