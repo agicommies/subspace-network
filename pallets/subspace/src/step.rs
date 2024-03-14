@@ -6,7 +6,7 @@ use substrate_fixed::types::{I110F18, I32F32, I64F64};
 
 impl<T: Config> Pallet<T> {
     pub fn block_step() {
-        let block_number: u64 = Self::get_current_block_as_u64();
+        let block_number: u64 = Self::get_current_block_number();
         RegistrationsPerBlock::<T>::mutate(|val| *val = 0);
 
         let registration_this_interval = Self::get_registrations_this_interval();
@@ -39,7 +39,7 @@ impl<T: Config> Pallet<T> {
         let subnet_params = Self::subnet_params(netuid);
 
         let n: u16 = Self::get_subnet_n(netuid);
-        let current_block: u64 = Self::get_current_block_as_u64();
+        let current_block: u64 = Self::get_current_block_number();
         let _block_at_registration: Vec<u64> = Self::get_block_at_registration(netuid);
 
         if n == 0 {
@@ -108,11 +108,11 @@ impl<T: Config> Pallet<T> {
             let weight_age: u64 = current_block.saturating_sub(last_update_vector[uid_i as usize]);
             if weight_age > subnet_params.max_weight_age {
                 weight_changed = true;
-                weights[uid_i as usize] = vec![];
+                weights[uid_i as usize].clear();
             } else {
                 if weights_i.len() < (subnet_params.min_allowed_weights as usize) {
                     weight_changed = true;
-                    weights[uid_i as usize] = vec![];
+                    weights[uid_i as usize].clear();
                 }
                 for (pos, (uid_j, weight_ij)) in weights_i.iter().enumerate() {
                     // ignore the weights that are not in the top max allowed weights

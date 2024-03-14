@@ -11,11 +11,8 @@ pub fn is_zero(vector: &[I32F32]) -> bool {
 // Normalizes (sum to 1 except 0) the input vector directly in-place.
 pub fn inplace_normalize(x: &mut [I32F32]) {
     let x_sum: I32F32 = x.iter().sum();
-    if x_sum == I32F32::from_num(0.0) {
-        return;
-    }
-    for i in x.iter_mut() {
-        *i /= x_sum;
+    if x_sum != I32F32::from_num(0) {
+        x.iter_mut().for_each(|i| *i /= x_sum);
     }
 }
 
@@ -43,12 +40,12 @@ pub fn mask_diag_sparse(sparse_matrix: &[Vec<(u16, I32F32)>]) -> Vec<Vec<(u16, I
 
 /// Normalizes (sum to 1 except 0) each row (dim=0) of a sparse matrix in-place.
 pub fn inplace_row_normalize_sparse(sparse_matrix: &mut [Vec<(u16, I32F32)>]) {
-    for sparse_row in sparse_matrix.iter_mut() {
+    sparse_matrix.iter_mut().for_each(|sparse_row| {
         let row_sum: I32F32 = sparse_row.iter().map(|(_j, value)| *value).sum();
-        if row_sum > I32F32::from_num(0.0) {
+        if row_sum != I32F32::from_num(0) {
             sparse_row.iter_mut().for_each(|(_j, value)| *value /= row_sum);
         }
-    }
+    });
 }
 
 #[cfg(test)]

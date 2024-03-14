@@ -11,6 +11,12 @@ impl<T: Config> Pallet<T> {
         // --- 1. Check the caller's signature. This is the key of a registered account.
         let key = ensure_signed(origin)?;
 
+        // --- 2. Check that the length of uid list and value list are equal for this network.
+        ensure!(
+            Self::uids_match_len(&uids, &values),
+            Error::<T>::WeightVecNotEqualSize
+        );
+
         let stake: u64 = Self::get_stake_for_key(netuid, &key);
 
         // check if the stake per weight is greater than the stake
@@ -23,9 +29,6 @@ impl<T: Config> Pallet<T> {
 
         ensure!(stake > 0, Error::<T>::NotEnoughStaketoSetWeights);
 
-        let stake: u64 = Self::get_stake_for_key(netuid, &key);
-
-        ensure!(stake > 0, Error::<T>::NotEnoughStaketoSetWeights);
         // --- 2. Check to see if this is a valid network.
         ensure!(
             Self::if_subnet_exist(netuid),
@@ -35,12 +38,6 @@ impl<T: Config> Pallet<T> {
         ensure!(
             Self::is_key_registered_on_network(netuid, &key),
             Error::<T>::NotRegistered
-        );
-
-        // --- 3. Check that the length of uid list and value list are equal for this network.
-        ensure!(
-            Self::uids_match_len(&uids, &values),
-            Error::<T>::WeightVecNotEqualSize
         );
 
         // --- 4. Check to see if the number of uids is within the max allowed uids for this
@@ -81,7 +78,7 @@ impl<T: Config> Pallet<T> {
         Weights::<T>::insert(netuid, uid, zipped_weights);
 
         // --- 8. Ensure the uid is not setting weights faster than the weights_set_rate_limit.
-        let current_block: u64 = Self::get_current_block_as_u64();
+        let current_block: u64 = Self::get_current_block_number();
         // --- 17. Set the activity for the weights on this network.
         Self::set_last_update_for_uid(netuid, uid, current_block);
 

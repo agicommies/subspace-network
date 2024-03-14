@@ -572,7 +572,7 @@ impl<T: Config> Pallet<T> {
     // ========================
     // ==== Global Getters ====
     // ========================
-    pub fn get_current_block_as_u64() -> u64 {
+    pub fn get_current_block_number() -> u64 {
         TryInto::try_into(<frame_system::Pallet<T>>::block_number())
             .ok()
             .expect("blockchain will not exceed 2^64 blocks; QED.")
@@ -630,7 +630,7 @@ impl<T: Config> Pallet<T> {
         MaxAllowedSubnets::<T>::get()
     }
     pub fn set_global_max_allowed_subnets(max_allowed_subnets: u16) {
-        MaxAllowedSubnets::<T>::set(max_allowed_subnets)
+        MaxAllowedSubnets::<T>::put(max_allowed_subnets)
     }
     // ============================
     // ==== Subnetwork Getters ====

@@ -13,6 +13,7 @@ impl<T: Config> Pallet<T> {
             Self::is_voter_registered(&key),
             Error::<T>::VoterIsNotRegistered
         );
+
         Self::unregister_voter(&key);
         ensure!(
             !Self::is_voter_registered(&key),
