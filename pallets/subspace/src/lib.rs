@@ -864,6 +864,8 @@ pub mod pallet {
                         * uids in the weight matrix. */
         InvalidUid, /* ---- Thrown when a caller attempts to set weight to at least one uid
                      * that does not exist in the metagraph. */
+        InvalidUidsLength, /* ---- Thrown when the caller attempts to set weights with a
+                            * different number of uids than allowed. */
         NotSettingEnoughWeights, /* ---- Thrown when the dispatch attempts to set weights on
                                   * chain with fewer elements than are allowed. */
         TooManyRegistrationsPerBlock, /* ---- Thrown when registrations this block exceeds
@@ -906,11 +908,11 @@ pub mod pallet {
         ProfitSharesNotAdded,
         NotFounder,
         NameAlreadyRegistered,
-        NotEnoughStaketoSetWeights,
+        NotEnoughStakeToSetWeights,
         NotEnoughStakeToStartNetwork,
         NetworkRegistrationFailed,
         NetworkAlreadyRegistered,
-        NotEnoughtStakePerWeight,
+        NotEnoughStakePerWeight,
         NoSelfWeight,
         DifferentLengths,
         NotEnoughBalanceToRegister,

@@ -385,10 +385,8 @@ impl<T: Config> Pallet<T> {
     ) -> bool {
         let mut stake_from_vector = Self::get_stake_from_vector(netuid, module_key);
 
-        if let Some((idx, (_, stake_amount))) = stake_from_vector
-            .iter_mut()
-            .enumerate()
-            .find(|(_, (k, _))| k == key)
+        if let Some((idx, (_, stake_amount))) =
+            stake_from_vector.iter_mut().enumerate().find(|(_, (k, _))| k == key)
         {
             let remaining_stake = stake_amount.saturating_sub(amount);
             stake_from_vector[idx] = (key.clone(), remaining_stake);
@@ -402,10 +400,8 @@ impl<T: Config> Pallet<T> {
 
         let mut stake_to_vector = Self::get_stake_to_vector(netuid, key);
 
-        if let Some((idx, (_, v))) = stake_to_vector
-            .iter_mut()
-            .enumerate()
-            .find(|(_, (k, _))| k == module_key)
+        if let Some((idx, (_, v))) =
+            stake_to_vector.iter_mut().enumerate().find(|(_, (k, _))| k == module_key)
         {
             let remaining_stake = v.saturating_sub(amount);
             stake_to_vector[idx] = (module_key.clone(), remaining_stake);
@@ -417,7 +413,9 @@ impl<T: Config> Pallet<T> {
 
         Self::set_stake_to_vector(netuid, key, stake_to_vector);
 
-        Stake::<T>::mutate(netuid, module_key, |stake| *stake = stake.saturating_sub(amount));
+        Stake::<T>::mutate(netuid, module_key, |stake| {
+            *stake = stake.saturating_sub(amount)
+        });
         TotalStake::<T>::mutate(netuid, |total_stake| {
             *total_stake = total_stake.saturating_sub(amount)
         });

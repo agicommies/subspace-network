@@ -6,7 +6,9 @@ use frame_system::ensure_signed;
 use sp_std::vec::Vec;
 
 impl<T: Config> Pallet<T> {
-    // check ip
+    // TODO:
+    //- check ip
+    // - add ability to set delegaiton fee, straight in registration
     pub fn do_register(
         origin: T::RuntimeOrigin,
         network_name: Vec<u8>,    // network name
