@@ -393,31 +393,31 @@ impl<T: Config> Pallet<T> {
         n: u16,
         uid_i: u16,
     ) -> (bool, Vec<(u16, u16)>) {
-        let mut weight_changed = false;
         let mut valid_weights = Vec::new();
 
         if weight_age > subnet_params.max_weight_age
             || weights_i.len() < subnet_params.min_allowed_weights as usize
         {
-            weight_changed = true;
-        } else {
-            for (pos, (uid_j, weight_ij)) in weights_i.iter().enumerate() {
-                if (pos as u16) <= subnet_params.max_allowed_weights && *uid_j < n {
-                    let weight_f64 = I64F64::from_num(*weight_ij) / I64F64::from_num(u16::MAX);
-                    let weight_stake = (stake_f64[uid_i as usize] * weight_f64)
-                        * I64F64::from_num(total_stake_u64);
-                    if weight_stake > min_weight_stake_f64 {
-                        valid_weights.push((*uid_j, *weight_ij));
-                    } else {
-                        weight_changed = true;
-                    }
-                } else {
-                    weight_changed = true;
-                }
+            return (true, valid_weights);
+        }
+
+        for (pos, (uid_j, weight_ij)) in weights_i.iter().enumerate() {
+            if (pos as u16) > subnet_params.max_allowed_weights || *uid_j >= n {
+                return (true, valid_weights);
+            }
+
+            let weight_f64 = I64F64::from_num(*weight_ij) / I64F64::from_num(u16::MAX);
+            let weight_stake =
+                (stake_f64[uid_i as usize] * weight_f64) * I64F64::from_num(total_stake_u64);
+
+            if weight_stake > min_weight_stake_f64 {
+                valid_weights.push((*uid_j, *weight_ij));
+            } else {
+                return (true, valid_weights);
             }
         }
 
-        (weight_changed, valid_weights)
+        (false, valid_weights)
     }
 
     fn process_weights(
@@ -474,18 +474,21 @@ impl<T: Config> Pallet<T> {
         founder_key: &T::AccountId,
     ) -> (u64, u64) {
         let is_founder_registered = Self::key_registered(netuid, &founder_key);
-        let mut founder_emission: u64 = 0;
-
-        if is_founder_registered {
-            let founder_share: u16 = Self::get_founder_share(netuid);
-            if founder_share > 0 {
-                let founder_emission_ratio: I64F64 =
-                    I64F64::from_num(founder_share.min(100)) / I64F64::from_num(100);
-                founder_emission =
-                    (founder_emission_ratio * I64F64::from_num(token_emission)).to_num::<u64>();
-                token_emission = token_emission.saturating_sub(founder_emission);
-            }
+        if !is_founder_registered {
+            return (token_emission, 0);
         }
+
+        let founder_share: u16 = Self::get_founder_share(netuid);
+        if founder_share == 0u16 {
+            return (token_emission, 0);
+        }
+
+        let founder_emission_ratio: I64F64 =
+            I64F64::from_num(founder_share.min(100)) / I64F64::from_num(100);
+        let founder_emission =
+            (founder_emission_ratio * I64F64::from_num(token_emission)).to_num::<u64>();
+        token_emission = token_emission.saturating_sub(founder_emission);
+
         (token_emission, founder_emission)
     }
 

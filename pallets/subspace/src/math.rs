@@ -11,8 +11,11 @@ pub fn is_zero(vector: &[I32F32]) -> bool {
 // Normalizes (sum to 1 except 0) the input vector directly in-place.
 pub fn inplace_normalize(x: &mut [I32F32]) {
     let x_sum: I32F32 = x.iter().sum();
-    if x_sum != I32F32::from_num(0) {
-        x.iter_mut().for_each(|i| *i /= x_sum);
+    if x_sum == I32F32::from_num(0.0) {
+        return;
+    }
+    for i in x.iter_mut() {
+        *i /= x_sum;
     }
 }
 
