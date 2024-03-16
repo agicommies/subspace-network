@@ -75,7 +75,11 @@ impl<T: Config> Pallet<T> {
         let normalized_values = Self::normalize_weights(values);
 
         // --- 14. Zip weights for sinking to storage map.
-        let zipped_weights: Vec<(u16, u16)> = uids.iter().zip(normalized_values.iter()).map(|(&uid, &val)| (uid, val)).collect();
+        let zipped_weights: Vec<(u16, u16)> = uids
+            .iter()
+            .zip(normalized_values.iter())
+            .map(|(&uid, &val)| (uid, val))
+            .collect();
 
         // --- 15. Set weights under netuid, uid double map entry.
         Weights::<T>::insert(netuid, uid, zipped_weights);
@@ -96,7 +100,9 @@ impl<T: Config> Pallet<T> {
         if sum == 0 {
             return weights;
         }
-        weights.into_iter().map(|x| ((x as u64 * u16::max_value() as u64) / sum) as u16).collect()
+        weights
+            .into_iter()
+            .map(|x| ((x as u64 * u16::max_value() as u64) / sum) as u16)
+            .collect()
     }
 }
-

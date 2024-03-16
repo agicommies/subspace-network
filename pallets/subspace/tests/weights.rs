@@ -107,7 +107,9 @@ fn test_set_weight_not_enough_values() {
         let n = 100;
         SubspaceModule::set_max_registrations_per_block(n);
         let account_id = U256::from(0);
+
         assert_ok!(register_module(netuid, account_id, 1_000_000_000));
+
         let _neuron_uid: u16 = SubspaceModule::get_uid_for_key(netuid, &account_id);
         for i in 1..n {
             assert_ok!(register_module(netuid, U256::from(i), 1_000_000_000));
@@ -115,7 +117,7 @@ fn test_set_weight_not_enough_values() {
 
         SubspaceModule::set_min_allowed_weights(netuid, 2);
 
-        // Should fail because we are only setting a single value and its not the self weight.
+        // setting weight below minimim
         let weight_keys: Vec<u16> = vec![1]; // not weight.
         let weight_values: Vec<u16> = vec![88]; // random value.
         let result = SubspaceModule::set_weights(
@@ -124,9 +126,9 @@ fn test_set_weight_not_enough_values() {
             weight_keys,
             weight_values,
         );
-        assert_eq!(result, Err(Error::<Test>::NotSettingEnoughWeights.into()));
+        assert_eq!(result, Err(Error::<Test>::InvalidUidsLength.into()));
 
-        // Shouldnt fail because we setting a single value but it is the self weight.
+        SubspaceModule::set_min_allowed_weights(netuid, 1);
 
         let weight_keys: Vec<u16> = vec![0]; // self weight.
         let weight_values: Vec<u16> = vec![88]; // random value.
@@ -272,7 +274,7 @@ fn test_weight_age() {
         // Set subnet parameters
         let mut subnet_params = SubspaceModule::subnet_params(NETUID);
         subnet_params.tempo = TEMPO as u16;
-        subnet_params.max_weight_age = TEMPO;
+        subnet_params.max_weight_age = TEMPO * 2;
         SubspaceModule::set_subnet_params(NETUID, subnet_params);
 
         // Set weights for passive and active voters
@@ -294,7 +296,7 @@ fn test_weight_age() {
         let active_stake_before =
             SubspaceModule::get_total_stake_to(NETUID, &U256::from(ACTIVE_VOTER));
 
-        step_block(TEMPO as u16);
+        step_block((TEMPO as u16) * 2);
 
         let passive_stake_after =
             SubspaceModule::get_total_stake_to(NETUID, &U256::from(PASSIVE_VOTER));
@@ -314,7 +316,7 @@ fn test_weight_age() {
             weights,
         ));
 
-        step_block(TEMPO as u16);
+        step_block((TEMPO as u16) * 2);
 
         let passive_stake_after_v2 =
             SubspaceModule::get_total_stake_to(NETUID, &U256::from(PASSIVE_VOTER));

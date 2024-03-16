@@ -33,155 +33,158 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn epoch(netuid: u16, token_emission: u64) {
+        /*
+        This function acts as the main function of the entire blockchain reward distribution.
+        It calculates the dividends, the incentive, the weights, the bonds,
+        the trust and the emission for the epoch.
+        */
+
+        // get the network parameters
         let global_params = Self::global_params();
         let subnet_params = Self::subnet_params(netuid);
 
+        // get the amount of modules
         let n: u16 = Self::get_subnet_n(netuid);
         let current_block: u64 = Self::get_current_block_number();
 
+        // if there are no modules, then return
         if n == 0 {
+            //
             return;
         }
 
-        // =======================
-        // == Founder Dividends ==
-        // =======================
+        // FOUNDER DIVIDENDS
+        let founder_key = Self::get_founder(netuid);
         let (token_emission, founder_emission) =
-            Self::calculate_founder_emission(netuid, token_emission);
+            Self::calculate_founder_emission(netuid, token_emission, &founder_key);
 
-        // ===========
-        // == Stake ==
-        // ===========
-
+        // STAKE
         let uid_key_tuples: Vec<(u16, T::AccountId)> = Self::get_uid_key_tuples(netuid);
         let total_stake_u64: u64 = Self::get_total_subnet_stake(netuid).max(1);
 
-        let stake_u64: Vec<u64> =
-            Self::get_stake_vector(netuid, &uid_key_tuples, subnet_params.max_stake);
-        let stake_f64: Vec<I64F64> = Self::normalize_stake_vector(&stake_u64, total_stake_u64);
+        let max_stake = subnet_params.max_stake;
+
+        let stake_u64: Vec<u64> = uid_key_tuples
+            .iter()
+            .map(|(_, key)| Self::get_stake_for_key(netuid, key).min(max_stake))
+            .collect();
+
+        // Clip it to the max stake
+        let stake_f64: Vec<I64F64> = stake_u64
+            .iter()
+            .map(|x| I64F64::from_num(*x) / I64F64::from_num(total_stake_u64))
+            .collect();
+
         let mut stake: Vec<I32F32> = stake_f64.iter().map(|x| I32F32::from_num(*x)).collect();
 
-        // normalize
+        // Normalize stake.
         inplace_normalize(&mut stake);
 
-        // =============
-        // == Weights (N x N) Sparsified ==
-        // =============
-
-        let last_update_vector: Vec<u64> = Self::get_last_update(netuid);
-        let mut weights: Vec<Vec<(u16, u16)>> = Self::get_weights(netuid, n);
-        Self::update_weights(
-            global_params,
-            n,
+        // WEIGHTS
+        let weights: Vec<Vec<(u16, I32F32)>> = Self::process_weights(
             netuid,
-            &mut weights,
-            &last_update_vector,
-            &stake_f64,
-            current_block,
+            n,
+            &global_params,
             &subnet_params,
+            current_block,
+            &stake_f64,
+            total_stake_u64,
         );
 
-        let weights: Vec<Vec<(u16, I32F32)>> = Self::convert_weights_to_fixed(&weights);
-        let weights = Self::weight_normalization(weights);
+        // INCENTIVE
+        // see if this shit needs to be mut
+        let mut incentive: Vec<I32F32> =
+            Self::compute_incentive(&weights, &stake, &uid_key_tuples, n);
 
-        // =============================
-        // ==  Incentive ==
-        // =============================
+        // TRUST
+        // trust that acts as a multiplier for the incentive
+        let trust_ratio: u16 = Self::get_trust_ratio(netuid);
+        if trust_ratio > 0 {
+            let trust_share: I32F32 = I32F32::from_num(trust_ratio) / I32F32::from_num(100);
+            let incentive_share: I32F32 = I32F32::from_num(1.0).saturating_sub(trust_share);
+            let trust = Self::compute_trust(&weights, &stake, &subnet_params, n);
 
-        let mut incentive: Vec<I32F32> = Self::calculate_incentive(&weights, &stake, n);
+            incentive = incentive
+                .iter()
+                .zip(trust.iter())
+                .map(|(inc, tru)| (inc * incentive_share) + (tru * trust_share))
+                .collect();
 
-        if is_zero(&incentive) {
-            incentive = Self::even_split_incentive(&uid_key_tuples, n);
+            // save the trust into the trust vector
+            Trust::<T>::insert(
+                netuid,
+                trust.iter().map(|xi| fixed_proportion_to_u16(*xi)).collect::<Vec<u16>>(),
+            );
         }
 
-        // =================================
-        // == TRUST ==
-        // =================================
-
-        let incentive = Self::calculate_trust_and_update_incentive(
-            netuid,
-            &weights,
-            &stake,
-            &incentive,
-            I32F32::from_num::<u64>(subnet_params.min_stake.into()),
-        );
         // store the incentive
-        let cloned_incentive: Vec<u16> = incentive
-            .0
-            .iter()
-            .chain(incentive.1.iter())
-            .map(|xi| fixed_proportion_to_u16(*xi))
-            .collect();
+        let cloned_incentive: Vec<u16> =
+            incentive.iter().map(|xi| fixed_proportion_to_u16(*xi)).collect::<Vec<u16>>();
         Incentive::<T>::insert(netuid, cloned_incentive);
 
-        // =================================
-        // == Calculate Bonds ==
-        // =================================
+        //  BONDS
+        let bonds: Vec<Vec<(u16, I32F32)>> = Self::compute_bonds_delta(&weights, &stake);
 
-        let bonds: Vec<Vec<(u16, I32F32)>> = Self::calculate_bonds(&weights, &stake, n as usize);
+        // DIVIDENDS
+        let (fixed_dividends, dividends) =
+            Self::compute_dividends(&bonds, &incentive, &uid_key_tuples);
+        Dividends::<T>::insert(netuid, fixed_dividends);
 
-        // =================================
-        // == Dividends ==
-        // =================================
-
-        let dividends: Vec<I32F32> =
-            Self::calculate_dividends(&bonds, &incentive.0, &uid_key_tuples);
-
-        // =================================
-        // == Emission ==
-        // =================================
-
-        let emission = Self::calculate_emission(
-            netuid,
-            &incentive.0,
+        // EMISSION
+        Self::process_emission(
+            &incentive,
             &dividends,
             token_emission,
+            netuid,
             founder_emission,
-            Self::get_burn_per_epoch(netuid),
+            &founder_key,
             &uid_key_tuples,
-            Self::key_registered(netuid, &Self::get_founder(netuid)),
-            &Self::get_founder(netuid),
         );
-
-        Emission::<T>::insert(netuid, emission);
     }
 
-    fn calculate_emission(
-        netuid: u16,
-        incentive: &[I32F32],
-        dividends: &[I32F32],
+    fn calculate_emission_ratios(
+        incentive: &Vec<I32F32>,
+        dividends: &Vec<I32F32>,
         token_emission: u64,
-        founder_emission: u64,
-        burn_amount_per_epoch: u64,
-        uid_key_tuples: &Vec<(u16, T::AccountId)>,
-        is_founder_registered: bool,
-        founder_key: &T::AccountId,
-    ) -> Vec<u64> {
+        netuid: u16,
+    ) -> (Vec<I64F64>, Vec<I64F64>) {
         let incentive_ratio: I64F64 =
             I64F64::from_num(Self::get_incentive_ratio(netuid) as u64) / I64F64::from_num(100);
         let dividend_ratio: I64F64 = I64F64::from_num(1.0) - incentive_ratio;
 
         let incentive_emission_float: Vec<I64F64> = incentive
             .iter()
-            .map(|x| I64F64::from_num(*x) * I64F64::from_num(token_emission) * incentive_ratio)
+            .map(|&x| I64F64::from_num(x) * I64F64::from_num(token_emission) * incentive_ratio)
             .collect();
         let dividends_emission_float: Vec<I64F64> = dividends
             .iter()
-            .map(|x| I64F64::from_num(*x) * I64F64::from_num(token_emission) * dividend_ratio)
+            .map(|&x| I64F64::from_num(x) * I64F64::from_num(token_emission) * dividend_ratio)
             .collect();
 
+        (incentive_emission_float, dividends_emission_float)
+    }
+
+    fn calculate_emissions(
+        incentive_emission_float: &Vec<I64F64>,
+        dividends_emission_float: &Vec<I64F64>,
+        founder_emission: u64,
+        netuid: u16,
+        founder_key: &T::AccountId,
+        uid_key_tuples: &Vec<(u16, T::AccountId)>,
+    ) -> Vec<u64> {
+        let n = incentive_emission_float.len();
         let mut incentive_emission: Vec<u64> =
-            incentive_emission_float.iter().map(|e: &I64F64| e.to_num::<u64>()).collect();
+            incentive_emission_float.iter().map(|e| e.to_num::<u64>()).collect();
         let dividends_emission: Vec<u64> =
-            dividends_emission_float.iter().map(|e: &I64F64| e.to_num::<u64>()).collect();
+            dividends_emission_float.iter().map(|e| e.to_num::<u64>()).collect();
 
-        if is_founder_registered {
-            let founder_uid = Self::get_uid_for_key(netuid, founder_key);
-            incentive_emission[founder_uid as usize] =
-                incentive_emission[founder_uid as usize].saturating_add(founder_emission);
-        }
+        let burn_amount_per_epoch: u64 = Self::get_burn_per_epoch(netuid);
 
-        let mut emission: Vec<u64> = vec![0; incentive.len()];
+        let founder_uid = Self::get_uid_for_key(netuid, founder_key);
+        incentive_emission[founder_uid as usize] =
+            incentive_emission[founder_uid as usize].saturating_add(founder_emission);
+
+        let mut emission: Vec<u64> = vec![0; n];
 
         for (module_uid, module_key) in uid_key_tuples.iter() {
             let mut owner_emission_incentive: u64 = incentive_emission[*module_uid as usize];
@@ -214,16 +217,17 @@ impl<T: Config> Pallet<T> {
             if owner_dividends_emission > 0 {
                 let ownership_vector: Vec<(T::AccountId, I64F64)> =
                     Self::get_ownership_ratios(netuid, module_key);
-                let delegation_fee = Self::get_delegation_fee(netuid, module_key);
-                let total_owner_dividends_emission: u64 = owner_dividends_emission;
 
+                let delegation_fee = Self::get_delegation_fee(netuid, module_key);
+
+                let total_owner_dividends_emission: u64 = owner_dividends_emission;
                 for (delegate_key, delegate_ratio) in ownership_vector.iter() {
                     if delegate_key == module_key {
                         continue;
                     }
 
                     let dividends_from_delegate: u64 =
-                        (I64F64::from_num(total_owner_dividends_emission) * delegate_ratio)
+                        (I64F64::from_num(total_owner_dividends_emission) * *delegate_ratio)
                             .to_num::<u64>();
                     let to_module: u64 = delegation_fee.mul_floor(dividends_from_delegate);
                     let to_delegate: u64 = dividends_from_delegate.saturating_sub(to_module);
@@ -233,7 +237,6 @@ impl<T: Config> Pallet<T> {
             }
 
             let owner_emission: u64 = owner_emission_incentive + owner_dividends_emission;
-
             if owner_emission > 0 {
                 let profit_share_emissions: Vec<(T::AccountId, u64)> =
                     Self::get_profit_share_emissions(module_key.clone(), owner_emission);
@@ -256,22 +259,73 @@ impl<T: Config> Pallet<T> {
         emission
     }
 
-    fn calculate_bonds(
-        weights: &[Vec<(u16, I32F32)>],
-        stake: &[I32F32],
-        n: usize,
+    fn process_emission(
+        incentive: &Vec<I32F32>,
+        dividends: &Vec<I32F32>,
+        token_emission: u64,
+        netuid: u16,
+        founder_emission: u64,
+        founder_key: &T::AccountId,
+        uid_key_tuples: &Vec<(u16, T::AccountId)>,
+    ) {
+        let (incentive_emission_float, dividends_emission_float) =
+            Self::calculate_emission_ratios(incentive, dividends, token_emission, netuid);
+
+        let emission = Self::calculate_emissions(
+            &incentive_emission_float,
+            &dividends_emission_float,
+            founder_emission,
+            netuid,
+            founder_key,
+            uid_key_tuples,
+        );
+
+        Emission::<T>::insert(netuid, emission);
+    }
+
+    fn compute_dividends(
+        bonds: &Vec<Vec<(u16, I32F32)>>,
+        incentive: &Vec<I32F32>,
+        uid_key_tuples: &Vec<(u16, T::AccountId)>,
+    ) -> (Vec<u16>, Vec<I32F32>) {
+        let n = incentive.len();
+        let mut dividends: Vec<I32F32> = vec![I32F32::from_num(0.0); n];
+
+        for (i, sparse_row) in bonds.iter().enumerate() {
+            for (j, value) in sparse_row.iter() {
+                dividends[i] += incentive[*j as usize] * *value;
+            }
+        }
+
+        if dividends.iter().all(|&x| x == I32F32::from_num(0.0)) {
+            for (uid_i, _) in uid_key_tuples.iter() {
+                dividends[*uid_i as usize] = I32F32::from_num(1.0);
+            }
+        }
+
+        inplace_normalize(&mut dividends);
+
+        let fixed_dividends: Vec<u16> =
+            dividends.iter().map(|xi| fixed_proportion_to_u16(*xi)).collect();
+
+        (fixed_dividends, dividends)
+    }
+
+    fn compute_bonds_delta(
+        weights: &Vec<Vec<(u16, I32F32)>>,
+        stake: &Vec<I32F32>,
     ) -> Vec<Vec<(u16, I32F32)>> {
-        let mut bonds: Vec<Vec<(u16, I32F32)>> = weights.to_vec();
+        let n = weights.len();
+        let mut bonds: Vec<Vec<(u16, I32F32)>> = weights.clone();
         let mut col_sum: Vec<I32F32> = vec![I32F32::from_num(0.0); n];
 
         for (i, sparse_row) in bonds.iter_mut().enumerate() {
             for (j, value) in sparse_row.iter_mut() {
-                *value *= stake[i]; // scale by stake
-                col_sum[*j as usize] += *value; // sum the column
+                *value *= stake[i];
+                col_sum[*j as usize] += *value;
             }
         }
 
-        // sum the votes per module
         for sparse_row in bonds.iter_mut() {
             for (j, value) in sparse_row.iter_mut() {
                 if col_sum[*j as usize] > I32F32::from_num(0.0) {
@@ -283,32 +337,142 @@ impl<T: Config> Pallet<T> {
         bonds
     }
 
-    fn calculate_dividends(
-        bonds: &[Vec<(u16, I32F32)>],
-        incentive: &[I32F32],
-        uid_key_tuples: &Vec<(u16, T::AccountId)>,
+    fn compute_trust(
+        weights: &Vec<Vec<(u16, I32F32)>>,
+        stake: &Vec<I32F32>,
+        subnet_params: &SubnetParams<T>,
+        n: u16,
     ) -> Vec<I32F32> {
-        let mut dividends: Vec<I32F32> = vec![I32F32::from_num(0.0); incentive.len()];
+        let mut trust = vec![I32F32::from_num(0.0); n as usize];
+        for (i, weights_i) in weights.iter().enumerate() {
+            for (j, weight_ij) in weights_i.iter() {
+                if *weight_ij > 0 && stake[i] > I32F32::from_num(subnet_params.min_stake) {
+                    trust[*j as usize] += I32F32::from_num(1.0);
+                }
+            }
+        }
+        inplace_normalize(&mut trust);
+        trust
+    }
 
-        for (i, sparse_row) in bonds.iter().enumerate() {
+    fn compute_incentive(
+        weights: &Vec<Vec<(u16, I32F32)>>,
+        stake: &Vec<I32F32>,
+        uid_key_tuples: &Vec<(u16, T::AccountId)>,
+        n: u16,
+    ) -> Vec<I32F32> {
+        let mut incentive: Vec<I32F32> = vec![I32F32::from_num(0.0); n as usize];
+
+        for (i, sparse_row) in weights.iter().enumerate() {
             for (j, value) in sparse_row.iter() {
-                dividends[i] += incentive[*j as usize] * value;
+                incentive[*j as usize] += stake[i] * value;
             }
         }
 
-        // If emission is zero, do an even split.
-          if is_zero(&dividends) {
-        for (uid_i, _key) in uid_key_tuples.iter() {
-            dividends[*uid_i as usize] = I32F32::from_num(1.0);
+        if is_zero(&incentive) {
+            for (uid_i, _key) in uid_key_tuples.iter() {
+                incentive[*uid_i as usize] = I32F32::from_num(1.0);
+            }
         }
+
+        inplace_normalize(&mut incentive);
+        incentive
     }
 
-        inplace_normalize(&mut dividends);
-        dividends
+    fn get_current_weight_age(last_update_vector: &[u64], current_block: u64, uid_i: u16) -> u64 {
+        current_block.saturating_sub(last_update_vector[uid_i as usize])
     }
 
-    fn calculate_founder_emission(netuid: u16, mut token_emission: u64) -> (u64, u64) {
-        let founder_key = Self::get_founder(netuid);
+    fn check_weight_validity(
+        weight_age: u64,
+        subnet_params: &SubnetParams<T>,
+        weights_i: &[(u16, u16)],
+        stake_f64: &[I64F64],
+        total_stake_u64: u64,
+        min_weight_stake_f64: I64F64,
+        n: u16,
+        uid_i: u16,
+    ) -> (bool, Vec<(u16, u16)>) {
+        let mut weight_changed = false;
+        let mut valid_weights = Vec::new();
+
+        if weight_age > subnet_params.max_weight_age
+            || weights_i.len() < subnet_params.min_allowed_weights as usize
+        {
+            weight_changed = true;
+        } else {
+            for (pos, (uid_j, weight_ij)) in weights_i.iter().enumerate() {
+                if (pos as u16) <= subnet_params.max_allowed_weights && *uid_j < n {
+                    let weight_f64 = I64F64::from_num(*weight_ij) / I64F64::from_num(u16::MAX);
+                    let weight_stake = (stake_f64[uid_i as usize] * weight_f64)
+                        * I64F64::from_num(total_stake_u64);
+                    if weight_stake > min_weight_stake_f64 {
+                        valid_weights.push((*uid_j, *weight_ij));
+                    } else {
+                        weight_changed = true;
+                    }
+                } else {
+                    weight_changed = true;
+                }
+            }
+        }
+
+        (weight_changed, valid_weights)
+    }
+
+    fn process_weights(
+        netuid: u16,
+        n: u16,
+        global_params: &GlobalParams,
+        subnet_params: &SubnetParams<T>,
+        current_block: u64,
+        stake_f64: &[I64F64],
+        total_stake_u64: u64,
+    ) -> Vec<Vec<(u16, I32F32)>> {
+        let last_update_vector = Self::get_last_update(netuid);
+        let min_weight_stake_f64 = I64F64::from_num(global_params.min_weight_stake);
+        let mut weights: Vec<Vec<(u16, u16)>> = vec![vec![]; n as usize];
+
+        for (uid_i, weights_i) in
+            <Weights<T> as IterableStorageDoubleMap<u16, u16, Vec<(u16, u16)>>>::iter_prefix(netuid)
+        {
+            let weight_age =
+                Self::get_current_weight_age(&last_update_vector, current_block, uid_i);
+            let (weight_changed, valid_weights) = Self::check_weight_validity(
+                weight_age,
+                subnet_params,
+                &weights_i,
+                stake_f64,
+                total_stake_u64,
+                min_weight_stake_f64,
+                n,
+                uid_i,
+            );
+
+            weights[uid_i as usize] = valid_weights;
+            if weight_changed {
+                <Weights<T>>::insert(netuid, uid_i, weights[uid_i as usize].clone());
+            }
+        }
+
+        let mut weights: Vec<Vec<(u16, I32F32)>> = weights
+            .iter()
+            .map(|x| {
+                x.iter().map(|(uid, weight)| (*uid, u16_proportion_to_fixed(*weight))).collect()
+            })
+            .collect();
+
+        weights = mask_diag_sparse(&weights);
+        inplace_row_normalize_sparse(&mut weights);
+
+        weights
+    }
+
+    fn calculate_founder_emission(
+        netuid: u16,
+        mut token_emission: u64,
+        founder_key: &T::AccountId,
+    ) -> (u64, u64) {
         let is_founder_registered = Self::key_registered(netuid, &founder_key);
         let mut founder_emission: u64 = 0;
 
@@ -323,154 +487,6 @@ impl<T: Config> Pallet<T> {
             }
         }
         (token_emission, founder_emission)
-    }
-
-    fn get_stake_vector(
-        netuid: u16,
-        uid_key_tuples: &Vec<(u16, T::AccountId)>,
-        max_stake: u64,
-    ) -> Vec<u64> {
-        uid_key_tuples
-            .iter()
-            .map(|(_, key)| Self::get_stake_for_key(netuid, key).min(max_stake))
-            .collect()
-    }
-
-    fn normalize_stake_vector(stake_u64: &[u64], total_stake_u64: u64) -> Vec<I64F64> {
-        stake_u64
-            .iter()
-            .map(|x| I64F64::from_num(*x) / I64F64::from_num(total_stake_u64))
-            .collect()
-    }
-
-    fn get_weights(netuid: u16, n: u16) -> Vec<Vec<(u16, u16)>> {
-        let mut weights: Vec<Vec<(u16, u16)>> = vec![vec![]; n as usize];
-
-        for (uid_i, weights_i) in
-            <Weights<T> as IterableStorageDoubleMap<u16, u16, Vec<(u16, u16)>>>::iter_prefix(netuid)
-        {
-            weights[uid_i as usize] = weights_i;
-        }
-
-        weights
-    }
-
-    fn update_weights(
-        global_params: GlobalParams,
-        n: u16,
-        netuid: u16,
-        weights: &mut Vec<Vec<(u16, u16)>>,
-        last_update_vector: &[u64],
-        stake_f64: &[I64F64],
-        current_block: u64,
-        subnet_params: &SubnetParams<T>,
-    ) {
-        let min_weight_stake_f64: I64F64 = I64F64::from_num(global_params.min_weight_stake);
-        let total_stake_u64: u64 = Self::get_total_subnet_stake(netuid);
-
-        for (uid_i, weights_i) in weights.iter_mut().enumerate() {
-            let weight_age: u64 = current_block.saturating_sub(last_update_vector[uid_i]);
-
-            if weight_age > subnet_params.max_weight_age
-                || weights_i.len() < subnet_params.min_allowed_weights as usize
-            {
-                weights_i.clear();
-            } else {
-                weights_i.retain(|(uid_j, weight_ij)| {
-                    if *uid_j < n && *weight_ij <= subnet_params.max_allowed_weights {
-                        let weight_f64 = I64F64::from_num(*weight_ij) / I64F64::from_num(u16::MAX);
-                        let weight_stake =
-                            (stake_f64[uid_i] * weight_f64) * I64F64::from_num(total_stake_u64);
-                        weight_stake > min_weight_stake_f64
-                    } else {
-                        false
-                    }
-                });
-            }
-
-            <Weights<T>>::insert(netuid, uid_i as u16, weights_i.clone());
-        }
-    }
-
-    fn convert_weights_to_fixed(weights: &[Vec<(u16, u16)>]) -> Vec<Vec<(u16, I32F32)>> {
-        weights
-            .iter()
-            .map(|x| {
-                x.iter().map(|(uid, weight)| (*uid, u16_proportion_to_fixed(*weight))).collect()
-            })
-            .collect()
-    }
-
-    fn weight_normalization(weights: Vec<Vec<(u16, I32F32)>>) -> Vec<Vec<(u16, I32F32)>> {
-        let weights = mask_diag_sparse(&weights);
-        inplace_row_normalize_sparse(&mut weights.clone());
-        weights
-    }
-
-    fn calculate_incentive(
-        weights: &[Vec<(u16, I32F32)>],
-        stake: &[I32F32],
-        n: u16,
-    ) -> Vec<I32F32> {
-        let mut incentive: Vec<I32F32> = vec![I32F32::from_num(0.0); n as usize];
-
-        for (i, sparse_row) in weights.iter().enumerate() {
-            for (j, value) in sparse_row.iter() {
-                incentive[*j as usize] += stake[i] * value;
-            }
-        }
-
-        inplace_normalize(&mut incentive);
-        incentive
-    }
-
-    fn even_split_incentive(uid_key_tuples: &[(u16, T::AccountId)], n: u16) -> Vec<I32F32> {
-        let mut incentive: Vec<I32F32> = vec![I32F32::from_num(0.0); n as usize];
-        for (uid_i, _key) in uid_key_tuples.iter() {
-            incentive[*uid_i as usize] = I32F32::from_num(1.0);
-        }
-        incentive
-    }
-
-    fn calculate_trust_and_update_incentive(
-        netuid: u16,
-        weights: &[Vec<(u16, I32F32)>],
-        stake: &[I32F32],
-        incentive: &[I32F32],
-        min_stake: I32F32,
-    ) -> (Vec<I32F32>, Vec<I32F32>) {
-        let trust_ratio: u16 = Self::get_trust_ratio(netuid);
-        let n = incentive.len();
-
-        if trust_ratio > 0 {
-            let trust_share: I32F32 = I32F32::from_num(trust_ratio) / I32F32::from_num(100);
-            let incentive_share: I32F32 = I32F32::from_num(1.0).saturating_sub(trust_share);
-            let mut trust: Vec<I32F32> = vec![I32F32::from_num(0.0); n];
-
-            for (i, weights_i) in weights.iter().enumerate() {
-                for (j, weight_ij) in weights_i.iter() {
-                    if *weight_ij > 0 && stake[i] > min_stake {
-                        trust[*j as usize] += I32F32::from_num(1.0);
-                    }
-                }
-            }
-
-            inplace_normalize(&mut trust);
-            let incentive: Vec<I32F32> = incentive
-                .iter()
-                .zip(trust.iter())
-                .map(|(inc, tru)| (inc * incentive_share) + (tru * trust_share))
-                .collect();
-
-            Trust::<T>::insert(
-                netuid,
-                trust.iter().map(|xi| fixed_proportion_to_u16(*xi)).collect::<Vec<u16>>(),
-            );
-
-            (incentive, trust)
-        } else {
-            (incentive.to_vec(), vec![I32F32::from_num(0.0); n])
-        }
     }
 
     pub fn get_block_at_registration(netuid: u16) -> Vec<u64> {

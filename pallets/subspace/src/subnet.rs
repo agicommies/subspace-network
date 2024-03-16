@@ -138,8 +138,9 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn set_subnet_params(netuid: u16, params: SubnetParams<T>) {
-        // TEMPO, IMMUNITY_PERIOD, MIN_ALLOWED_WEIGHTS, MAX_ALLOWED_WEIGHTS, MAX_ALLOWED_UIDS,
-        // MAX_IMMUNITY_RATIO
+        // Check if the params are valid
+        Self::check_subnet_params(params.clone()).unwrap();
+
         Self::set_founder(netuid, params.founder);
         Self::set_founder_share(netuid, params.founder_share);
         Self::set_tempo(netuid, params.tempo);
@@ -344,7 +345,6 @@ impl<T: Config> Pallet<T> {
     }
 
     // Initializes a new subnetwork under netuid with parameters.
-    //
     pub fn subnet_name_exists(name: Vec<u8>) -> bool {
         for (_netuid, _name) in <SubnetNames<T> as IterableStorageMap<u16, Vec<u8>>>::iter() {
             if _name == name {
@@ -790,16 +790,16 @@ impl<T: Config> Pallet<T> {
         true
     }
 
+    #[cfg(debug_assertions)]
+    pub fn get_trust(netuid: u16) -> Vec<u16> {
+        Trust::<T>::get(netuid)
+    }
+
     pub fn get_emissions(netuid: u16) -> Vec<u64> {
         Emission::<T>::get(netuid)
     }
     pub fn get_incentives(netuid: u16) -> Vec<u16> {
         Incentive::<T>::get(netuid)
-    }
-
-    #[cfg(debug_assertions)]
-    pub fn get_trust(netuid: u16) -> Vec<u16> {
-        Trust::<T>::get(netuid)
     }
 
     pub fn get_dividends(netuid: u16) -> Vec<u16> {

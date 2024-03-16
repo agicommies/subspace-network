@@ -52,7 +52,6 @@ impl<T: Config> Pallet<T> {
     }
 
     // GLOBAL LAND
-
     pub fn do_add_global_proposal(
         origin: T::RuntimeOrigin,
         // params
@@ -66,7 +65,6 @@ impl<T: Config> Pallet<T> {
     }
 
     // CUSTOM LAND
-
     pub fn do_add_custom_proposal(
         origin: T::RuntimeOrigin,
         // params
@@ -81,7 +79,6 @@ impl<T: Config> Pallet<T> {
     }
 
     // SUBNET LAND
-
     pub fn do_add_subnet_proposal(
         origin: T::RuntimeOrigin,
         // params

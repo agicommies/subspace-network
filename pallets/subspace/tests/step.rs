@@ -572,7 +572,7 @@ fn test_trust() {
 
         register_n_modules(netuid, n, stake_per_module);
         let mut params = SubspaceModule::subnet_params(netuid);
-        params.min_allowed_weights = 0;
+        params.min_allowed_weights = 1;
         params.max_allowed_weights = n;
         params.tempo = 100;
         params.trust_ratio = 100;
