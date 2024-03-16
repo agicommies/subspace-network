@@ -17,10 +17,7 @@ impl<T: Config> Pallet<T> {
         );
 
         ensure!(!keys.is_empty(), Error::<T>::EmptyKeys);
-        ensure!(
-            keys.len() == shares.len(),
-            Error::<T>::DifferentLengths
-        );
+        ensure!(keys.len() == shares.len(), Error::<T>::DifferentLengths);
 
         let total_shares: u32 = shares.iter().map(|&x| x as u32).sum();
         ensure!(total_shares > 0, Error::<T>::InvalidShares);
