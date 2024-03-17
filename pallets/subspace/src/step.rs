@@ -383,6 +383,7 @@ impl<T: Config> Pallet<T> {
         current_block.saturating_sub(last_update_vector[uid_i as usize])
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn check_weight_validity(
         weight_age: u64,
         subnet_params: &SubnetParams<T>,
@@ -473,7 +474,7 @@ impl<T: Config> Pallet<T> {
         mut token_emission: u64,
         founder_key: &T::AccountId,
     ) -> (u64, u64) {
-        let is_founder_registered = Self::key_registered(netuid, &founder_key);
+        let is_founder_registered = Self::key_registered(netuid, founder_key);
         if !is_founder_registered {
             return (token_emission, 0);
         }
