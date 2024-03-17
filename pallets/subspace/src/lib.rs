@@ -901,17 +901,13 @@ pub mod pallet {
         KeyAlreadyRegistered, //
         ModuleNameDoesNotExist, /* --- Thrown when the user tries to remove a module name that
                                * does not exist. */
-        KeyNameMismatch,
         EmptyKeys,
         InvalidShares,
-        InvalidNormalizedShares,
         ProfitSharesNotAdded,
         NotFounder,
         NameAlreadyRegistered,
         NotEnoughStakeToSetWeights,
         NotEnoughStakeToStartNetwork,
-        NetworkRegistrationFailed,
-        NetworkAlreadyRegistered,
         NotEnoughStakePerWeight,
         NoSelfWeight,
         DifferentLengths,
@@ -922,11 +918,6 @@ pub mod pallet {
         StillRegistered,
         MaxAllowedModules, /* --- Thrown when the user tries to set max allowed modules to a
                             * value less than the current number of registered modules. */
-        TooManyUpdatesProposals,
-        InvalidProposalId,
-        UpdateProposalAlreadyVoted,
-        UpdateProposalVoteNotAvailable,
-        NotEnoughVotesToAccept,
         NotEnoughBalanceToTransfer,
         NotAuthorityMode,
         InvalidTrustRatio,
@@ -935,7 +926,6 @@ pub mod pallet {
         InvalidMinStake,
         InvalidMinDelegationFee,
 
-        InvalidGlobalParams,
         InvalidMaxNameLength,
         InvalidMaxAllowedSubnets,
         InvalidMaxAllowedModules,
@@ -948,6 +938,7 @@ pub mod pallet {
         InvalidBurnRate,
         InvalidMinBurn,
         InvalidMaxBurn,
+        InvalidTargetRegistrationsPerInterval,
 
         // VOTING
         ProposalDoesNotExist,
@@ -957,11 +948,11 @@ pub mod pallet {
         VoterIsNotRegistered,
         VoterIsRegistered,
         InvalidVoteMode,
+        InvalidImmunityPeriod,
+        InvalidFounderShare,
+        InvalidIncentiveRatio,
         InvalidMaxWeightAge,
         InvalidMaxStake,
-
-        AlreadyControlled,
-        AlreadyController,
 
         // OTHER
         ArithmeticError,
@@ -1222,7 +1213,7 @@ pub mod pallet {
             params.target_registrations_interval = target_registrations_interval;
 
             // Check if the parameters are valid
-            Self::check_global_params(params.clone())?;
+            Self::check_global_params(&params)?;
 
             // if so update them
             Self::do_update_global(origin, params)
@@ -1304,7 +1295,7 @@ pub mod pallet {
             params.vote_threshold = vote_threshold;
 
             // Check if subnet parameters are valid
-            Self::check_subnet_params(params.clone())?;
+            Self::check_subnet_params(&params)?;
 
             // if so update them
             Self::do_update_subnet(origin, netuid, params)

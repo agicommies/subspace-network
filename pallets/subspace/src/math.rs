@@ -43,12 +43,12 @@ pub fn mask_diag_sparse(sparse_matrix: &[Vec<(u16, I32F32)>]) -> Vec<Vec<(u16, I
 
 /// Normalizes (sum to 1 except 0) each row (dim=0) of a sparse matrix in-place.
 pub fn inplace_row_normalize_sparse(sparse_matrix: &mut [Vec<(u16, I32F32)>]) {
-    sparse_matrix.iter_mut().for_each(|sparse_row| {
+    for sparse_row in sparse_matrix.iter_mut() {
         let row_sum: I32F32 = sparse_row.iter().map(|(_j, value)| *value).sum();
         if row_sum != I32F32::from_num(0) {
             sparse_row.iter_mut().for_each(|(_j, value)| *value /= row_sum);
         }
-    });
+    }
 }
 
 #[cfg(test)]

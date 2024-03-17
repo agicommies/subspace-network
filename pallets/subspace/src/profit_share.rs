@@ -24,11 +24,7 @@ impl<T: Config> Pallet<T> {
 
         let normalized_shares: Vec<u16> = shares
             .iter()
-            .map(|&share| {
-                let normalized_share =
-                    (share as u64 * u16::MAX as u64 / total_shares as u64) as u16;
-                normalized_share
-            })
+            .map(|&share| (share as u64 * u16::MAX as u64 / total_shares as u64) as u16)
             .collect();
 
         let total_normalized_shares: u16 = normalized_shares.iter().sum();
@@ -44,7 +40,7 @@ impl<T: Config> Pallet<T> {
         }
 
         let profit_share_tuples: Vec<(T::AccountId, u16)> =
-            keys.into_iter().zip(adjusted_shares.into_iter()).collect();
+            keys.into_iter().zip(adjusted_shares).collect();
 
         ProfitShares::<T>::insert(&key, profit_share_tuples.clone());
 

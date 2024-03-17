@@ -47,9 +47,9 @@ fn test_add_subnets() {
 
             let keys = SubspaceModule::get_keys(netuid);
 
-            info!("total stake {}", total_stake);
-            info!("total balance {}", total_balance);
-            info!("total tokens before {}", total_tokens_before);
+            info!("total stake {total_stake}");
+            info!("total balance {total_balance}");
+            info!("total tokens before {total_tokens_before}");
 
             assert_eq!(keys.len() as u16, n);
             assert!(SubspaceModule::check_subnet_storage(netuid));
@@ -125,11 +125,9 @@ fn test_set_single_temple(tempo: u16) {
             let dividends: Vec<u16> = SubspaceModule::get_dividends(netuid);
             let emissions: Vec<u64> = SubspaceModule::get_emissions(netuid);
 
-            info!("emission {:?}", emissions);
-            info!("incentives {:?}", incentives);
-            info!("dividends {:?}", dividends);
-            // info!("EMMISSIONS {:?}", SubspaceModule::get_ownership_ratios_emission(netuid,
-            // &U256::from(0),emissions[0] ));
+            info!("emission {emissions:?}");
+            info!("incentives {incentives:?}");
+            info!("dividends {dividends:?}");
 
             let stake: u64 = SubspaceModule::get_stake_for_uid(netuid, 0);
             info!("stake {:?}", stake);
@@ -266,8 +264,8 @@ fn test_set_max_allowed_uids_shrinking() {
         let mut total_stake: u64 = SubspaceModule::get_total_subnet_stake(netuid);
         let mut expected_stake: u64 = n as u64 * stake;
 
-        info!("total stake {}", total_stake);
-        info!("expected stake {}", expected_stake);
+        info!("total stake {total_stake}");
+        info!("expected stake {expected_stake}");
         assert_eq!(total_stake, expected_stake);
 
         let _subnet = SubspaceModule::subnet_info(netuid);

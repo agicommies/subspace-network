@@ -103,13 +103,13 @@ fn test_multiple_stake() {
 
         let stake_amounts: Vec<u64> = vec![stake_amount; num_staked_modules as usize];
 
-        info!("STAKE AMOUNTS: {:?}", stake_amounts);
+        info!("STAKE AMOUNTS: {stake_amounts:?}");
         let total_actual_stake: u64 =
             keys.clone().into_iter().map(|k| SubspaceModule::get_stake(netuid, &k)).sum();
         let staker_balance = SubspaceModule::get_balance(&controler_key);
-        info!("TOTAL ACTUAL STAKE: {}", total_actual_stake);
-        info!("TOTAL STAKE: {}", total_stake);
-        info!("STAKER BALANCE: {}", staker_balance);
+        info!("TOTAL ACTUAL STAKE: {total_actual_stake}");
+        info!("TOTAL STAKE: {total_stake}");
+        info!("STAKER BALANCE: {staker_balance}");
         assert_ok!(SubspaceModule::add_stake_multiple(
             get_origin(controler_key),
             netuid,
@@ -322,7 +322,7 @@ fn test_ownership_ratio() {
 
             info!("KEY: {}", k);
             for (i, d) in delegate_keys.iter().enumerate() {
-                info!("DELEGATE KEY: {}", d);
+                info!("DELEGATE KEY: {d}");
                 assert_ok!(SubspaceModule::add_stake(
                     get_origin(*d),
                     netuid,
@@ -339,7 +339,7 @@ fn test_ownership_ratio() {
                 SubspaceModule::get_ownership_ratios(netuid, k);
 
             assert_eq!(ownership_ratios.len(), delegate_keys.len() + 1);
-            info!("OWNERSHIP RATIOS: {:?}", ownership_ratios);
+            info!("OWNERSHIP RATIOS: {ownership_ratios:?}");
             // step_block();
 
             step_epoch(netuid);
@@ -350,8 +350,8 @@ fn test_ownership_ratio() {
             let total_stake: u64 = SubspaceModule::get_total_subnet_stake(netuid);
 
             info!("STAKE: {}", stake);
-            info!("SUMED STAKE: {}", sumed_stake);
-            info!("TOTAL STAKE: {}", total_stake);
+            info!("SUMED STAKE: {sumed_stake}");
+            info!("TOTAL STAKE: {total_stake}");
 
             assert_eq!(stake, sumed_stake);
 

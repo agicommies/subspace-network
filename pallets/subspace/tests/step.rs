@@ -16,14 +16,13 @@ fn check_network_stats(netuid: u16) {
     let total_dividends: u16 = dividends.iter().sum();
     let total_emissions: u64 = emissions.iter().sum();
 
-    info!("total_emissions: {}", total_emissions);
-    info!("total_incentives: {}", total_incentives);
-    info!("total_dividends: {}", total_dividends);
+    info!("total_emissions: {total_emissions}");
+    info!("total_incentives: {total_incentives}");
+    info!("total_dividends: {total_dividends}");
 
-    info!("emission: {:?}", emissions);
-    info!("incentives: {:?}", incentives);
-    info!("incentives: {:?}", incentives);
-    info!("dividends: {:?}", dividends);
+    info!("emission: {emissions:?}");
+    info!("incentives: {incentives:?}");
+    info!("dividends: {dividends:?}");
 
     assert!(
         total_emissions >= subnet_emission - emission_buffer
@@ -76,12 +75,6 @@ fn test_dividends_same_stake() {
         SubspaceModule::set_max_allowed_weights(netuid, n);
         SubspaceModule::set_min_allowed_weights(netuid, 0);
 
-        // for i in 0..n {
-
-        //     let key: U256 = U256::from(i);
-        //     register_module( netuid, key, stake_per_module );
-
-        // }
         let keys = SubspaceModule::get_keys(netuid);
         let _uids = SubspaceModule::get_uids(netuid);
 
@@ -126,7 +119,7 @@ fn test_dividends_same_stake() {
         assert_eq!(incentives[0], incentives[1]);
         assert_eq!(dividends[2], dividends[3]);
 
-        info!("emissions: {:?}", emissions);
+        info!("emissions: {emissions:?}");
 
         for (uid, emission) in emissions.iter().enumerate() {
             if emission == &0 {
@@ -175,12 +168,6 @@ fn test_dividends_diff_stake() {
         SubspaceModule::set_max_allowed_weights(netuid, n);
         SubspaceModule::set_min_allowed_weights(netuid, 0);
 
-        // for i in 0..n {
-
-        //     let key: U256 = U256::from(i);
-        //     register_module( netuid, key, stake_per_module );
-
-        // }
         let keys = SubspaceModule::get_keys(netuid);
         let _uids = SubspaceModule::get_uids(netuid);
 
@@ -216,7 +203,7 @@ fn test_dividends_diff_stake() {
         assert_eq!(incentives[0], incentives[1]);
         assert_eq!(dividends[2], dividends[3]);
 
-        info!("emissions: {:?}", emissions);
+        info!("emissions: {emissions:?}");
 
         for (uid, emission) in emissions.iter().enumerate() {
             if emission == &0 {
@@ -236,7 +223,6 @@ fn test_dividends_diff_stake() {
                 expected_stake_difference
             );
         }
-
         check_network_stats(netuid);
     });
 }
@@ -363,12 +349,12 @@ fn test_lowest_priority_mechanism() {
         assert!(dividends[prune_uid as usize] == 0);
 
         let lowest_priority_uid: u16 = SubspaceModule::get_lowest_uid(netuid);
-        info!("lowest_priority_uid: {}", lowest_priority_uid);
-        info!("prune_uid: {}", prune_uid);
-        info!("emissions: {:?}", emissions);
-        info!("lowest_priority_uid: {:?}", lowest_priority_uid);
-        info!("dividends: {:?}", dividends);
-        info!("incentives: {:?}", incentives);
+        info!("lowest_priority_uid: {lowest_priority_uid}");
+        info!("prune_uid: {prune_uid}");
+        info!("emissions: {emissions:?}");
+        info!("lowest_priority_uid: {lowest_priority_uid:?}");
+        info!("dividends: {dividends:?}");
+        info!("incentives: {incentives:?}");
         assert!(lowest_priority_uid == prune_uid);
         check_network_stats(netuid);
     });
@@ -601,7 +587,7 @@ fn test_trust() {
         assert!(trust[1] as u32 > 0);
         assert!(trust[2] as u32 > 2 * (trust[1] as u32) - 10);
         // evaluate votees
-        info!("trust: {:?}", emission);
+        info!("trust: {emission:?}");
         assert!(emission[1] > 0);
         assert!(emission[2] > 2 * (emission[1]) - 1000);
 
@@ -860,7 +846,7 @@ fn test_founder_share() {
         let subnet_params = SubspaceModule::subnet_params(netuid);
 
         let founder_stake_before = SubspaceModule::get_stake_for_key(netuid, &founder_key);
-        info!("founder_stake_before: {:?}", founder_stake_before);
+        info!("founder_stake_before: {founder_stake_before:?}");
         // vote to avoid key[0] as we want to see the key[0] burn
         step_epoch(netuid);
         let total_emission =
@@ -873,8 +859,8 @@ fn test_founder_share() {
         let total_dividends: u64 = dividends.iter().sum::<u16>() as u64;
         let total_incentives: u64 = incentives.iter().sum::<u16>() as u64;
 
-        info!("total_dividends: {:?}", total_dividends);
-        info!("total_incentives: {:?}", total_incentives);
+        info!("total_dividends: {total_dividends:?}");
+        info!("total_incentives: {total_incentives:?}");
         let expected_emission_after_founder_share = expected_emission - expected_founder_share;
         let founder_dividend_emission = ((dividends[0] as f64 / total_dividends as f64)
             * (expected_emission_after_founder_share / 2) as f64)
@@ -884,10 +870,10 @@ fn test_founder_share() {
             as u64;
         let founder_emission = founder_incentive_emission + founder_dividend_emission;
 
-        info!("emissions: {:?}", emissions);
-        info!("dividends: {:?}", dividends);
-        info!("incentives: {:?}", incentives);
-        info!("founder_emission FAM: {:?}", founder_emission);
+        info!("emissions: {emissions:?}");
+        info!("dividends: {dividends:?}");
+        info!("incentives: {incentives:?}");
+        info!("founder_emission FAM: {founder_emission:?}");
         let calcualted_total_emission = emissions.iter().sum::<u64>();
 
         let calculated_founder_share = SubspaceModule::get_stake_for_key(netuid, &founder_key)
@@ -895,8 +881,8 @@ fn test_founder_share() {
             - founder_emission;
         let delta: u64 = 100000;
 
-        info!("expected_emission: {:?}", expected_emission);
-        info!("total_emission: {:?}", total_emission);
+        info!("expected_emission: {expected_emission:?}");
+        info!("total_emission: {total_emission:?}");
         assert!(
             expected_emission > calcualted_total_emission - delta,
             "expected_emission: {} != calcualted_total_emission: {}",

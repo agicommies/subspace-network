@@ -67,7 +67,27 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    pub fn check_subnet_params(params: SubnetParams<T>) -> DispatchResult {
+    pub fn subnet_params(netuid: u16) -> SubnetParams<T> {
+        SubnetParams {
+            immunity_period: ImmunityPeriod::<T>::get(netuid),
+            min_allowed_weights: MinAllowedWeights::<T>::get(netuid),
+            max_allowed_weights: MaxAllowedWeights::<T>::get(netuid),
+            max_allowed_uids: MaxAllowedUids::<T>::get(netuid),
+            max_stake: MaxStake::<T>::get(netuid),
+            max_weight_age: MaxWeightAge::<T>::get(netuid),
+            min_stake: MinStake::<T>::get(netuid),
+            tempo: Tempo::<T>::get(netuid),
+            name: <Vec<u8>>::new(),
+            vote_threshold: VoteThresholdSubnet::<T>::get(netuid),
+            vote_mode: VoteModeSubnet::<T>::get(netuid),
+            trust_ratio: TrustRatio::<T>::get(netuid),
+            founder_share: FounderShare::<T>::get(netuid),
+            incentive_ratio: IncentiveRatio::<T>::get(netuid),
+            founder: Founder::<T>::get(netuid),
+        }
+    }
+
+    pub fn check_subnet_params(params: &SubnetParams<T>) -> DispatchResult {
         // checks if params are valid
 
         let global_params = Self::global_params();
@@ -114,32 +134,35 @@ impl<T: Config> Pallet<T> {
             params.vote_mode.clone() == AUTHORITY_MODE || params.vote_mode.clone() == STAKE_MODE,
             Error::<T>::InvalidVoteMode
         );
-        Ok(())
-    }
 
-    pub fn subnet_params(netuid: u16) -> SubnetParams<T> {
-        SubnetParams {
-            immunity_period: ImmunityPeriod::<T>::get(netuid),
-            min_allowed_weights: MinAllowedWeights::<T>::get(netuid),
-            max_allowed_weights: MaxAllowedWeights::<T>::get(netuid),
-            max_allowed_uids: MaxAllowedUids::<T>::get(netuid),
-            max_stake: MaxStake::<T>::get(netuid),
-            max_weight_age: MaxWeightAge::<T>::get(netuid),
-            min_stake: MinStake::<T>::get(netuid),
-            tempo: Tempo::<T>::get(netuid),
-            name: <Vec<u8>>::new(),
-            vote_threshold: VoteThresholdSubnet::<T>::get(netuid),
-            vote_mode: VoteModeSubnet::<T>::get(netuid),
-            trust_ratio: TrustRatio::<T>::get(netuid),
-            founder_share: FounderShare::<T>::get(netuid),
-            incentive_ratio: IncentiveRatio::<T>::get(netuid),
-            founder: Founder::<T>::get(netuid),
-        }
+        ensure!(
+            params.immunity_period > 0,
+            Error::<T>::InvalidImmunityPeriod
+        );
+
+        ensure!(
+            params.max_allowed_uids > 0,
+            Error::<T>::InvalidMaxAllowedUids
+        );
+
+        ensure!(
+            params.vote_threshold <= 100,
+            Error::<T>::InvalidVoteThreshold
+        );
+
+        ensure!(params.founder_share <= 100, Error::<T>::InvalidFounderShare);
+
+        ensure!(
+            params.incentive_ratio <= 100,
+            Error::<T>::InvalidIncentiveRatio
+        );
+
+        Ok(())
     }
 
     pub fn set_subnet_params(netuid: u16, params: SubnetParams<T>) {
         // Check if the params are valid
-        Self::check_subnet_params(params.clone()).unwrap();
+        Self::check_subnet_params(&params).expect("subnet params are invalid");
 
         Self::set_founder(netuid, params.founder);
         Self::set_founder_share(netuid, params.founder_share);

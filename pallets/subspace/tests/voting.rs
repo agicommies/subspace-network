@@ -26,7 +26,7 @@ fn test_subnet_porposal() {
             "vote mode not set"
         );
         params.vote_mode = "stake".as_bytes().to_vec();
-        info!("params: {:?}", params);
+        info!("params: {params:?}");
         SubspaceModule::set_subnet_params(netuid, params.clone());
         let mut params = SubspaceModule::subnet_params(netuid);
         let _initial_tempo = params.tempo;
@@ -46,7 +46,7 @@ fn test_subnet_porposal() {
         // we have not passed the threshold yet
         let proposals = SubspaceModule::get_subnet_proposals(netuid);
 
-        info!("proposals: {:?}", proposals);
+        info!("proposals: {proposals:?}");
 
         assert_eq!(proposals.len(), 1, "proposal not added");
         assert_eq!(proposals[0].votes, stakes[0], "proposal not added");
@@ -61,7 +61,7 @@ fn test_subnet_porposal() {
         assert_eq!(proposal.votes, stakes[0] + stakes[1], "proposal not voted");
         assert!(proposal.accepted, "proposal not voted");
 
-        info!("proposal: {:?}", proposal);
+        info!("proposal: {proposal:?}");
 
         let params = SubspaceModule::subnet_params(netuid);
         assert_eq!(params.tempo, final_tempo, "proposal not voted");
@@ -91,7 +91,7 @@ fn test_max_proposals() {
         );
         params.vote_mode = "stake".as_bytes().to_vec();
         params.max_proposals = (n / 2) as u64;
-        info!("params: {:?}", params);
+        info!("params: {params:?}");
         SubspaceModule::set_global_params(params.clone());
 
         assert_eq!(
@@ -129,10 +129,10 @@ fn test_max_proposals() {
             let num_proposals = SubspaceModule::num_proposals();
             let proposals = SubspaceModule::get_global_proposals();
             let has_max_proposals = SubspaceModule::has_max_proposals();
-            info!("max_proposals: {:?}", max_proposals);
-            info!("has_max_proposals: {:?}", has_max_proposals);
-            info!("num_proposals: {:?}", num_proposals);
-            info!("proposals: {:?}", proposals.len());
+            info!("max_proposals: {max_proposals:?}");
+            info!("has_max_proposals: {has_max_proposals:?}");
+            info!("num_proposals: {num_proposals:?}");
+            info!("proposals {:?}", proposals.len());
 
             let num_subnet_proposals = SubspaceModule::num_subnet_proposals(netuid);
             let num_global_proposals = SubspaceModule::num_global_proposals();
@@ -201,7 +201,7 @@ fn test_global_porposal() {
         assert_eq!(proposal.votes, stakes[0] + stakes[1], "proposal not voted");
         assert!(proposal.accepted, "proposal not voted");
 
-        info!("proposal: {:?}", proposal);
+        info!("proposal: {proposal:?}");
 
         let params = SubspaceModule::global_params();
         assert_eq!(
@@ -252,7 +252,7 @@ fn test_unvote() {
         // we have not passed the threshold yet
         let proposals = SubspaceModule::get_subnet_proposals(netuid);
 
-        info!("proposals: {:?}", proposals);
+        info!("proposals: {proposals:?}");
 
         assert_eq!(proposals.len(), 0, "proposal not added");
     });

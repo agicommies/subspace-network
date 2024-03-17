@@ -11,11 +11,11 @@ impl<T: Config> Pallet<T> {
     // - add ability to set delegaiton fee, straight in registration
     pub fn do_register(
         origin: T::RuntimeOrigin,
-        network_name: Vec<u8>,    // network name
-        name: Vec<u8>,            // module name
-        address: Vec<u8>,         // module address
-        stake: u64,               // stake amount
-        module_key: T::AccountId, // module key
+        network_name: Vec<u8>,
+        name: Vec<u8>,
+        address: Vec<u8>,
+        stake: u64,
+        module_key: T::AccountId,
     ) -> DispatchResult {
         // --- 1. Check that the caller has signed the transaction.
         let key = ensure_signed(origin.clone())?;

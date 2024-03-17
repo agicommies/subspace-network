@@ -143,8 +143,8 @@ impl<T: Config> Pallet<T> {
     }
 
     fn calculate_emission_ratios(
-        incentive: &Vec<I32F32>,
-        dividends: &Vec<I32F32>,
+        incentive: &[I32F32],
+        dividends: &[I32F32],
         token_emission: u64,
         netuid: u16,
     ) -> (Vec<I64F64>, Vec<I64F64>) {
@@ -165,12 +165,12 @@ impl<T: Config> Pallet<T> {
     }
 
     fn calculate_emissions(
-        incentive_emission_float: &Vec<I64F64>,
-        dividends_emission_float: &Vec<I64F64>,
+        incentive_emission_float: &[I64F64],
+        dividends_emission_float: &[I64F64],
         founder_emission: u64,
         netuid: u16,
         founder_key: &T::AccountId,
-        uid_key_tuples: &Vec<(u16, T::AccountId)>,
+        uid_key_tuples: &[(u16, T::AccountId)],
     ) -> Vec<u64> {
         let n = incentive_emission_float.len();
         let mut incentive_emission: Vec<u64> =
@@ -260,13 +260,13 @@ impl<T: Config> Pallet<T> {
     }
 
     fn process_emission(
-        incentive: &Vec<I32F32>,
-        dividends: &Vec<I32F32>,
+        incentive: &[I32F32],
+        dividends: &[I32F32],
         token_emission: u64,
         netuid: u16,
         founder_emission: u64,
         founder_key: &T::AccountId,
-        uid_key_tuples: &Vec<(u16, T::AccountId)>,
+        uid_key_tuples: &[(u16, T::AccountId)],
     ) {
         let (incentive_emission_float, dividends_emission_float) =
             Self::calculate_emission_ratios(incentive, dividends, token_emission, netuid);
@@ -284,9 +284,9 @@ impl<T: Config> Pallet<T> {
     }
 
     fn compute_dividends(
-        bonds: &Vec<Vec<(u16, I32F32)>>,
-        incentive: &Vec<I32F32>,
-        uid_key_tuples: &Vec<(u16, T::AccountId)>,
+        bonds: &[Vec<(u16, I32F32)>],
+        incentive: &[I32F32],
+        uid_key_tuples: &[(u16, T::AccountId)],
     ) -> (Vec<u16>, Vec<I32F32>) {
         let n = incentive.len();
         let mut dividends: Vec<I32F32> = vec![I32F32::from_num(0.0); n];
@@ -312,11 +312,11 @@ impl<T: Config> Pallet<T> {
     }
 
     fn compute_bonds_delta(
-        weights: &Vec<Vec<(u16, I32F32)>>,
-        stake: &Vec<I32F32>,
+        weights: &[Vec<(u16, I32F32)>],
+        stake: &[I32F32],
     ) -> Vec<Vec<(u16, I32F32)>> {
         let n = weights.len();
-        let mut bonds: Vec<Vec<(u16, I32F32)>> = weights.clone();
+        let mut bonds: Vec<Vec<(u16, I32F32)>> = weights.to_vec();
         let mut col_sum: Vec<I32F32> = vec![I32F32::from_num(0.0); n];
 
         for (i, sparse_row) in bonds.iter_mut().enumerate() {
@@ -338,8 +338,8 @@ impl<T: Config> Pallet<T> {
     }
 
     fn compute_trust(
-        weights: &Vec<Vec<(u16, I32F32)>>,
-        stake: &Vec<I32F32>,
+        weights: &[Vec<(u16, I32F32)>],
+        stake: &[I32F32],
         subnet_params: &SubnetParams<T>,
         n: u16,
     ) -> Vec<I32F32> {
@@ -356,9 +356,9 @@ impl<T: Config> Pallet<T> {
     }
 
     fn compute_incentive(
-        weights: &Vec<Vec<(u16, I32F32)>>,
-        stake: &Vec<I32F32>,
-        uid_key_tuples: &Vec<(u16, T::AccountId)>,
+        weights: &[Vec<(u16, I32F32)>],
+        stake: &[I32F32],
+        uid_key_tuples: &[(u16, T::AccountId)],
         n: u16,
     ) -> Vec<I32F32> {
         let mut incentive: Vec<I32F32> = vec![I32F32::from_num(0.0); n as usize];
