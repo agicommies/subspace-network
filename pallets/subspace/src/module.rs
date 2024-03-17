@@ -130,7 +130,6 @@ impl<T: Config> Pallet<T> {
         let mut dividends: Vec<u16> = Dividends::<T>::get(netuid);
         let mut last_update: Vec<u64> = LastUpdate::<T>::get(netuid);
         let mut emission: Vec<u64> = Emission::<T>::get(netuid);
-        let _delegation_fee: Percent = DelegationFee::<T>::get(netuid, &uid_key);
 
         // swap consensus vectors
         incentive[uid as usize] = incentive[replace_uid as usize];
@@ -195,13 +194,7 @@ impl<T: Config> Pallet<T> {
         // 1. Get the next uid. This is always equal to subnetwork_n.
         let uid: u16 = Self::get_subnet_n(netuid);
         let block_number = Self::get_current_block_number();
-        log::debug!(
-            "append_module( netuid: {:?} | uid: {:?} | new_key: {:?} ) ",
-            netuid,
-            key,
-            uid
-        );
-
+        log::debug!("append_module( netuid: {netuid:?} | uid: {key:?} | new_key: {uid:?})");
         // 3. Expand with new position.
         Emission::<T>::append(netuid, 0);
         Incentive::<T>::append(netuid, 0);
