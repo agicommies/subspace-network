@@ -38,7 +38,7 @@ impl<T: Config> Pallet<T> {
         It calculates the dividends, the incentive, the weights, the bonds,
         the trust and the emission for the epoch.
         */
-
+        
         // get the network parameters
         let global_params = Self::global_params();
         let subnet_params = Self::subnet_params(netuid);

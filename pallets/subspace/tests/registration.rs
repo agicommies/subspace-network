@@ -105,13 +105,13 @@ fn test_registration_ok() {
         register_module(netuid, key, 0)
             .unwrap_or_else(|_| panic!("register module failed for key {key:?}"));
 
-        // Check if neuron has added to the specified network(netuid)
+        // Check if module has added to the specified network(netuid)
         assert_eq!(SubspaceModule::get_subnet_n(netuid), 1);
 
-        // Check if the neuron has added to the Keys
+        // Check if the module has added to the Keys
         let neuron_uid = SubspaceModule::get_uid_for_key(netuid, &key);
         assert_eq!(SubspaceModule::get_uid_for_key(netuid, &key), 0);
-        // Check if neuron has added to Uids
+        // Check if module has added to Uids
         let neuro_uid = SubspaceModule::get_uid_for_key(netuid, &key);
         assert_eq!(neuro_uid, neuron_uid);
 

@@ -6,6 +6,52 @@ use frame_system::ensure_signed;
 use sp_std::vec::Vec;
 
 impl<T: Config> Pallet<T> {
+    pub fn do_add_to_whitelist(
+        origin: T::RuntimeOrigin,
+        module_key: T::AccountId,
+    ) -> DispatchResult {
+        // --- 1. Check that the caller has signed the transaction.
+        let key = ensure_signed(origin)?;
+
+        // --- 2. Ensure that the key is the nominator multisig.
+        ensure!(Self::get_nominator() == key, Error::<T>::NotNominator);
+
+        // --- 3. Ensure that the module_key is not already in the whitelist.
+        ensure!(
+            !LegitWhitelist::<T>::contains_key(&module_key),
+            Error::<T>::AlreadyWhitelisted
+        );
+
+        // --- 4. Insert the module_key into the whitelist.
+        LegitWhitelist::<T>::insert(module_key, ());
+
+        // --- 5. Ok and done.
+        Ok(())
+    }
+
+    pub fn do_remove_from_whitelist(
+        origin: T::RuntimeOrigin,
+        module_key: T::AccountId,
+    ) -> DispatchResult {
+        // --- 1. Check that the caller has signed the transaction.
+        let key = ensure_signed(origin)?;
+
+        // --- 2. Ensure that the key is the nominator multisig.
+        ensure!(Self::get_nominator() == key, Error::<T>::NotNominator);
+
+        // --- 3. Ensure that the module_key is in the whitelist.
+        ensure!(
+            LegitWhitelist::<T>::contains_key(&module_key),
+            Error::<T>::NotWhitelisted
+        );
+
+        // --- 4. Remove the module_key from the whitelist.
+        LegitWhitelist::<T>::remove(&module_key);
+
+        // --- 5. Ok and done.
+        Ok(())
+    }
+
     // TODO:
     //- check ip
     // - add ability to set delegaiton fee, straight in registration

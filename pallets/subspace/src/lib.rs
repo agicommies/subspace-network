@@ -636,7 +636,6 @@ pub mod pallet {
     #[pallet::storage] // --- DMAP ( netuid, uid ) --> module_key
     pub(super) type Keys<T: Config> =
         StorageDoubleMap<_, Identity, u16, Identity, u16, T::AccountId, ValueQuery, DefaultKey<T>>;
-
     #[pallet::type_value]
     pub fn DefaultName<T: Config>() -> Vec<u8> {
         vec![]
@@ -670,7 +669,6 @@ pub mod pallet {
     >;
 
     // STATE OF THE MODULE
-
     #[pallet::type_value]
     pub fn DefaultBlockAtRegistration<T: Config>() -> u64 {
         0
@@ -793,6 +791,10 @@ pub mod pallet {
         ValueQuery,
         DefaultWeights<T>,
     >;
+
+    // whitelist for the base subnet (netuid 0)
+    #[pallet::storage]
+    pub(super) type LegitWhitelist<T: Config> = StorageMap<_, Identity, T::AccountId, (), ValueQuery>;
 
     // ========================================================
     // ==== Voting System to Update Global and Subnet  ====
@@ -951,6 +953,12 @@ pub mod pallet {
         ModuleNameDoesNotExist, /* --- Thrown when the user tries to remove a module name that
                                * does not exist. */
         EmptyKeys,
+        NotNominator, /* --- Thrown when the user tries to set the nominator and is not the
+                       * nominator */
+        AlreadyWhitelisted, /* --- Thrown when the user tries to whitelist an account that is
+                             * already whitelisted. */
+        NotWhitelisted, /* --- Thrown when the user tries to remove an account from the
+                         * whitelist that is not whitelisted. */
         InvalidShares,
         ProfitSharesNotAdded,
         NotFounder,
@@ -1216,6 +1224,16 @@ pub mod pallet {
             shares: Vec<u16>,
         ) -> DispatchResult {
             Self::do_add_profit_shares(origin, keys, shares)
+        }
+
+        #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
+        pub fn add_to_whitelist(origin: OriginFor<T>, key: T::AccountId) -> DispatchResult {
+            Self::do_add_to_whitelist(origin, key)
+        }
+
+        #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
+        pub fn remove_from_whitelist(origin: OriginFor<T>, key: T::AccountId) -> DispatchResult {
+            Self::do_remove_from_whitelist(origin, key)
         }
 
         #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
