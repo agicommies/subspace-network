@@ -81,7 +81,6 @@ pub mod pallet {
 
         /// Type representing the weight of this pallet
         type WeightInfo: WeightInfo;
-        
     }
 
     pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
@@ -272,8 +271,8 @@ pub mod pallet {
         pub controller: T::AccountId,
     }
 
-
-    #[derive(Decode, Encode, PartialEq, Eq, Clone, Debug, TypeInfo)]
+    #[derive(Decode, Encode, PartialEq, Eq, Clone, TypeInfo)]
+    #[scale_info(skip_type_params(T))]
     pub struct GlobalParams<T: Config> {
         pub burn_rate: u16,
         // max
@@ -301,6 +300,45 @@ pub mod pallet {
         pub vote_threshold: u16,   // out of 100
         pub vote_mode: Vec<u8>,    // out of 100
         pub nominator: T::AccountId,
+    }
+
+    impl<T: Config> core::fmt::Debug for GlobalParams<T>
+    where
+        T::AccountId: core::fmt::Debug,
+    {
+        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+            f.debug_struct("GlobalParams")
+                .field("burn_rate", &self.burn_rate)
+                .field("max_name_length", &self.max_name_length)
+                .field("max_allowed_subnets", &self.max_allowed_subnets)
+                .field("max_allowed_modules", &self.max_allowed_modules)
+                .field(
+                    "max_registrations_per_block",
+                    &self.max_registrations_per_block,
+                )
+                .field("max_allowed_weights", &self.max_allowed_weights)
+                .field("max_proposals", &self.max_proposals)
+                .field("min_burn", &self.min_burn)
+                .field("max_burn", &self.max_burn)
+                .field("min_stake", &self.min_stake)
+                .field("floor_delegation_fee", &self.floor_delegation_fee)
+                .field("min_weight_stake", &self.min_weight_stake)
+                .field(
+                    "target_registrations_per_interval",
+                    &self.target_registrations_per_interval,
+                )
+                .field(
+                    "target_registrations_interval",
+                    &self.target_registrations_interval,
+                )
+                .field("adjustment_alpha", &self.adjustment_alpha)
+                .field("unit_emission", &self.unit_emission)
+                .field("tx_rate_limit", &self.tx_rate_limit)
+                .field("vote_threshold", &self.vote_threshold)
+                .field("vote_mode", &self.vote_mode)
+                .field("nominator", &self.nominator)
+                .finish()
+        }
     }
 
     #[pallet::type_value]
@@ -334,6 +372,7 @@ pub mod pallet {
     // =========================
 
     #[derive(Decode, Encode, PartialEq, Eq, Clone, Debug, TypeInfo)]
+    #[scale_info(skip_type_params(T))]
     pub struct SubnetParams<T: Config> {
         // --- parameters
         pub founder: T::AccountId,
@@ -759,6 +798,7 @@ pub mod pallet {
     // ==== Voting System to Update Global and Subnet  ====
     // ========================================================
     #[derive(Decode, Encode, PartialEq, Eq, Clone, Debug, TypeInfo)]
+    #[scale_info(skip_type_params(T))]
     pub struct Proposal<T: Config> {
         // --- parameters
         pub subnet_params: SubnetParams<T>,
