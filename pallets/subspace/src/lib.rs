@@ -81,6 +81,7 @@ pub mod pallet {
 
         /// Type representing the weight of this pallet
         type WeightInfo: WeightInfo;
+        
     }
 
     pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
@@ -271,9 +272,9 @@ pub mod pallet {
         pub controller: T::AccountId,
     }
 
+
     #[derive(Decode, Encode, PartialEq, Eq, Clone, Debug, TypeInfo)]
-    // skip
-    pub struct GlobalParams {
+    pub struct GlobalParams<T: Config> {
         pub burn_rate: u16,
         // max
         pub max_name_length: u16,             // max length of a network name
@@ -299,10 +300,11 @@ pub mod pallet {
         pub tx_rate_limit: u64,    // tx rate limit
         pub vote_threshold: u16,   // out of 100
         pub vote_mode: Vec<u8>,    // out of 100
+        pub nominator: T::AccountId,
     }
 
     #[pallet::type_value]
-    pub fn DefaultGlobalParams<T: Config>() -> GlobalParams {
+    pub fn DefaultGlobalParams<T: Config>() -> GlobalParams<T> {
         GlobalParams {
             burn_rate: DefaultBurnRate::<T>::get(),
             max_allowed_subnets: DefaultMaxAllowedSubnets::<T>::get(),
@@ -323,6 +325,7 @@ pub mod pallet {
             tx_rate_limit: DefaultTxRateLimit::<T>::get(),
             vote_threshold: DefaultVoteThreshold::<T>::get(),
             vote_mode: DefaultVoteMode::<T>::get(),
+            nominator: DefaultNominator::<T>::get(),
         }
     }
 
@@ -331,7 +334,6 @@ pub mod pallet {
     // =========================
 
     #[derive(Decode, Encode, PartialEq, Eq, Clone, Debug, TypeInfo)]
-    #[scale_info(skip_type_params(T))]
     pub struct SubnetParams<T: Config> {
         // --- parameters
         pub founder: T::AccountId,
@@ -521,6 +523,13 @@ pub mod pallet {
         StorageMap<_, Identity, u16, u16, ValueQuery, DefaultVoteThreshold<T>>;
     #[pallet::storage] // --- MAP ( netuid ) --> epoch
     pub type GlobalVoteThreshold<T> = StorageValue<_, u16, ValueQuery, DefaultVoteThreshold<T>>;
+
+    #[pallet::type_value]
+    pub fn DefaultNominator<T: Config>() -> T::AccountId {
+        T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).unwrap()
+    }
+    #[pallet::storage]
+    pub type Nominator<T: Config> = StorageValue<_, T::AccountId, ValueQuery, DefaultNominator<T>>;
 
     // VOTING MODE
     // OPTIONS -> [stake, authority, quadratic]
@@ -750,11 +759,10 @@ pub mod pallet {
     // ==== Voting System to Update Global and Subnet  ====
     // ========================================================
     #[derive(Decode, Encode, PartialEq, Eq, Clone, Debug, TypeInfo)]
-    #[scale_info(skip_type_params(T))]
     pub struct Proposal<T: Config> {
         // --- parameters
         pub subnet_params: SubnetParams<T>,
-        pub global_params: GlobalParams,
+        pub global_params: GlobalParams<T>,
         pub netuid: u16, // FOR SUBNET PROPOSAL ONLY
         pub votes: u64,
         pub participants: Vec<T::AccountId>,
@@ -827,7 +835,8 @@ pub mod pallet {
         MaxAllowedModulesSet(u16), // --- Event created when setting the maximum allowed modules
         MaxRegistrationsPerBlockSet(u16), // --- Event created when we set max registrations
         target_registrations_intervalSet(u16), // --- Event created when we set target registrations
-        GlobalParamsUpdated(GlobalParams), // --- Event created when global parameters are updated
+        GlobalParamsUpdated(GlobalParams<T>), /* --- Event created when global parameters are
+                              * updated */
         SubnetParamsUpdated(u16), // --- Event created when subnet parameters are updated
         GlobalProposalAccepted(u64), // (id)
         CustomProposalAccepted(u64), // (id)
