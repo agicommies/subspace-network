@@ -794,7 +794,8 @@ pub mod pallet {
 
     // whitelist for the base subnet (netuid 0)
     #[pallet::storage]
-    pub(super) type LegitWhitelist<T: Config> = StorageMap<_, Identity, T::AccountId, (), ValueQuery>;
+    pub(super) type LegitWhitelist<T: Config> =
+        StorageMap<_, Identity, T::AccountId, (), ValueQuery>;
 
     // ========================================================
     // ==== Voting System to Update Global and Subnet  ====
@@ -857,6 +858,10 @@ pub mod pallet {
                                                    * account has been registered to the chain. */
         ModuleDeregistered(u16, u16, T::AccountId), /* --- Event created when a module account
                                                      * has been deregistered from the chain. */
+        WhitelistModuleAdded(T::AccountId), /* --- Event created when a module account has been
+                                             * added to the whitelist. */
+        WhitelistModuleRemoved(T::AccountId), /* --- Event created when a module account has
+                                               * been removed from the whitelist. */
         BulkModulesRegistered(u16, u16), /* --- Event created when multiple uids have been
                                           * concurrently registered. */
         BulkBalancesSet(u16, u16),
@@ -1227,13 +1232,16 @@ pub mod pallet {
         }
 
         #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
-        pub fn add_to_whitelist(origin: OriginFor<T>, key: T::AccountId) -> DispatchResult {
-            Self::do_add_to_whitelist(origin, key)
+        pub fn add_to_whitelist(origin: OriginFor<T>, module_key: T::AccountId) -> DispatchResult {
+            Self::do_add_to_whitelist(origin, module_key)
         }
 
         #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
-        pub fn remove_from_whitelist(origin: OriginFor<T>, key: T::AccountId) -> DispatchResult {
-            Self::do_remove_from_whitelist(origin, key)
+        pub fn remove_from_whitelist(
+            origin: OriginFor<T>,
+            module_key: T::AccountId,
+        ) -> DispatchResult {
+            Self::do_remove_from_whitelist(origin, module_key)
         }
 
         #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
@@ -1257,6 +1265,7 @@ pub mod pallet {
             floor_delegation_fee: Percent,
             target_registrations_per_interval: u16,
             target_registrations_interval: u16,
+            nominator: T::AccountId,
         ) -> DispatchResult {
             let mut params = Self::global_params();
 
@@ -1278,6 +1287,7 @@ pub mod pallet {
             params.floor_delegation_fee = floor_delegation_fee;
             params.target_registrations_per_interval = target_registrations_per_interval;
             params.target_registrations_interval = target_registrations_interval;
+            params.nominator = nominator;
 
             // Check if the parameters are valid
             Self::check_global_params(&params)?;

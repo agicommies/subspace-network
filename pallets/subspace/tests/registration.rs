@@ -177,3 +177,21 @@ fn register_same_key_twice() {
         );
     });
 }
+
+#[test]
+fn test_whitelist() {
+    new_test_ext().execute_with(|| {
+        let key = U256::from(0);
+        let adding_key = U256::from(1);
+        let mut params = SubspaceModule::global_params();
+        params.nominator = key;
+        SubspaceModule::set_global_params(params);
+
+        // add key to whitelist
+        assert_ok!(SubspaceModule::add_to_whitelist(
+            get_origin(key),
+            adding_key
+        ));
+        assert!(SubspaceModule::get_legit_whitelist().contains(&adding_key));
+    });
+}

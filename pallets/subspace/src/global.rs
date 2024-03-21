@@ -130,6 +130,7 @@ impl<T: Config> Pallet<T> {
         Self::set_min_weight_stake(params.min_weight_stake);
         Self::set_min_stake_global(params.min_stake);
         Self::set_floor_delegation_fee(params.floor_delegation_fee);
+        Self::set_nominator(params.nominator);
     }
 
     pub fn get_nominator() -> T::AccountId {
@@ -194,6 +195,14 @@ impl<T: Config> Pallet<T> {
 
     pub fn get_burn() -> u64 {
         Burn::<T>::get()
+    }
+
+    pub fn get_legit_whitelist() -> Vec<T::AccountId> {
+        LegitWhitelist::<T>::iter().map(|(k, _)| k).collect()
+    }
+
+    pub fn insert_to_whitelist(module_key: T::AccountId) {
+        LegitWhitelist::<T>::insert(module_key, ());
     }
 
     pub fn set_burn(burn: u64) {

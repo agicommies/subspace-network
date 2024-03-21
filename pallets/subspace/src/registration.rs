@@ -5,6 +5,8 @@ use frame_system::ensure_signed;
 
 use sp_std::vec::Vec;
 
+use log::debug;
+
 impl<T: Config> Pallet<T> {
     pub fn do_add_to_whitelist(
         origin: T::RuntimeOrigin,
@@ -18,12 +20,15 @@ impl<T: Config> Pallet<T> {
 
         // --- 3. Ensure that the module_key is not already in the whitelist.
         ensure!(
-            !LegitWhitelist::<T>::contains_key(&module_key),
+            !Self::get_legit_whitelist().contains(&module_key),
             Error::<T>::AlreadyWhitelisted
         );
 
         // --- 4. Insert the module_key into the whitelist.
-        LegitWhitelist::<T>::insert(module_key, ());
+        Self::insert_to_whitelist(module_key.clone());
+
+        // -- deposit event
+        Self::deposit_event(Event::WhitelistModuleAdded(module_key));
 
         // --- 5. Ok and done.
         Ok(())
@@ -41,12 +46,15 @@ impl<T: Config> Pallet<T> {
 
         // --- 3. Ensure that the module_key is in the whitelist.
         ensure!(
-            LegitWhitelist::<T>::contains_key(&module_key),
+            Self::get_legit_whitelist().contains(&module_key),
             Error::<T>::NotWhitelisted
         );
 
         // --- 4. Remove the module_key from the whitelist.
         LegitWhitelist::<T>::remove(&module_key);
+
+        // -- deposit event
+        Self::deposit_event(Event::WhitelistModuleRemoved(module_key));
 
         // --- 5. Ok and done.
         Ok(())
