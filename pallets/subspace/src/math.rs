@@ -51,6 +51,180 @@ pub fn inplace_row_normalize_sparse(sparse_matrix: &mut [Vec<(u16, I32F32)>]) {
     }
 }
 
+pub fn matmul_sparse(
+    sparse_matrix: &Vec<Vec<(u16, I32F32)>>,
+    vector: &Vec<I32F32>,
+    columns: u16,
+) -> Vec<I32F32> {
+    let mut result: Vec<I32F32> = vec![I32F32::from_num(0.0); columns as usize];
+    for (i, sparse_row) in sparse_matrix.iter().enumerate() {
+        for (j, value) in sparse_row.iter() {
+            // Compute ranks: r_j = SUM(i) w_ij * s_i
+            // Compute trust scores: t_j = SUM(i) w_ij * s_i
+            // result_j = SUM(i) vector_i * matrix_ij
+            result[*j as usize] += vector[i] * value;
+        }
+    }
+    result
+}
+
+pub fn weighted_median_col_sparse(
+    stake: &Vec<I32F32>,
+    score: &Vec<Vec<(u16, I32F32)>>,
+    columns: u16,
+    majority: I32F32,
+) -> Vec<I32F32> {
+    let rows = stake.len();
+    let zero: I32F32 = I32F32::from_num(0);
+    let mut use_stake: Vec<I32F32> = stake.iter().copied().filter(|&s| s > zero).collect();
+    inplace_normalize(&mut use_stake);
+    let stake_sum: I32F32 = use_stake.iter().sum();
+    let stake_idx: Vec<usize> = (0..use_stake.len()).collect();
+    let minority: I32F32 = stake_sum - majority;
+    let mut use_score: Vec<Vec<I32F32>> = vec![vec![zero; use_stake.len()]; columns as usize];
+    let mut median: Vec<I32F32> = vec![zero; columns as usize];
+    let mut k: usize = 0;
+    for r in 0..rows {
+        if stake[r] <= zero {
+            continue;
+        }
+        for (c, val) in score[r].iter() {
+            use_score[*c as usize][k] = *val;
+        }
+        k += 1;
+    }
+    for c in 0..columns as usize {
+        median[c] = weighted_median(
+            &use_stake,
+            &use_score[c],
+            &stake_idx,
+            minority,
+            zero,
+            stake_sum,
+        );
+    }
+    median
+}
+
+// Stake-weighted median score finding algorithm, based on a mid pivot binary search.
+// Normally a random pivot is used, but to ensure full determinism the mid point is chosen instead.
+// Assumes relatively random score order for efficiency, typically less than O(nlogn) complexity.
+//
+// # Args:
+// 	* 'stake': ( &Vec<I32F32> ):
+//         - stake, assumed to be normalized.
+//
+// 	* 'score': ( &Vec<I32F32> ):
+//         - score for which median is sought, 0 <= score <= 1
+//
+// 	* 'partition_idx' ( &Vec<usize> ):
+// 		- indices as input partition
+//
+// 	* 'minority' ( I32F32 ):
+// 		- minority_ratio = 1 - majority_ratio
+//
+// 	* 'partition_lo' ( I32F32 ):
+// 		- lower edge of stake for partition, where partition is a segment [lo, hi] inside stake
+//     integral [0, 1].
+//
+// 	* 'partition_hi' ( I32F32 ):
+// 		- higher edge of stake for partition, where partition is a segment [lo, hi] inside stake
+//     integral [0, 1].
+//
+// # Returns:
+//     * 'median': ( I32F32 ):
+//         - median via random pivot binary search.
+//
+pub fn weighted_median(
+    stake: &Vec<I32F32>,
+    score: &Vec<I32F32>,
+    partition_idx: &Vec<usize>,
+    minority: I32F32,
+    partition_lo: I32F32,
+    partition_hi: I32F32,
+) -> I32F32 {
+    let n = partition_idx.len();
+    if n == 0 {
+        return I32F32::from_num(0);
+    }
+    if n == 1 {
+        return score[partition_idx[0]];
+    }
+    assert!(stake.len() == score.len());
+    let mid_idx: usize = n / 2;
+    let pivot: I32F32 = score[partition_idx[mid_idx]];
+    let mut lo_stake: I32F32 = I32F32::from_num(0);
+    let mut hi_stake: I32F32 = I32F32::from_num(0);
+    let mut lower: Vec<usize> = vec![];
+    let mut upper: Vec<usize> = vec![];
+    for &idx in partition_idx.iter() {
+        if score[idx] == pivot {
+            continue;
+        }
+        if score[idx] < pivot {
+            lo_stake += stake[idx];
+            lower.push(idx);
+        } else {
+            hi_stake += stake[idx];
+            upper.push(idx);
+        }
+    }
+    if (partition_lo + lo_stake <= minority) && (minority < partition_hi - hi_stake) {
+        return pivot;
+    } else if (minority < partition_lo + lo_stake) && (lower.len() > 0) {
+        return weighted_median(
+            stake,
+            score,
+            &lower,
+            minority,
+            partition_lo,
+            partition_lo + lo_stake,
+        );
+    } else if (partition_hi - hi_stake <= minority) && (upper.len() > 0) {
+        return weighted_median(
+            stake,
+            score,
+            &upper,
+            minority,
+            partition_hi - hi_stake,
+            partition_hi,
+        );
+    }
+    pivot
+}
+
+// Sum across each row (dim=0) of a sparse matrix.
+pub fn row_sum_sparse(sparse_matrix: &Vec<Vec<(u16, I32F32)>>) -> Vec<I32F32> {
+    let rows = sparse_matrix.len();
+    let mut result: Vec<I32F32> = vec![I32F32::from_num(0); rows];
+    for (i, sparse_row) in sparse_matrix.iter().enumerate() {
+        for (_j, value) in sparse_row.iter() {
+            result[i] += value;
+        }
+    }
+    result
+}
+
+// Return sparse matrix with values above column threshold set to threshold value.
+pub fn col_clip_sparse(
+    sparse_matrix: &Vec<Vec<(u16, I32F32)>>,
+    col_threshold: &Vec<I32F32>,
+) -> Vec<Vec<(u16, I32F32)>> {
+    let mut result: Vec<Vec<(u16, I32F32)>> = vec![vec![]; sparse_matrix.len()];
+    for (i, sparse_row) in sparse_matrix.iter().enumerate() {
+        for (j, value) in sparse_row.iter() {
+            if col_threshold[*j as usize] < *value {
+                if 0 < col_threshold[*j as usize] {
+                    result[i].push((*j, col_threshold[*j as usize]));
+                }
+            } else {
+                result[i].push((*j, *value));
+            }
+        }
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use crate::math::*;

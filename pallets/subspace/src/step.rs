@@ -9,7 +9,13 @@ impl<T: Config> Pallet<T> {
         let block_number: u64 = Self::get_current_block_number();
         RegistrationsPerBlock::<T>::mutate(|val| *val = 0);
 
-        log::debug!("block_step for block: {:?} ", block_number);
+        let registration_this_interval = Self::get_registrations_this_interval();
+
+        // adjust registrations parameters
+        Self::adjust_registration(block_number, registration_this_interval);
+
+        log::debug!("block_step for block: {block_number:?}");
+
         for (netuid, tempo) in <Tempo<T> as IterableStorageMap<u16, u16>>::iter() {
             let registration_this_interval = Self::get_registrations_this_interval(netuid);
 
@@ -18,11 +24,7 @@ impl<T: Config> Pallet<T> {
 
             let new_queued_emission: u64 = Self::calculate_network_emission(netuid);
             PendingEmission::<T>::mutate(netuid, |queued| *queued += new_queued_emission);
-            log::debug!(
-                "netuid_i: {:?} queued_emission: +{:?} ",
-                netuid,
-                new_queued_emission
-            );
+            log::debug!("netuid_i: {netuid:?} queued_emission: +{new_queued_emission:?} ");
             if Self::blocks_until_next_epoch(netuid, tempo, block_number) > 0 {
                 continue;
             }
@@ -32,13 +34,10 @@ impl<T: Config> Pallet<T> {
         }
     }
 
+    /// This function acts as the main function of the entire blockchain reward distribution.
+    /// It calculates the dividends, the incentive, the weights, the bonds,
+    /// the trust and the emission for the epoch.
     pub fn epoch(netuid: u16, token_emission: u64) {
-        /*
-        This function acts as the main function of the entire blockchain reward distribution.
-        It calculates the dividends, the incentive, the weights, the bonds,
-        the trust and the emission for the epoch.
-        */
-
         // get the network parameters
         let global_params = Self::global_params();
         let subnet_params = Self::subnet_params(netuid);
@@ -49,7 +48,6 @@ impl<T: Config> Pallet<T> {
 
         // if there are no modules, then return
         if n == 0 {
-            //
             return;
         }
 
@@ -90,6 +88,16 @@ impl<T: Config> Pallet<T> {
             &stake_f64,
             total_stake_u64,
         );
+
+        // CONSENSUS
+        // Compute preranks: r_j = SUM(i) w_ij * s_i
+        let preranks: Vec<I32F32> = matmul_sparse(&weights, &stake, n);
+
+        // Clip weights at majority consensus
+        let kappa: I32F32 = Self::get_float_kappa(netuid); // consensus majority ratio, e.g. 51%.
+        let consensus: Vec<I32F32> = weighted_median_col_sparse(&stake, &weights, n, kappa);
+
+        let weights = col_clip_sparse(&weights, &consensus);
 
         // INCENTIVE
         // see if this shit needs to be mut
@@ -615,5 +623,9 @@ impl<T: Config> Pallet<T> {
         } else {
             next_value.to_num::<u64>()
         }
+    }
+
+    pub fn get_float_kappa(netuid: u16) -> I32F32 {
+        I32F32::from_num(Self::get_kappa(netuid)) / I32F32::from_num(u16::MAX)
     }
 }
