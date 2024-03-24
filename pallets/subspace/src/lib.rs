@@ -161,6 +161,21 @@ pub mod pallet {
         StorageMap<_, Identity, T::AccountId, u64, ValueQuery, DefaultLastTxBlock<T>>;
 
     #[pallet::type_value]
+    pub fn DefaultSubnetStakeThreshold<T: Config>() -> u64 {
+        T::InitialSubnetStakeThreshold::get()
+    }
+    #[pallet::storage] // --- MAP ( netuid ) --> Threshold
+    pub type SubnetStakeThreshold<T> =
+        StorageValue<_, u64, ValueQuery, DefaultSubnetStakeThreshold<T>>;
+
+    #[pallet::type_value]
+    pub fn DefaultKappa<T: Config>() -> u16 {
+        T::InitialKappa::get()
+    }
+    #[pallet::storage] // --- MAP ( netuid ) --> Kappa
+    pub type Kappa<T> = StorageMap<_, Identity, u16, u16, ValueQuery, DefaultKappa<T>>;
+
+    #[pallet::type_value]
     pub fn DefaultMaxNameLength<T: Config>() -> u16 {
         32
     }

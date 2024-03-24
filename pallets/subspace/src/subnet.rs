@@ -390,6 +390,9 @@ impl<T: Config> Pallet<T> {
         return keys.iter().map(|x| Self::get_balance_u64(x)).sum();
     }
 
+    /// The problem: linearity
+    /// Calculate the emission + skip, if we don't match or exceed the threshold
+    /// . - If we dont match or exceed, it misses utilization so is considered gap
     pub fn calculate_network_emission(netuid: u16) -> u64 {
         let subnet_stake: I64F64 = I64F64::from_num(Self::get_total_subnet_stake(netuid));
         let total_stake: I64F64 = I64F64::from_num(Self::total_stake());
