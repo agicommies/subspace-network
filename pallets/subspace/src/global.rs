@@ -197,24 +197,6 @@ impl<T: Config> Pallet<T> {
         Burn::<T>::get()
     }
 
-    pub fn get_legit_whitelist() -> Vec<T::AccountId> {
-        LegitWhitelist::<T>::get()
-    }
-
-    pub fn insert_to_whitelist(module_key: T::AccountId) {
-        LegitWhitelist::<T>::mutate(|whitelist| {
-            whitelist.push(module_key);
-        });
-    }
-
-    pub fn rm_from_whitelist(module_key: &T::AccountId) {
-        LegitWhitelist::<T>::mutate(|whitelist| {
-            if let Some(index) = whitelist.iter().position(|key| key == module_key) {
-                whitelist.remove(index);
-            }
-        });
-    }
-
     pub fn set_burn(burn: u64) {
         Burn::<T>::set(burn);
         // announce a burn change
@@ -326,5 +308,19 @@ impl<T: Config> Pallet<T> {
 
     pub fn set_adjustment_alpha(adjustment_alpha: u64) {
         AdjustmentAlpha::<T>::put(adjustment_alpha);
+    }
+
+    // Whitelist management
+
+    pub fn is_in_legit_whitelist(account_id: &T::AccountId) -> bool {
+        LegitWhitelist::<T>::contains_key(account_id)
+    }
+
+    pub fn insert_to_whitelist(module_key: T::AccountId) {
+        LegitWhitelist::<T>::insert(module_key, ());
+    }
+
+    pub fn rm_from_whitelist(module_key: &T::AccountId) {
+        LegitWhitelist::<T>::remove(&module_key);
     }
 }

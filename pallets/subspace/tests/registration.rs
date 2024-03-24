@@ -192,6 +192,6 @@ fn test_whitelist() {
             get_origin(key),
             adding_key
         ));
-        assert!(SubspaceModule::get_legit_whitelist().contains(&adding_key));
+        assert!(SubspaceModule::is_in_legit_whitelist(&adding_key));
     });
 }

@@ -18,7 +18,7 @@ impl<T: Config> Pallet<T> {
 
         // --- 3. Ensure that the module_key is not already in the whitelist.
         ensure!(
-            !Self::get_legit_whitelist().contains(&module_key),
+            !Self::is_in_legit_whitelist(&module_key),
             Error::<T>::AlreadyWhitelisted
         );
 
@@ -44,7 +44,7 @@ impl<T: Config> Pallet<T> {
 
         // --- 3. Ensure that the module_key is in the whitelist.
         ensure!(
-            Self::get_legit_whitelist().contains(&module_key),
+            Self::is_in_legit_whitelist(&module_key),
             Error::<T>::NotWhitelisted
         );
 

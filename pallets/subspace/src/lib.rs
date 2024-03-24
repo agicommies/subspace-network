@@ -794,7 +794,8 @@ pub mod pallet {
 
     // whitelist for the base subnet (netuid 0)
     #[pallet::storage]
-    pub(super) type LegitWhitelist<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
+    pub(super) type LegitWhitelist<T: Config> =
+        StorageMap<_, Identity, T::AccountId, (), ValueQuery, GetDefault>;
 
     // ========================================================
     // ==== Voting System to Update Global and Subnet  ====
