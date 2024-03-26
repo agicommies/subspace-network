@@ -2,7 +2,9 @@ use super::*;
 use crate::math::*;
 use frame_support::storage::{IterableStorageDoubleMap, IterableStorageMap};
 use sp_std::vec;
-use substrate_fixed::types::{I110F18, I32F32, I64F64};
+use substrate_fixed::types::{I110F18, I32F32, I64F64, I96F32};
+
+mod yuma;
 
 impl<T: Config> Pallet<T> {
     pub fn block_step() {
@@ -53,8 +55,8 @@ impl<T: Config> Pallet<T> {
         // ======================
 
         // Get current block.
-        let current_block: u64 = Self::get_current_block_as_u64();
-        log::trace!("current_block: {:?}", current_block);
+        let current_block: u64 = Self::get_current_block_number();
+        log::trace!("current_block: {current_block:?}");
 
         // Get activity cutoff.
         let activity_cutoff: u64 = Self::get_activity_cutoff(netuid) as u64;
@@ -62,32 +64,29 @@ impl<T: Config> Pallet<T> {
 
         // Last update vector.
         let last_update: Vec<u64> = Self::get_last_update(netuid);
-        log::trace!("Last update: {:?}", &last_update);
+        log::trace!("Last update: {last_update:?}");
 
         // Inactive mask.
-        let inactive: Vec<bool> = last_update
+        let (inactive, active): (Vec<_>, Vec<_>) = last_update
             .iter()
-            .map(|updated| *updated + activity_cutoff < current_block)
-            .collect();
-        log::trace!("Inactive: {:?}", inactive.clone());
+            .map(|&updated| {
+                let is_inactive = updated + activity_cutoff < current_block;
+                (is_inactive, !is_inactive)
+            })
+            .unzip();
 
-        // Logical negation of inactive.
-        let active: Vec<bool> = inactive.iter().map(|&b| !b).collect();
+        log::trace!("Inactive: {inactive:?}");
+        log::trace!("Active: {active:?}");
 
         // Block at registration vector (block when each neuron was most recently registered).
         let block_at_registration: Vec<u64> = Self::get_block_at_registration(netuid);
-        log::trace!("Block at registration: {:?}", &block_at_registration);
+        log::trace!("Block at registration: {block_at_registration:?}");
 
         // ===========
         // == Stake ==
         // ===========
 
-        let mut hotkeys: Vec<(u16, T::AccountId)> = vec![];
-        for (uid_i, hotkey) in
-            <Keys<T> as IterableStorageDoubleMap<u16, u16, T::AccountId>>::iter_prefix(netuid)
-        {
-            hotkeys.push((uid_i, hotkey));
-        }
+        let hotkeys: Vec<_> = Keys::<T>::iter_prefix(netuid).collect();
         log::trace!("hotkeys: {:?}", &hotkeys);
 
         // Access network stake as normalized vector.
@@ -156,7 +155,7 @@ impl<T: Config> Pallet<T> {
             &weights,
             &last_update,
             &block_at_registration,
-            &|updated, registered| updated <= registered,
+            |updated, registered| updated <= registered,
         );
         // log::trace!( "W (permit+diag+outdate): {:?}", &weights );
 
@@ -178,7 +177,7 @@ impl<T: Config> Pallet<T> {
         log::trace!("C: {:?}", &consensus);
 
         weights = col_clip_sparse(&weights, &consensus);
-        // log::trace!( "W: {:?}", &weights );
+        log::trace!("W: {:?}", &weights);
 
         let validator_trust: Vec<I32F32> = row_sum_sparse(&weights);
         log::trace!("Tv: {:?}", &validator_trust);
@@ -189,7 +188,7 @@ impl<T: Config> Pallet<T> {
 
         // Compute ranks: r_j = SUM(i) w_ij * s_i.
         let mut ranks: Vec<I32F32> = matmul_sparse(&weights, &active_stake, n);
-        // log::trace!( "R (after): {:?}", &ranks );
+        log::trace!("R (after): {:?}", &ranks);
 
         // Compute server trust: ratio of rank after vs. rank before.
         let trust: Vec<I32F32> = vecdiv(&ranks, &preranks); // range: I32F32(0, 1)
@@ -205,7 +204,7 @@ impl<T: Config> Pallet<T> {
 
         // Access network bonds.
         let mut bonds: Vec<Vec<(u16, I32F32)>> = Self::get_bonds_sparse(netuid);
-        // log::trace!( "B: {:?}", &bonds );
+        log::trace!("B: {:?}", &bonds);
 
         // Remove bonds referring to deregistered neurons.
         bonds = vec_mask_sparse_matrix(
@@ -214,19 +213,19 @@ impl<T: Config> Pallet<T> {
             &block_at_registration,
             &|updated, registered| updated <= registered,
         );
-        // log::trace!( "B (outdatedmask): {:?}", &bonds );
+        log::trace!("B (outdatedmask): {:?}", &bonds);
 
         // Normalize remaining bonds: sum_i b_ij = 1.
         inplace_col_normalize_sparse(&mut bonds, n);
-        // log::trace!( "B (mask+norm): {:?}", &bonds );
+        log::trace!("B (mask+norm): {:?}", &bonds);
 
         // Compute bonds delta column normalized.
         let mut bonds_delta: Vec<Vec<(u16, I32F32)>> = row_hadamard_sparse(&weights, &active_stake); // ΔB = W◦S (outdated W masked)
-                                                                                                     // log::trace!( "ΔB: {:?}", &bonds_delta );
+        log::trace!("ΔB: {:?}", &bonds_delta);
 
         // Normalize bonds delta.
         inplace_col_normalize_sparse(&mut bonds_delta, n); // sum_i b_ij = 1
-                                                           // log::trace!( "ΔB (norm): {:?}", &bonds_delta );
+        log::trace!("ΔB (norm): {:?}", &bonds_delta);
 
         // Compute bonds moving average.
         let bonds_moving_average: I64F64 =
@@ -236,7 +235,7 @@ impl<T: Config> Pallet<T> {
 
         // Normalize EMA bonds.
         inplace_col_normalize_sparse(&mut ema_bonds, n); // sum_i b_ij = 1
-                                                         // log::trace!( "emaB: {:?}", &ema_bonds );
+        log::trace!("emaB: {:?}", &ema_bonds);
 
         // Compute dividends: d_i = SUM(j) b_ij * inc_j.
         // range: I32F32(0, 1)
@@ -366,6 +365,7 @@ impl<T: Config> Pallet<T> {
                 validator_emission[*uid_i as usize],
             ));
         }
+
         result
     }
 
