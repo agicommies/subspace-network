@@ -175,22 +175,14 @@ pub mod pallet {
     pub(super) type MaxAllowedSubnets<T: Config> =
         StorageValue<_, u16, ValueQuery, DefaultMaxAllowedSubnets<T>>;
 
-    #[pallet::type_value]
-    pub fn DefaultRegistrationsThisInterval<T: Config>() -> u16 {
-        0
-    }
-
-    #[pallet::storage] // --- ITEM ( registrations_this_interval )
+    #[pallet::storage]
+    // --- MAP (netuid) --> registrations_this_interval
     pub(super) type RegistrationsThisInterval<T: Config> =
-        StorageValue<_, u16, ValueQuery, DefaultRegistrationsThisInterval<T>>;
+        StorageMap<_, Identity, u16, u16, ValueQuery>;
 
-    #[pallet::type_value]
-    pub fn DefaultBurn<T: Config>() -> u64 {
-        0
-    }
-
-    #[pallet::storage] // --- ITEM ( burn )
-    pub(super) type Burn<T: Config> = StorageValue<_, u64, ValueQuery, DefaultBurn<T>>;
+    #[pallet::storage]
+    // --- MAP (netuid) --> burn
+    pub(super) type Burn<T: Config> = StorageMap<_, Identity, u16, u64, ValueQuery>;
 
     #[pallet::type_value]
     pub fn DefaultMaxAllowedModules<T: Config>() -> u16 {

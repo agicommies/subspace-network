@@ -141,10 +141,6 @@ impl<T: Config> Pallet<T> {
         Nominator::<T>::put(nominator)
     }
 
-    pub fn get_registrations_this_interval() -> u16 {
-        RegistrationsThisInterval::<T>::get()
-    }
-
     pub fn get_target_registrations_per_interval() -> u16 {
         TargetRegistrationsPerInterval::<T>::get()
     }
@@ -191,16 +187,6 @@ impl<T: Config> Pallet<T> {
     }
     pub fn set_burn_rate(burn_rate: u16) {
         BurnRate::<T>::put(burn_rate.min(100));
-    }
-
-    pub fn get_burn() -> u64 {
-        Burn::<T>::get()
-    }
-
-    pub fn set_burn(burn: u64) {
-        Burn::<T>::set(burn);
-        // announce a burn change
-        Self::deposit_event(Event::RegistrationBurnChanged(burn));
     }
 
     pub fn get_max_proposals() -> u64 {

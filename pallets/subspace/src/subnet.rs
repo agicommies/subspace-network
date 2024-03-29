@@ -185,6 +185,8 @@ impl<T: Config> Pallet<T> {
         N::<T>::contains_key(netuid)
     }
 
+    // stake
+
     #[cfg(debug_assertions)]
     pub fn get_min_stake(netuid: u16) -> u64 {
         MinStake::<T>::get(netuid)
@@ -196,6 +198,23 @@ impl<T: Config> Pallet<T> {
 
     pub fn set_max_stake(netuid: u16, stake: u64) {
         MaxStake::<T>::insert(netuid, stake)
+    }
+
+    // registrations
+    pub fn get_registrations_this_interval(netuid: u16) -> u16 {
+        RegistrationsThisInterval::<T>::get(netuid)
+    }
+
+    pub fn set_registrations_this_interval(netuid: u16, registrations: u16) {
+        RegistrationsThisInterval::<T>::insert(netuid, registrations);
+    }
+
+    pub fn get_burn(netuid: u16) -> u64 {
+        Burn::<T>::get(netuid)
+    }
+
+    pub fn set_burn(netuid: u16, burn: u64) {
+        Burn::<T>::insert(netuid, burn);
     }
 
     // get the least staked network
