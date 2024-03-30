@@ -1,11 +1,13 @@
 use core::marker::PhantomData;
 
-use substrate_fixed::types::{I32F32, I64F64};
+use substrate_fixed::types::{I32F32, I64F64, I96F32};
 
-use crate::{math::*, Config, Keys, Pallet, Weights};
+use crate::{math::*, Config, Kappa, Pallet, Stake, Weights};
 
-struct YumaCalc<T: Config> {
+pub struct YumaCalc<T: Config> {
+    /// The amount of modules on the subnet
     n: u16,
+    /// The UID of the subnet
     netuid: u16,
     /// Consensus majority ratio, e.g. 51%.
     kappa: I32F32,
@@ -17,7 +19,9 @@ struct YumaCalc<T: Config> {
     stake: Vec<I32F32>,
     active_stake: Vec<I32F32>,
     preranks: Vec<I32F32>,
+    ranks: Vec<I32F32>,
     incentive: Vec<I32F32>,
+    dividends: Vec<I32F32>,
     trust: Vec<I32F32>,
 
     validator_permits: Vec<bool>,
@@ -28,7 +32,7 @@ struct YumaCalc<T: Config> {
 }
 
 impl<T: Config> YumaCalc<T> {
-    fn new(netuid: u16) -> Self {
+    pub fn new(netuid: u16) -> Self {
         let validator_permits = Pallet::<T>::get_validator_permits(netuid);
 
         Self {
@@ -43,17 +47,20 @@ impl<T: Config> YumaCalc<T> {
             stake: vec![],
             active_stake: vec![],
             preranks: vec![],
+            ranks: vec![],
             incentive: vec![],
+            dividends: vec![],
+            trust: vec![],
 
-            validator_permits,
             validator_forbids: validator_permits.iter().map(|&b| !b).collect(),
-            max_allowed_validators: Pallet::<T>::get_max_allowed_validators(self.netuid),
+            validator_permits,
+            max_allowed_validators: Pallet::<T>::get_max_allowed_validators(netuid),
 
             _pd: Default::default(),
         }
     }
 
-    fn foo(mut self) {
+    pub fn run(mut self) {
         let activity_cutoff = 0;
 
         let current_block: u64 = Pallet::<T>::get_current_block_number();
@@ -81,6 +88,7 @@ impl<T: Config> YumaCalc<T> {
         } = self.compute_consensus();
 
         self.compute_incentive_and_trust();
+        self.compute_bonds_and_dividends();
     }
 
     fn compute_weights(&mut self) {
@@ -110,19 +118,15 @@ impl<T: Config> YumaCalc<T> {
     }
 
     fn compute_stake(&mut self) {
-        let hotkeys: Vec<_> = Keys::<T>::iter_prefix(self.netuid).collect();
-        log::trace!("hotkeys: {:?}", &hotkeys);
-
         // Access network stake as normalized vector.
-        let mut stake_64: Vec<I64F64> = vec![I64F64::from_num(0.0); self.n as usize];
-        for (uid_i, hotkey) in &hotkeys {
-            // Pallet::<T>::get_total_stake_to(, key)
-            stake_64[*uid_i as usize] = I64F64::from_num(Self::get_total_stake_for_hotkey(hotkey));
-        }
-        inplace_normalize_64(&mut stake_64);
+        let mut stake: Vec<_> =
+            Stake::<T>::iter_prefix_values(self.netuid).map(I64F64::from_num).collect();
+        assert_eq!(stake.len(), self.n as usize);
 
-        self.stake = vec_fixed64_to_fixed32(stake_64); // range: I32F32(0, 1)
-                                                       // log::trace!("S: {:?}", &stake);
+        inplace_normalize_64(&mut stake);
+
+        self.stake = vec_fixed64_to_fixed32(stake); // range: I32F32(0, 1)
+                                                    // log::trace!("S: {:?}", &stake);
     }
 
     fn compute_active_stake(&mut self, inactive: &[bool]) {
@@ -138,7 +142,7 @@ impl<T: Config> YumaCalc<T> {
         inplace_normalize(&mut self.active_stake);
     }
 
-    fn compute_consensus(&self) -> Consensus {
+    fn compute_consensus(&mut self) -> Consensus {
         // Compute preranks: r_j = SUM(i) w_ij * s_i
         self.preranks = matmul_sparse(&self.weights, &self.active_stake, self.n);
         // log::trace!( "R (before): {:?}", &preranks );
@@ -162,16 +166,136 @@ impl<T: Config> YumaCalc<T> {
 
     fn compute_incentive_and_trust(&mut self) {
         // Compute ranks: r_j = SUM(i) w_ij * s_i.
-        self.incentive = matmul_sparse(&self.weights, &self.active_stake, self.n);
+        self.ranks = matmul_sparse(&self.weights, &self.active_stake, self.n);
         // log::trace!("R (after): {:?}", &ranks);
 
         // Compute server trust: ratio of rank after vs. rank before.
-        self.trust = vecdiv(&self.incentive, &self.preranks); // range: I32F32(0, 1)
-                                                              // log::trace!("T: {:?}", &trust);
+        self.trust = vecdiv(&self.ranks, &self.preranks); // range: I32F32(0, 1)
+                                                          // log::trace!("T: {:?}", &trust);
 
+        self.incentive = self.ranks.clone();
         inplace_normalize(&mut self.incentive); // range: I32F32(0, 1)
-                                                // let incentive: Vec<I32F32> = ranks.clone();
                                                 // log::trace!("I (=R): {:?}", &incentive);
+    }
+
+    fn compute_bonds_and_dividends(&mut self) -> Bonds {
+        // Access network bonds.
+        let mut bonds = Pallet::<T>::get_bonds_sparse(self.netuid);
+        log::trace!("B: {:?}", &bonds);
+
+        // Remove bonds referring to deregistered neurons.
+        bonds = vec_mask_sparse_matrix(
+            &bonds,
+            &self.last_update,
+            &self.block_at_registration,
+            &|updated, registered| updated <= registered,
+        );
+        log::trace!("B (outdatedmask): {:?}", &bonds);
+
+        // Normalize remaining bonds: sum_i b_ij = 1.
+        inplace_col_normalize_sparse(&mut bonds, self.n);
+        log::trace!("B (mask+norm): {:?}", &bonds);
+
+        // Compute bonds delta column normalized.
+        let mut bonds_delta = row_hadamard_sparse(&self.weights, &self.active_stake); // ΔB = W◦S (outdated W masked)
+        log::trace!("ΔB: {:?}", &bonds_delta);
+
+        // Normalize bonds delta.
+        inplace_col_normalize_sparse(&mut bonds_delta, self.n); // sum_i b_ij = 1
+        log::trace!("ΔB (norm): {:?}", &bonds_delta);
+
+        // Compute bonds moving average.
+        let bonds_moving_average =
+            I64F64::from_num(Pallet::<T>::get_bonds_moving_average(self.netuid))
+                / I64F64::from_num(1_000_000);
+        let alpha = I32F32::from_num(1) - I32F32::from_num(bonds_moving_average);
+        let mut ema_bonds = mat_ema_sparse(&bonds_delta, &bonds, alpha);
+
+        // Normalize EMA bonds.
+        inplace_col_normalize_sparse(&mut ema_bonds, self.n); // sum_i b_ij = 1
+        log::trace!("emaB: {:?}", &ema_bonds);
+
+        // Compute dividends: d_i = SUM(j) b_ij * inc_j.
+        // range: I32F32(0, 1)
+        let mut dividends = matmul_transpose_sparse(&ema_bonds, &self.incentive);
+        inplace_normalize(&mut dividends);
+        log::trace!("D: {:?}", &dividends);
+
+        // Column max-upscale EMA bonds for storage: max_i w_ij = 1.
+        inplace_col_max_upscale_sparse(&mut ema_bonds, self.n);
+
+        Bonds {
+            ema_bonds,
+            dividends,
+        }
+    }
+
+    fn compute_emissions(&mut self) {
+        // Compute normalized emission scores. range: I32F32(0, 1)
+        let combined_emission: Vec<I32F32> = self
+            .incentive
+            .iter()
+            .zip(self.dividends.clone())
+            .map(|(ii, di)| ii + di)
+            .collect();
+        let emission_sum: I32F32 = combined_emission.iter().sum();
+
+        let mut normalized_server_emission: Vec<I32F32> = self.incentive.clone(); // Servers get incentive.
+        inplace_normalize_using_sum(&mut normalized_server_emission, emission_sum);
+        let mut normalized_validator_emission: Vec<I32F32> = self.dividends.clone(); // Validators get dividends.
+        inplace_normalize_using_sum(&mut normalized_validator_emission, emission_sum);
+        let mut normalized_combined_emission: Vec<I32F32> = combined_emission.clone();
+        // Normalize on the sum of incentive + dividends.
+        inplace_normalize(&mut normalized_combined_emission);
+
+        // If emission is zero, replace emission with normalized stake.
+        if emission_sum == I32F32::from(0) {
+            // no weights set | outdated weights | self_weights
+            if is_zero(&self.active_stake) {
+                // no active stake
+                normalized_validator_emission = self.stake.clone(); // do not mask inactive, assumes stake is normalized
+                normalized_combined_emission = self.stake.clone();
+            } else {
+                normalized_validator_emission = self.active_stake.clone(); // emission proportional to inactive-masked normalized stake
+                normalized_combined_emission = self.active_stake.clone();
+            }
+        }
+
+        // Compute rao based emission scores. range: I96F32(0, rao_emission)
+        let float_rao_emission: I96F32 = I96F32::from_num(todo!() as usize);
+
+        let server_emission: Vec<I96F32> = normalized_server_emission
+            .iter()
+            .map(|se: &I32F32| I96F32::from_num(*se) * float_rao_emission)
+            .collect();
+        let server_emission: Vec<u64> =
+            server_emission.iter().map(|e: &I96F32| e.to_num::<u64>()).collect();
+
+        let validator_emission: Vec<I96F32> = normalized_validator_emission
+            .iter()
+            .map(|ve: &I32F32| I96F32::from_num(*ve) * float_rao_emission)
+            .collect();
+        let validator_emission: Vec<u64> =
+            validator_emission.iter().map(|e: &I96F32| e.to_num::<u64>()).collect();
+
+        // Only used to track emission in storage.
+        let combined_emission: Vec<I96F32> = normalized_combined_emission
+            .iter()
+            .map(|ce: &I32F32| I96F32::from_num(*ce) * float_rao_emission)
+            .collect();
+        let combined_emission: Vec<u64> =
+            combined_emission.iter().map(|e: &I96F32| e.to_num::<u64>()).collect();
+
+        log::trace!("nSE: {:?}", &normalized_server_emission);
+        log::trace!("SE: {:?}", &server_emission);
+        log::trace!("nVE: {:?}", &normalized_validator_emission);
+        log::trace!("VE: {:?}", &validator_emission);
+        log::trace!("nCE: {:?}", &normalized_combined_emission);
+        log::trace!("CE: {:?}", &combined_emission);
+
+        // Set pruning scores using combined emission scores.
+        let pruning_scores: Vec<I32F32> = normalized_combined_emission.clone();
+        log::trace!("P: {:?}", &pruning_scores);
     }
 }
 
@@ -180,7 +304,26 @@ struct Consensus {
     validator_trust: Vec<I32F32>,
 }
 
+struct Bonds {
+    ema_bonds: Vec<Vec<(u16, I32F32)>>,
+    dividends: Vec<I32F32>,
+}
+
+struct Emissions {}
+
 impl<T: Config> Pallet<T> {
+    pub fn get_float_kappa(netuid: u16) -> I32F32 {
+        I32F32::from_num(Kappa::<T>::get(netuid)) / I32F32::from_num(u16::MAX)
+    }
+
+    fn get_validator_permits(netuid: u16) -> Vec<bool> {
+        todo!()
+    }
+
+    fn get_max_allowed_validators(netuid: u16) -> usize {
+        todo!()
+    }
+
     fn get_weights_sparse(netuid: u16) -> Vec<Vec<(u16, I32F32)>> {
         let n = Self::get_subnet_n(netuid) as usize;
         let mut weights: Vec<Vec<(u16, I32F32)>> = vec![vec![]; n];
@@ -197,5 +340,13 @@ impl<T: Config> Pallet<T> {
             }
         }
         weights
+    }
+
+    fn get_bonds_sparse(netuid: u16) -> Vec<Vec<(u16, I32F32)>> {
+        todo!()
+    }
+
+    fn get_bonds_moving_average(netuid: u16) -> I64F64 {
+        todo!()
     }
 }

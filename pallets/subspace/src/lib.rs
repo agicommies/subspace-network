@@ -162,7 +162,7 @@ pub mod pallet {
 
     #[pallet::type_value]
     pub fn DefaultSubnetStakeThreshold<T: Config>() -> u64 {
-        T::InitialSubnetStakeThreshold::get()
+        todo!()
     }
     #[pallet::storage] // --- MAP ( netuid ) --> Threshold
     pub type SubnetStakeThreshold<T> =
@@ -170,7 +170,7 @@ pub mod pallet {
 
     #[pallet::type_value]
     pub fn DefaultKappa<T: Config>() -> u16 {
-        T::InitialKappa::get()
+        todo!()
     }
     #[pallet::storage] // --- MAP ( netuid ) --> Kappa
     pub type Kappa<T> = StorageMap<_, Identity, u16, u16, ValueQuery, DefaultKappa<T>>;

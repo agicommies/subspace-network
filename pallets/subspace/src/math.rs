@@ -311,7 +311,7 @@ pub fn is_topk(vector: &[I32F32], k: usize) -> Vec<bool> {
 pub fn inplace_col_normalize_sparse(sparse_matrix: &mut [Vec<(u16, I32F32)>], columns: u16) {
     let mut col_sum: Vec<I32F32> = vec![I32F32::from_num(0.0); columns as usize]; // assume square matrix, rows=cols
 
-    for sparse_row in sparse_matrix {
+    for sparse_row in sparse_matrix.iter() {
         for (j, value) in sparse_row {
             col_sum[*j as usize] += *value;
         }
