@@ -297,7 +297,7 @@ pub fn vec_fixed64_to_fixed32(vec: Vec<I64F64>) -> Vec<I32F32> {
 pub fn is_topk(vector: &[I32F32], k: usize) -> Vec<bool> {
     let n: usize = vector.len();
     let mut result: Vec<bool> = vec![true; n];
-    if n < k {
+    if n <= k {
         return result;
     }
 

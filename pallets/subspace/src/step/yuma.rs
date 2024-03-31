@@ -1,126 +1,130 @@
 use core::marker::PhantomData;
 
 use sp_std::borrow::Cow;
-use substrate_fixed::{
-    traits::ToFixed,
-    types::{I32F32, I64F64, I96F32},
-};
+use substrate_fixed::types::{I32F32, I64F64, I96F32};
 
 use crate::{
-    math::*, Bonds, Config, Dividends, Emission, Incentive, Kappa, Keys, Pallet, Stake, Weights,
+    math::*, Active, ActivityCutoff, Bonds, BondsMovingAverage, Config, Consensus, Dividends,
+    Emission, Incentive, Kappa, Keys, MaxAllowedValidators, Pallet, PruningScores, Rank, Stake,
+    Trust, ValidatorPermits, ValidatorTrust, Weights,
 };
 
 pub struct YumaCalc<T: Config> {
     /// The amount of modules on the subnet
-    n: u16,
+    module_count: u16,
     /// The UID of the subnet
     netuid: u16,
     /// Consensus majority ratio, e.g. 51%.
     kappa: I32F32,
     rao_emission: u64,
 
+    current_block: u64,
+    activity_cutoff: u64,
     last_update: Vec<u64>,
     block_at_registration: Vec<u64>,
 
-    weights: Vec<Vec<(u16, I32F32)>>,
-    stake: Vec<I32F32>,
-    active_stake: Vec<I32F32>,
-    preranks: Vec<I32F32>,
-    ranks: Vec<I32F32>,
-    incentives: Vec<I32F32>,
-    dividends: Vec<I32F32>,
-    trust: Vec<I32F32>,
-
     validator_permits: Vec<bool>,
     validator_forbids: Vec<bool>,
-    max_allowed_validators: usize,
+    max_allowed_validators: Option<u16>,
 
     _pd: PhantomData<T>,
 }
 
 impl<T: Config> YumaCalc<T> {
     pub fn new(netuid: u16, rao_emission: u64) -> Self {
-        let validator_permits = Pallet::<T>::get_validator_permits(netuid);
+        let validator_permits = ValidatorPermits::<T>::get(netuid);
+        let validator_forbids = validator_permits.iter().map(|&b| !b).collect();
 
         Self {
-            n: Pallet::<T>::get_subnet_n(netuid),
+            module_count: Pallet::<T>::get_subnet_n(netuid),
             netuid,
-            kappa: Pallet::<T>::get_float_kappa(netuid),
-            rao_emission: todo!(),
+            kappa: Pallet::<T>::get_float_kappa(),
+            rao_emission,
 
+            current_block: Pallet::<T>::get_current_block_number(),
+            activity_cutoff: ActivityCutoff::<T>::get(netuid) as u64,
             last_update: Pallet::<T>::get_last_update(netuid),
             block_at_registration: Pallet::<T>::get_last_update(netuid),
 
-            weights: vec![],
-            stake: vec![],
-            active_stake: vec![],
-            preranks: vec![],
-            ranks: vec![],
-            incentives: vec![],
-            dividends: vec![],
-            trust: vec![],
-
-            validator_forbids: validator_permits.iter().map(|&b| !b).collect(),
+            validator_forbids,
             validator_permits,
-            max_allowed_validators: Pallet::<T>::get_max_allowed_validators(netuid),
+            max_allowed_validators: MaxAllowedValidators::<T>::get(netuid),
 
             _pd: Default::default(),
         }
     }
 
     pub fn run(mut self) {
-        let activity_cutoff = 0;
-
-        let current_block: u64 = Pallet::<T>::get_current_block_number();
-
         let (inactive, active): (Vec<_>, Vec<_>) = self
             .last_update
             .iter()
             .map(|&updated| {
-                let is_inactive = updated + activity_cutoff < current_block;
+                let is_inactive = updated + self.activity_cutoff < self.current_block;
                 (is_inactive, !is_inactive)
             })
             .unzip();
         log::trace!("Inactive: {inactive:?}");
         log::trace!("Active: {active:?}");
 
-        self.compute_weights();
-        let Validators {
-            permits,
-            forbids,
-            new_permits,
-        } = self.compute_validators();
-        self.compute_stake();
-        self.compute_active_stake(&inactive);
+        let mut weights = self.compute_weights();
+        let stake = self.compute_stake();
 
-        // let new_validator_permits: Vec<bool> = is_topk(&self.stake, self.max_allowed_validators);
+        let new_permits: Vec<bool> = if let Some(max) = self.max_allowed_validators {
+            is_topk(stake.as_ref(), max as usize)
+        } else {
+            vec![true; stake.as_ref().len()]
+        };
 
-        let Consensus {
+        let active_stake = self.compute_active_stake(&inactive, &stake);
+
+        let ConsensusAndTrust {
             consensus,
             validator_trust,
-        } = self.compute_consensus();
+            preranks,
+        } = self.compute_consensus_and_trust(&mut weights, &active_stake);
 
-        self.compute_incentive_and_trust();
+        let IncentivesAndTrust {
+            incentives,
+            ranks,
+            trust,
+        } = self.compute_incentive_and_trust(&weights, &active_stake, &preranks);
+
         let BondsAndDividends {
             ema_bonds,
             dividends,
-        } = self.compute_bonds_and_dividends();
+        } = self.compute_bonds_and_dividends(&weights, &active_stake, &incentives);
+
         let Emissions {
             pruning_scores,
-            validator_emission,
-            server_emission,
+            validator_emissions,
+            server_emissions,
             combined_emissions,
-        } = self.compute_emissions();
+        } = self.compute_emissions(&stake, &active_stake, &incentives, &dividends);
 
-        let incentives: Vec<u16> =
-            self.incentives.into_iter().map(fixed_proportion_to_u16).collect();
-        let dividends: Vec<_> = dividends.into_iter().map(fixed_proportion_to_u16).collect();
+        let consensus: Vec<_> =
+            consensus.as_ref().iter().copied().map(fixed_proportion_to_u16).collect();
+        let incentives: Vec<_> =
+            incentives.as_ref().iter().copied().map(fixed_proportion_to_u16).collect();
+        let dividends: Vec<_> =
+            dividends.as_ref().iter().copied().map(fixed_proportion_to_u16).collect();
+        let trust: Vec<_> = trust.as_ref().iter().copied().map(fixed_proportion_to_u16).collect();
+        let ranks: Vec<_> = ranks.as_ref().iter().copied().map(fixed_proportion_to_u16).collect();
+        let pruning_scores: Vec<_> = vec_max_upscale_to_u16(pruning_scores.as_ref());
+        let validator_trust: Vec<_> =
+            validator_trust.as_ref().iter().copied().map(fixed_proportion_to_u16).collect();
 
-        Incentive::<T>::insert(self.netuid, incentives);
+        Active::<T>::insert(self.netuid, active.clone());
+        Consensus::<T>::insert(self.netuid, consensus);
         Dividends::<T>::insert(self.netuid, dividends);
         Emission::<T>::insert(self.netuid, combined_emissions);
+        Incentive::<T>::insert(self.netuid, incentives);
+        PruningScores::<T>::insert(self.netuid, pruning_scores);
+        Rank::<T>::insert(self.netuid, ranks);
+        Trust::<T>::insert(self.netuid, trust);
+        ValidatorPermits::<T>::insert(self.netuid, &new_permits);
+        ValidatorTrust::<T>::insert(self.netuid, validator_trust);
 
-        for i in 0..self.n as usize {
+        for i in 0..self.module_count as usize {
             // Set bonds only if uid retains validator permit, otherwise clear bonds.
             if new_permits[i] {
                 let new_bonds_row: Vec<(u16, u16)> = ema_bonds[i]
@@ -140,119 +144,129 @@ impl<T: Config> YumaCalc<T> {
         for (uid_i, hotkey) in Keys::<T>::iter_prefix(self.netuid) {
             result.push((
                 hotkey,
-                server_emission[uid_i as usize],
-                validator_emission[uid_i as usize],
+                server_emissions[uid_i as usize],
+                validator_emissions[uid_i as usize],
             ));
         }
     }
 
-    fn compute_weights(&mut self) {
+    fn compute_weights(&mut self) -> WeightsVal {
         // Access network weights row unnormalized.
-        self.weights = Pallet::<T>::get_weights_sparse(self.netuid);
-        // log::trace!("W: {weights:?}");
+        let mut weights = Pallet::<T>::get_weights_sparse(self.netuid);
+        log::trace!("W: {weights:?}");
 
         // Mask weights that are not from permitted validators.
-        self.weights = mask_rows_sparse(&self.validator_forbids, &self.weights);
-        // log::trace!("W (permit): {weights:?}");
+        weights = mask_rows_sparse(&self.validator_forbids, &weights);
+        log::trace!("W (permit): {weights:?}");
 
         // Remove self-weight by masking diagonal.
-        self.weights = mask_diag_sparse(&self.weights);
-        // log::trace!("W (permit+diag): {weights:?}");
+        weights = mask_diag_sparse(&weights);
+        log::trace!("W (permit+diag): {weights:?}");
 
         // Remove weights referring to deregistered neurons.
-        self.weights = vec_mask_sparse_matrix(
-            &self.weights,
+        weights = vec_mask_sparse_matrix(
+            &weights,
             &self.last_update,
             &self.block_at_registration,
             |updated, registered| updated <= registered,
         );
-        // log::trace!("W (permit+diag+outdate): {weights:?}");
+        log::trace!("W (permit+diag+outdate): {weights:?}");
 
         // Normalize remaining weights.
-        inplace_row_normalize_sparse(&mut self.weights);
+        inplace_row_normalize_sparse(&mut weights);
+
+        WeightsVal::unchecked_from_inner(weights)
     }
 
-    fn compute_stake(&mut self) {
+    fn compute_stake(&self) -> StakeVal {
         // Access network stake as normalized vector.
         let mut stake: Vec<_> =
             Stake::<T>::iter_prefix_values(self.netuid).map(I64F64::from_num).collect();
-        assert_eq!(stake.len(), self.n as usize);
+        assert_eq!(stake.len(), self.module_count as usize);
 
         inplace_normalize_64(&mut stake);
 
-        self.stake = vec_fixed64_to_fixed32(stake); // range: I32F32(0, 1)
-                                                    // log::trace!("S: {:?}", &stake);
+        log::trace!("S: {:?}", &stake);
+        StakeVal::unchecked_from_inner(vec_fixed64_to_fixed32(stake)) // range: I32F32(0, 1)
     }
 
-    fn compute_validators(&mut self) -> Validators {
-        // Get current validator permits.
-        let permits: Vec<bool> = Pallet::<T>::get_validator_permits(self.netuid);
-        log::trace!("validator_permits: {:?}", permits);
-
-        // Logical negation of validator_permits.
-        let forbids: Vec<bool> = permits.iter().map(|&b| !b).collect();
-
-        // Get new validator permits.
-        let new_permits: Vec<bool> = is_topk(&self.stake, self.max_allowed_validators as usize);
-        log::trace!("new_validator_permits: {:?}", new_permits);
-
-        Validators {
-            permits,
-            forbids,
-            new_permits,
-        }
-    }
-
-    fn compute_active_stake(&mut self, inactive: &[bool]) {
-        self.active_stake = self.stake.to_vec();
+    fn compute_active_stake(&mut self, inactive: &[bool], stake: &StakeVal) -> ActiveStake {
+        let mut active_stake = stake.as_ref().clone();
 
         // Remove inactive stake.
-        inplace_mask_vector(&inactive, &mut self.active_stake);
+        inplace_mask_vector(&inactive, &mut active_stake);
 
         // Remove non-validator stake.
-        inplace_mask_vector(&self.validator_forbids, &mut self.active_stake);
+        inplace_mask_vector(&self.validator_forbids, &mut active_stake);
 
         // Normalize active stake.
-        inplace_normalize(&mut self.active_stake);
+        inplace_normalize(&mut active_stake);
+
+        ActiveStake::unchecked_from_inner(active_stake)
     }
 
-    fn compute_consensus(&mut self) -> Consensus {
+    fn compute_consensus_and_trust(
+        &mut self,
+        weights: &mut WeightsVal,
+        active_stake: &ActiveStake,
+    ) -> ConsensusAndTrust {
         // Compute preranks: r_j = SUM(i) w_ij * s_i
-        self.preranks = matmul_sparse(&self.weights, &self.active_stake, self.n);
-        // log::trace!( "R (before): {:?}", &preranks );
+        let preranks = matmul_sparse(weights.as_ref(), active_stake.as_ref(), self.module_count);
+        log::trace!("R (before): {:?}", &preranks);
 
         // Clip weights at majority consensus
-        let consensus: Vec<I32F32> =
-            weighted_median_col_sparse(&self.active_stake, &self.weights, self.n, self.kappa);
-        // log::trace!("C: {:?}", &consensus);
+        let consensus = weighted_median_col_sparse(
+            active_stake.as_ref(),
+            weights.as_ref(),
+            self.module_count,
+            self.kappa,
+        );
+        log::trace!("C: {:?}", &consensus);
 
-        self.weights = col_clip_sparse(&self.weights, &consensus);
-        // log::trace!("W: {:?}", &weights);
+        *weights = WeightsVal::unchecked_from_inner(col_clip_sparse(weights.as_ref(), &consensus));
+        log::trace!("W: {:?}", &weights);
 
-        let validator_trust: Vec<I32F32> = row_sum_sparse(&self.weights);
-        // log::trace!("Tv: {:?}", &validator_trust);
+        let validator_trust = row_sum_sparse(weights.as_ref());
+        log::trace!("Tv: {:?}", &validator_trust);
 
-        Consensus {
-            consensus,
-            validator_trust,
+        ConsensusAndTrust {
+            consensus: ConsensusVal::unchecked_from_inner(consensus),
+            validator_trust: ValidatorTrustVal::unchecked_from_inner(validator_trust),
+            preranks: Preranks::unchecked_from_inner(preranks),
         }
     }
 
-    fn compute_incentive_and_trust(&mut self) {
+    fn compute_incentive_and_trust(
+        &self,
+        weights: &WeightsVal,
+        active_stake: &ActiveStake,
+        preranks: &Preranks,
+    ) -> IncentivesAndTrust {
         // Compute ranks: r_j = SUM(i) w_ij * s_i.
-        self.ranks = matmul_sparse(&self.weights, &self.active_stake, self.n);
-        // log::trace!("R (after): {:?}", &ranks);
+        let ranks = matmul_sparse(weights.as_ref(), active_stake.as_ref(), self.module_count);
+        log::trace!("R (after): {:?}", &ranks);
 
         // Compute server trust: ratio of rank after vs. rank before.
-        self.trust = vecdiv(&self.ranks, &self.preranks); // range: I32F32(0, 1)
-                                                          // log::trace!("T: {:?}", &trust);
+        let trust = vecdiv(&ranks, preranks.as_ref()); // range: I32F32(0, 1)
+        log::trace!("T: {:?}", &trust);
 
-        self.incentives = self.ranks.clone();
-        inplace_normalize(&mut self.incentives); // range: I32F32(0, 1)
-                                                 // log::trace!("I (=R): {:?}", &incentive);
+        let mut incentives = ranks.clone();
+        inplace_normalize(&mut incentives); // range: I32F32(0, 1)
+        log::trace!("I (=R): {:?}", &incentives);
+
+        IncentivesAndTrust {
+            incentives: IncentivesVal::unchecked_from_inner(incentives),
+            ranks: RanksVal::unchecked_from_inner(ranks),
+            trust: TrustVal::unchecked_from_inner(trust),
+        }
     }
 
-    fn compute_bonds_and_dividends(&mut self) -> BondsAndDividends {
+    fn compute_bonds_and_dividends(
+        &self,
+        weights: &WeightsVal,
+        active_stake: &ActiveStake,
+        incentives: &IncentivesVal,
+    ) -> BondsAndDividends {
         // Access network bonds.
         let mut bonds = Pallet::<T>::get_bonds_sparse(self.netuid);
         log::trace!("B: {:?}", &bonds);
@@ -267,54 +281,62 @@ impl<T: Config> YumaCalc<T> {
         log::trace!("B (outdatedmask): {:?}", &bonds);
 
         // Normalize remaining bonds: sum_i b_ij = 1.
-        inplace_col_normalize_sparse(&mut bonds, self.n);
+        inplace_col_normalize_sparse(&mut bonds, self.module_count);
         log::trace!("B (mask+norm): {:?}", &bonds);
 
         // Compute bonds delta column normalized.
-        let mut bonds_delta = row_hadamard_sparse(&self.weights, &self.active_stake); // ΔB = W◦S (outdated W masked)
+        let mut bonds_delta = row_hadamard_sparse(weights.as_ref(), active_stake.as_ref()); // ΔB = W◦S (outdated W masked)
         log::trace!("ΔB: {:?}", &bonds_delta);
 
         // Normalize bonds delta.
-        inplace_col_normalize_sparse(&mut bonds_delta, self.n); // sum_i b_ij = 1
+        inplace_col_normalize_sparse(&mut bonds_delta, self.module_count); // sum_i b_ij = 1
         log::trace!("ΔB (norm): {:?}", &bonds_delta);
 
         // Compute bonds moving average.
-        let bonds_moving_average =
-            I64F64::from_num(Pallet::<T>::get_bonds_moving_average(self.netuid))
-                / I64F64::from_num(1_000_000);
+        let bonds_moving_average = I64F64::from_num(BondsMovingAverage::<T>::get(self.netuid))
+            / I64F64::from_num(1_000_000);
         let alpha = I32F32::from_num(1) - I32F32::from_num(bonds_moving_average);
         let mut ema_bonds = mat_ema_sparse(&bonds_delta, &bonds, alpha);
 
         // Normalize EMA bonds.
-        inplace_col_normalize_sparse(&mut ema_bonds, self.n); // sum_i b_ij = 1
+        inplace_col_normalize_sparse(&mut ema_bonds, self.module_count); // sum_i b_ij = 1
         log::trace!("emaB: {:?}", &ema_bonds);
 
         // Compute dividends: d_i = SUM(j) b_ij * inc_j.
         // range: I32F32(0, 1)
-        let mut dividends = matmul_transpose_sparse(&ema_bonds, &self.incentives);
+        let mut dividends = matmul_transpose_sparse(&ema_bonds, incentives.as_ref());
         inplace_normalize(&mut dividends);
         log::trace!("D: {:?}", &dividends);
 
         // Column max-upscale EMA bonds for storage: max_i w_ij = 1.
-        inplace_col_max_upscale_sparse(&mut ema_bonds, self.n);
+        inplace_col_max_upscale_sparse(&mut ema_bonds, self.module_count);
 
         BondsAndDividends {
             ema_bonds,
-            dividends,
+            dividends: DividendsVal::unchecked_from_inner(dividends),
         }
     }
 
-    fn compute_emissions<'a>(&'a mut self) -> Emissions {
+    fn compute_emissions<'a>(
+        &mut self,
+        stake: &'a StakeVal,
+        active_stake: &'a ActiveStake,
+        incentives: &IncentivesVal,
+        dividends: &DividendsVal,
+    ) -> Emissions {
+        let stake = stake.as_ref();
+        let active_stake = active_stake.as_ref();
+
         // Compute normalized emission scores. range: I32F32(0, 1)
-        let combined_emission: Vec<I32F32> = self
-            .incentives
+        let combined_emission: Vec<I32F32> = incentives
+            .as_ref()
             .iter()
-            .zip(self.dividends.iter())
+            .zip(dividends.as_ref().iter())
             .map(|(ii, di)| ii + di)
             .collect();
         let emission_sum: I32F32 = combined_emission.iter().sum();
 
-        let mut normalized_server_emission = self.incentives.clone(); // Servers get incentive.
+        let mut normalized_server_emission = incentives.as_ref().clone(); // Servers get incentive.
         inplace_normalize_using_sum(&mut normalized_server_emission, emission_sum);
 
         let normalized_validator_emission: Cow<'a, [I32F32]>;
@@ -323,18 +345,18 @@ impl<T: Config> YumaCalc<T> {
         // If emission is zero, replace emission with normalized stake.
         if emission_sum == I32F32::from(0) {
             // no weights set | outdated weights | self_weights
-            if is_zero(&self.active_stake) {
+            if is_zero(active_stake) {
                 // no active stake
                 // do not mask inactive, assumes stake is normalized
-                normalized_validator_emission = Cow::Borrowed(&self.stake);
-                normalized_combined_emission = Cow::Borrowed(&self.stake);
+                normalized_validator_emission = Cow::Borrowed(stake);
+                normalized_combined_emission = Cow::Borrowed(stake);
             } else {
                 // emission proportional to inactive-masked normalized stake
-                normalized_validator_emission = Cow::Borrowed(&self.active_stake);
-                normalized_combined_emission = Cow::Borrowed(&self.active_stake);
+                normalized_validator_emission = Cow::Borrowed(active_stake);
+                normalized_combined_emission = Cow::Borrowed(active_stake);
             }
         } else {
-            let mut validator_emission = self.dividends.clone(); // Validators get dividends.
+            let mut validator_emission = dividends.as_ref().clone(); // Validators get dividends.
             inplace_normalize_using_sum(&mut validator_emission, emission_sum);
             normalized_validator_emission = Cow::Owned(validator_emission);
 
@@ -346,81 +368,86 @@ impl<T: Config> YumaCalc<T> {
         // Compute rao based emission scores. range: I96F32(0, rao_emission)
         let float_rao_emission = I96F32::from_num(self.rao_emission as usize);
 
-        let server_emission: Vec<u64> = normalized_server_emission
+        let server_emissions: Vec<u64> = normalized_server_emission
             .iter()
             .map(|&se| I96F32::from_num(se) * float_rao_emission)
             .map(I96F32::to_num)
             .collect();
 
-        let validator_emission: Vec<u64> = normalized_validator_emission
+        let validator_emissions: Vec<u64> = normalized_validator_emission
             .iter()
             .map(|&ve| I96F32::from_num(ve) * float_rao_emission)
             .map(I96F32::to_num)
             .collect();
 
         // Only used to track emission in storage.
-        let combined_emission: Vec<u64> = normalized_combined_emission
+        let combined_emissions: Vec<u64> = normalized_combined_emission
             .iter()
             .map(|&ce| I96F32::from_num(ce) * float_rao_emission)
             .map(I96F32::to_num)
             .collect();
 
         log::trace!("nSE: {:?}", &normalized_server_emission);
-        log::trace!("SE: {:?}", &server_emission);
+        log::trace!("SE: {:?}", &server_emissions);
         log::trace!("nVE: {:?}", &normalized_validator_emission);
-        log::trace!("VE: {:?}", &validator_emission);
+        log::trace!("VE: {:?}", &validator_emissions);
         log::trace!("nCE: {:?}", &normalized_combined_emission);
-        log::trace!("CE: {:?}", &combined_emission);
+        log::trace!("CE: {:?}", &combined_emissions);
 
         // Set pruning scores using combined emission scores.
         let pruning_scores = normalized_combined_emission.into_owned();
         log::trace!("P: {:?}", &pruning_scores);
 
         Emissions {
-            pruning_scores,
-            validator_emission,
-            server_emission,
-            combined_emissions: combined_emission,
+            pruning_scores: PruningScoresVal::unchecked_from_inner(pruning_scores),
+            validator_emissions,
+            server_emissions,
+            combined_emissions,
         }
     }
 }
 
-struct WeightsVal(Vec<I32F32>);
-
-struct Validators {
-    permits: Vec<bool>,
-    forbids: Vec<bool>,
-    new_permits: Vec<bool>,
+bty::brand! {
+    pub type ActiveStake = Vec<I32F32>;
+    pub type ConsensusVal = Vec<I32F32>;
+    pub type DividendsVal = Vec<I32F32>;
+    pub type IncentivesVal = Vec<I32F32>;
+    pub type Preranks = Vec<I32F32>;
+    pub type PruningScoresVal = Vec<I32F32>;
+    pub type RanksVal = Vec<I32F32>;
+    pub type StakeVal = Vec<I32F32>;
+    pub type TrustVal = Vec<I32F32>;
+    pub type ValidatorTrustVal = Vec<I32F32>;
+    pub type WeightsVal = Vec<Vec<(u16, I32F32)>>;
 }
 
-struct Consensus {
-    consensus: Vec<I32F32>,
-    validator_trust: Vec<I32F32>,
+struct ConsensusAndTrust {
+    consensus: ConsensusVal,
+    validator_trust: ValidatorTrustVal,
+    preranks: Preranks,
 }
 
 struct BondsAndDividends {
     ema_bonds: Vec<Vec<(u16, I32F32)>>,
-    dividends: Vec<I32F32>,
+    dividends: DividendsVal,
+}
+
+struct IncentivesAndTrust {
+    incentives: IncentivesVal,
+    ranks: RanksVal,
+    trust: TrustVal,
 }
 
 struct Emissions {
-    pruning_scores: Vec<I32F32>,
-    validator_emission: Vec<u64>,
-    server_emission: Vec<u64>,
+    pruning_scores: PruningScoresVal,
+    validator_emissions: Vec<u64>,
+    server_emissions: Vec<u64>,
     combined_emissions: Vec<u64>,
 }
 
 impl<T: Config> Pallet<T> {
-    pub fn get_float_kappa(netuid: u16) -> I32F32 {
+    pub fn get_float_kappa() -> I32F32 {
         I32F32::from_num(Kappa::<T>::get()) / I32F32::from_num(u16::MAX)
-    }
-
-    fn get_validator_permits(netuid: u16) -> Vec<bool> {
-        todo!()
-    }
-
-    fn get_max_allowed_validators(netuid: u16) -> usize {
-        todo!()
     }
 
     fn get_weights_sparse(netuid: u16) -> Vec<Vec<(u16, I32F32)>> {
@@ -450,9 +477,5 @@ impl<T: Config> Pallet<T> {
             }
         }
         bonds
-    }
-
-    fn get_bonds_moving_average(netuid: u16) -> I64F64 {
-        BondsMovingAverage::<T>::get(netuid)
     }
 }

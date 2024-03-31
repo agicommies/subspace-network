@@ -239,19 +239,17 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    // Returns the total amount of stake in the staking table.
-    //
+    /// Returns the total amount of stake in the staking table.
     pub fn get_total_subnet_stake(netuid: u16) -> u64 {
         TotalStake::<T>::get(netuid)
     }
 
-    // Returns the total amount of stake in the staking table.
+    /// Returns the total amount of stake in the staking table.
     pub fn total_stake() -> u64 {
         TotalStake::<T>::iter().map(|(_, stake)| stake).sum()
     }
 
-    // Returns the stake under the cold - hot pairing in the staking table.
-    //
+    /// Returns the stake under the cold - hot pairing in the staking table.
     pub fn get_stake(netuid: u16, key: &T::AccountId) -> u64 {
         Stake::<T>::get(netuid, key)
     }

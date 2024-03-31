@@ -1006,3 +1006,12 @@ fn test_dynamic_burn() {
         );
     });
 }
+
+#[test]
+fn foo() {
+    use substrate_fixed::types::*;
+    let subnet_stake = I64F64::from_num(10);
+    let total_stake = I64F64::from_num(100);
+    let threshold = 9;
+    dbg!(threshold <= dbg!(dbg!(subnet_stake / total_stake) * 100));
+}

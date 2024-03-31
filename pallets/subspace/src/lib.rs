@@ -162,9 +162,9 @@ pub mod pallet {
 
     #[pallet::type_value]
     pub fn DefaultSubnetStakeThreshold<T: Config>() -> u64 {
-        todo!()
+        10
     }
-    #[pallet::storage] // --- MAP ( netuid ) --> Threshold
+    #[pallet::storage]
     pub type SubnetStakeThreshold<T> =
         StorageValue<_, u64, ValueQuery, DefaultSubnetStakeThreshold<T>>;
 
@@ -173,8 +173,17 @@ pub mod pallet {
         128
     }
 
-    #[pallet::storage] // --- MAP ( netuid ) --> Kappa
+    #[pallet::storage]
     pub type Kappa<T> = StorageValue<_, u16, ValueQuery, DefaultKappa<T>>;
+
+    #[pallet::type_value]
+    pub fn DefaultActivityCutoff<T: Config>() -> u16 {
+        5_000
+    }
+
+    #[pallet::storage] // --- MAP ( netuid ) --> activity_cutoff
+    pub type ActivityCutoff<T> =
+        StorageMap<_, Identity, u16, u16, ValueQuery, DefaultActivityCutoff<T>>;
 
     #[pallet::type_value]
     pub fn DefaultBonds<T: Config>() -> Vec<(u16, u16)> {
@@ -192,6 +201,47 @@ pub mod pallet {
         ValueQuery,
         DefaultBonds<T>,
     >;
+
+    #[pallet::type_value]
+    pub fn DefaultBondsMovingAverage<T: Config>() -> u64 {
+        900_000
+    }
+
+    #[pallet::storage] // --- MAP ( netuid ) --> bonds_moving_average
+    pub type BondsMovingAverage<T> =
+        StorageMap<_, Identity, u16, u64, ValueQuery, DefaultBondsMovingAverage<T>>;
+
+    #[pallet::storage] // --- DMAP ( netuid ) --> validator_permit
+    pub(super) type ValidatorPermits<T: Config> =
+        StorageMap<_, Identity, u16, Vec<bool>, ValueQuery, EmptyBoolVec<T>>;
+
+    #[pallet::storage] // --- DMAP ( netuid ) --> validator_trust
+    pub(super) type ValidatorTrust<T: Config> =
+        StorageMap<_, Identity, u16, Vec<u16>, ValueQuery, EmptyU16Vec<T>>;
+
+    #[pallet::storage] // --- DMAP ( netuid ) --> pruning_scores
+    pub(super) type PruningScores<T: Config> =
+        StorageMap<_, Identity, u16, Vec<u16>, ValueQuery, EmptyU16Vec<T>>;
+
+    #[pallet::type_value]
+    pub fn DefaultMaxAllowedValidators<T: Config>() -> Option<u16> {
+        None // Some(128)
+    }
+
+    #[pallet::storage] // --- MAP ( netuid ) --> max_allowed_validators
+    pub type MaxAllowedValidators<T> =
+        StorageMap<_, Identity, u16, Option<u16>, ValueQuery, DefaultMaxAllowedValidators<T>>;
+
+    #[pallet::storage] // --- DMAP ( netuid ) --> consensus
+    pub type Consensus<T: Config> =
+        StorageMap<_, Identity, u16, Vec<u16>, ValueQuery, EmptyU16Vec<T>>;
+
+    #[pallet::storage] // --- DMAP ( netuid ) --> active
+    pub type Active<T: Config> =
+        StorageMap<_, Identity, u16, Vec<bool>, ValueQuery, EmptyBoolVec<T>>;
+
+    #[pallet::storage] // --- DMAP ( netuid ) --> rank
+    pub type Rank<T: Config> = StorageMap<_, Identity, u16, Vec<u16>, ValueQuery, EmptyU16Vec<T>>;
 
     #[pallet::type_value]
     pub fn DefaultMaxNameLength<T: Config>() -> u16 {
@@ -799,16 +849,15 @@ pub mod pallet {
     // ==== Module Consensus Variables  ====
     // =======================================
     #[pallet::storage] // --- MAP ( netuid ) --> incentive
-    pub(super) type Incentive<T: Config> =
+    pub type Incentive<T: Config> =
         StorageMap<_, Identity, u16, Vec<u16>, ValueQuery, EmptyU16Vec<T>>;
     #[pallet::storage] // --- MAP ( netuid ) --> trust
-    pub(super) type Trust<T: Config> =
-        StorageMap<_, Identity, u16, Vec<u16>, ValueQuery, EmptyU16Vec<T>>;
+    pub type Trust<T: Config> = StorageMap<_, Identity, u16, Vec<u16>, ValueQuery, EmptyU16Vec<T>>;
     #[pallet::storage] // --- MAP ( netuid ) --> dividends
-    pub(super) type Dividends<T: Config> =
+    pub type Dividends<T: Config> =
         StorageMap<_, Identity, u16, Vec<u16>, ValueQuery, EmptyU16Vec<T>>;
     #[pallet::storage] // --- MAP ( netuid ) --> emission
-    pub(super) type Emission<T: Config> =
+    pub type Emission<T: Config> =
         StorageMap<_, Identity, u16, Vec<u64>, ValueQuery, EmptyU64Vec<T>>;
     #[pallet::storage] // --- MAP ( netuid ) --> last_update
     pub(super) type LastUpdate<T: Config> =
