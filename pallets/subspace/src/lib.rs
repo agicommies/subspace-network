@@ -170,10 +170,28 @@ pub mod pallet {
 
     #[pallet::type_value]
     pub fn DefaultKappa<T: Config>() -> u16 {
-        todo!()
+        128
     }
+
     #[pallet::storage] // --- MAP ( netuid ) --> Kappa
-    pub type Kappa<T> = StorageMap<_, Identity, u16, u16, ValueQuery, DefaultKappa<T>>;
+    pub type Kappa<T> = StorageValue<_, u16, ValueQuery, DefaultKappa<T>>;
+
+    #[pallet::type_value]
+    pub fn DefaultBonds<T: Config>() -> Vec<(u16, u16)> {
+        vec![]
+    }
+
+    #[pallet::storage] // --- DMAP ( netuid, uid ) --> bonds
+    pub(super) type Bonds<T: Config> = StorageDoubleMap<
+        _,
+        Identity,
+        u16,
+        Identity,
+        u16,
+        Vec<(u16, u16)>,
+        ValueQuery,
+        DefaultBonds<T>,
+    >;
 
     #[pallet::type_value]
     pub fn DefaultMaxNameLength<T: Config>() -> u16 {

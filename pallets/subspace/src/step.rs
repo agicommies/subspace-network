@@ -38,7 +38,7 @@ impl<T: Config> Pallet<T> {
                 if netuid == 0 {
                     Self::linear_epoch(netuid, emission_to_drain)
                 } else {
-                    yuma::YumaCalc::<T>::new(netuid).run();
+                    yuma::YumaCalc::<T>::new(netuid, todo!("rao_emission")).run();
                 }
             }
             PendingEmission::<T>::insert(netuid, 0);

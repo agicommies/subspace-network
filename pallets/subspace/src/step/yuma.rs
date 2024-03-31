@@ -1,8 +1,14 @@
 use core::marker::PhantomData;
 
-use substrate_fixed::types::{I32F32, I64F64, I96F32};
+use sp_std::borrow::Cow;
+use substrate_fixed::{
+    traits::ToFixed,
+    types::{I32F32, I64F64, I96F32},
+};
 
-use crate::{math::*, Config, Kappa, Pallet, Stake, Weights};
+use crate::{
+    math::*, Bonds, Config, Dividends, Emission, Incentive, Kappa, Keys, Pallet, Stake, Weights,
+};
 
 pub struct YumaCalc<T: Config> {
     /// The amount of modules on the subnet
@@ -11,6 +17,7 @@ pub struct YumaCalc<T: Config> {
     netuid: u16,
     /// Consensus majority ratio, e.g. 51%.
     kappa: I32F32,
+    rao_emission: u64,
 
     last_update: Vec<u64>,
     block_at_registration: Vec<u64>,
@@ -20,7 +27,7 @@ pub struct YumaCalc<T: Config> {
     active_stake: Vec<I32F32>,
     preranks: Vec<I32F32>,
     ranks: Vec<I32F32>,
-    incentive: Vec<I32F32>,
+    incentives: Vec<I32F32>,
     dividends: Vec<I32F32>,
     trust: Vec<I32F32>,
 
@@ -32,13 +39,14 @@ pub struct YumaCalc<T: Config> {
 }
 
 impl<T: Config> YumaCalc<T> {
-    pub fn new(netuid: u16) -> Self {
+    pub fn new(netuid: u16, rao_emission: u64) -> Self {
         let validator_permits = Pallet::<T>::get_validator_permits(netuid);
 
         Self {
             n: Pallet::<T>::get_subnet_n(netuid),
             netuid,
             kappa: Pallet::<T>::get_float_kappa(netuid),
+            rao_emission: todo!(),
 
             last_update: Pallet::<T>::get_last_update(netuid),
             block_at_registration: Pallet::<T>::get_last_update(netuid),
@@ -48,7 +56,7 @@ impl<T: Config> YumaCalc<T> {
             active_stake: vec![],
             preranks: vec![],
             ranks: vec![],
-            incentive: vec![],
+            incentives: vec![],
             dividends: vec![],
             trust: vec![],
 
@@ -77,6 +85,11 @@ impl<T: Config> YumaCalc<T> {
         log::trace!("Active: {active:?}");
 
         self.compute_weights();
+        let Validators {
+            permits,
+            forbids,
+            new_permits,
+        } = self.compute_validators();
         self.compute_stake();
         self.compute_active_stake(&inactive);
 
@@ -88,7 +101,49 @@ impl<T: Config> YumaCalc<T> {
         } = self.compute_consensus();
 
         self.compute_incentive_and_trust();
-        self.compute_bonds_and_dividends();
+        let BondsAndDividends {
+            ema_bonds,
+            dividends,
+        } = self.compute_bonds_and_dividends();
+        let Emissions {
+            pruning_scores,
+            validator_emission,
+            server_emission,
+            combined_emissions,
+        } = self.compute_emissions();
+
+        let incentives: Vec<u16> =
+            self.incentives.into_iter().map(fixed_proportion_to_u16).collect();
+        let dividends: Vec<_> = dividends.into_iter().map(fixed_proportion_to_u16).collect();
+
+        Incentive::<T>::insert(self.netuid, incentives);
+        Dividends::<T>::insert(self.netuid, dividends);
+        Emission::<T>::insert(self.netuid, combined_emissions);
+
+        for i in 0..self.n as usize {
+            // Set bonds only if uid retains validator permit, otherwise clear bonds.
+            if new_permits[i] {
+                let new_bonds_row: Vec<(u16, u16)> = ema_bonds[i]
+                    .iter()
+                    .map(|(j, value)| (*j, fixed_proportion_to_u16(*value)))
+                    .collect();
+                Bonds::<T>::insert(self.netuid, i as u16, new_bonds_row);
+            } else if self.validator_permits[i] {
+                // Only overwrite the intersection.
+                let new_empty_bonds_row: Vec<(u16, u16)> = vec![];
+                Bonds::<T>::insert(self.netuid, i as u16, new_empty_bonds_row);
+            }
+        }
+
+        // Emission tuples ( hotkeys, server_emission, validator_emission )
+        let mut result: Vec<(T::AccountId, u64, u64)> = vec![];
+        for (uid_i, hotkey) in Keys::<T>::iter_prefix(self.netuid) {
+            result.push((
+                hotkey,
+                server_emission[uid_i as usize],
+                validator_emission[uid_i as usize],
+            ));
+        }
     }
 
     fn compute_weights(&mut self) {
@@ -127,6 +182,25 @@ impl<T: Config> YumaCalc<T> {
 
         self.stake = vec_fixed64_to_fixed32(stake); // range: I32F32(0, 1)
                                                     // log::trace!("S: {:?}", &stake);
+    }
+
+    fn compute_validators(&mut self) -> Validators {
+        // Get current validator permits.
+        let permits: Vec<bool> = Pallet::<T>::get_validator_permits(self.netuid);
+        log::trace!("validator_permits: {:?}", permits);
+
+        // Logical negation of validator_permits.
+        let forbids: Vec<bool> = permits.iter().map(|&b| !b).collect();
+
+        // Get new validator permits.
+        let new_permits: Vec<bool> = is_topk(&self.stake, self.max_allowed_validators as usize);
+        log::trace!("new_validator_permits: {:?}", new_permits);
+
+        Validators {
+            permits,
+            forbids,
+            new_permits,
+        }
     }
 
     fn compute_active_stake(&mut self, inactive: &[bool]) {
@@ -173,12 +247,12 @@ impl<T: Config> YumaCalc<T> {
         self.trust = vecdiv(&self.ranks, &self.preranks); // range: I32F32(0, 1)
                                                           // log::trace!("T: {:?}", &trust);
 
-        self.incentive = self.ranks.clone();
-        inplace_normalize(&mut self.incentive); // range: I32F32(0, 1)
-                                                // log::trace!("I (=R): {:?}", &incentive);
+        self.incentives = self.ranks.clone();
+        inplace_normalize(&mut self.incentives); // range: I32F32(0, 1)
+                                                 // log::trace!("I (=R): {:?}", &incentive);
     }
 
-    fn compute_bonds_and_dividends(&mut self) -> Bonds {
+    fn compute_bonds_and_dividends(&mut self) -> BondsAndDividends {
         // Access network bonds.
         let mut bonds = Pallet::<T>::get_bonds_sparse(self.netuid);
         log::trace!("B: {:?}", &bonds);
@@ -217,74 +291,79 @@ impl<T: Config> YumaCalc<T> {
 
         // Compute dividends: d_i = SUM(j) b_ij * inc_j.
         // range: I32F32(0, 1)
-        let mut dividends = matmul_transpose_sparse(&ema_bonds, &self.incentive);
+        let mut dividends = matmul_transpose_sparse(&ema_bonds, &self.incentives);
         inplace_normalize(&mut dividends);
         log::trace!("D: {:?}", &dividends);
 
         // Column max-upscale EMA bonds for storage: max_i w_ij = 1.
         inplace_col_max_upscale_sparse(&mut ema_bonds, self.n);
 
-        Bonds {
+        BondsAndDividends {
             ema_bonds,
             dividends,
         }
     }
 
-    fn compute_emissions(&mut self) {
+    fn compute_emissions<'a>(&'a mut self) -> Emissions {
         // Compute normalized emission scores. range: I32F32(0, 1)
         let combined_emission: Vec<I32F32> = self
-            .incentive
+            .incentives
             .iter()
-            .zip(self.dividends.clone())
+            .zip(self.dividends.iter())
             .map(|(ii, di)| ii + di)
             .collect();
         let emission_sum: I32F32 = combined_emission.iter().sum();
 
-        let mut normalized_server_emission: Vec<I32F32> = self.incentive.clone(); // Servers get incentive.
+        let mut normalized_server_emission = self.incentives.clone(); // Servers get incentive.
         inplace_normalize_using_sum(&mut normalized_server_emission, emission_sum);
-        let mut normalized_validator_emission: Vec<I32F32> = self.dividends.clone(); // Validators get dividends.
-        inplace_normalize_using_sum(&mut normalized_validator_emission, emission_sum);
-        let mut normalized_combined_emission: Vec<I32F32> = combined_emission.clone();
-        // Normalize on the sum of incentive + dividends.
-        inplace_normalize(&mut normalized_combined_emission);
+
+        let normalized_validator_emission: Cow<'a, [I32F32]>;
+        let normalized_combined_emission: Cow<'a, [I32F32]>;
 
         // If emission is zero, replace emission with normalized stake.
         if emission_sum == I32F32::from(0) {
             // no weights set | outdated weights | self_weights
             if is_zero(&self.active_stake) {
                 // no active stake
-                normalized_validator_emission = self.stake.clone(); // do not mask inactive, assumes stake is normalized
-                normalized_combined_emission = self.stake.clone();
+                // do not mask inactive, assumes stake is normalized
+                normalized_validator_emission = Cow::Borrowed(&self.stake);
+                normalized_combined_emission = Cow::Borrowed(&self.stake);
             } else {
-                normalized_validator_emission = self.active_stake.clone(); // emission proportional to inactive-masked normalized stake
-                normalized_combined_emission = self.active_stake.clone();
+                // emission proportional to inactive-masked normalized stake
+                normalized_validator_emission = Cow::Borrowed(&self.active_stake);
+                normalized_combined_emission = Cow::Borrowed(&self.active_stake);
             }
+        } else {
+            let mut validator_emission = self.dividends.clone(); // Validators get dividends.
+            inplace_normalize_using_sum(&mut validator_emission, emission_sum);
+            normalized_validator_emission = Cow::Owned(validator_emission);
+
+            let mut combined_emission = combined_emission;
+            inplace_normalize(&mut combined_emission);
+            normalized_combined_emission = Cow::Owned(combined_emission);
         }
 
         // Compute rao based emission scores. range: I96F32(0, rao_emission)
-        let float_rao_emission: I96F32 = I96F32::from_num(todo!() as usize);
+        let float_rao_emission = I96F32::from_num(self.rao_emission as usize);
 
-        let server_emission: Vec<I96F32> = normalized_server_emission
+        let server_emission: Vec<u64> = normalized_server_emission
             .iter()
-            .map(|se: &I32F32| I96F32::from_num(*se) * float_rao_emission)
+            .map(|&se| I96F32::from_num(se) * float_rao_emission)
+            .map(I96F32::to_num)
             .collect();
-        let server_emission: Vec<u64> =
-            server_emission.iter().map(|e: &I96F32| e.to_num::<u64>()).collect();
 
-        let validator_emission: Vec<I96F32> = normalized_validator_emission
+        let validator_emission: Vec<u64> = normalized_validator_emission
             .iter()
-            .map(|ve: &I32F32| I96F32::from_num(*ve) * float_rao_emission)
+            .map(|&ve| I96F32::from_num(ve) * float_rao_emission)
+            .map(I96F32::to_num)
             .collect();
-        let validator_emission: Vec<u64> =
-            validator_emission.iter().map(|e: &I96F32| e.to_num::<u64>()).collect();
 
         // Only used to track emission in storage.
-        let combined_emission: Vec<I96F32> = normalized_combined_emission
+        let combined_emission: Vec<u64> = normalized_combined_emission
             .iter()
-            .map(|ce: &I32F32| I96F32::from_num(*ce) * float_rao_emission)
+            .map(|&ce| I96F32::from_num(ce) * float_rao_emission)
+            .map(I96F32::to_num)
             .collect();
-        let combined_emission: Vec<u64> =
-            combined_emission.iter().map(|e: &I96F32| e.to_num::<u64>()).collect();
 
         log::trace!("nSE: {:?}", &normalized_server_emission);
         log::trace!("SE: {:?}", &server_emission);
@@ -294,9 +373,24 @@ impl<T: Config> YumaCalc<T> {
         log::trace!("CE: {:?}", &combined_emission);
 
         // Set pruning scores using combined emission scores.
-        let pruning_scores: Vec<I32F32> = normalized_combined_emission.clone();
+        let pruning_scores = normalized_combined_emission.into_owned();
         log::trace!("P: {:?}", &pruning_scores);
+
+        Emissions {
+            pruning_scores,
+            validator_emission,
+            server_emission,
+            combined_emissions: combined_emission,
+        }
     }
+}
+
+struct WeightsVal(Vec<I32F32>);
+
+struct Validators {
+    permits: Vec<bool>,
+    forbids: Vec<bool>,
+    new_permits: Vec<bool>,
 }
 
 struct Consensus {
@@ -304,16 +398,21 @@ struct Consensus {
     validator_trust: Vec<I32F32>,
 }
 
-struct Bonds {
+struct BondsAndDividends {
     ema_bonds: Vec<Vec<(u16, I32F32)>>,
     dividends: Vec<I32F32>,
 }
 
-struct Emissions {}
+struct Emissions {
+    pruning_scores: Vec<I32F32>,
+    validator_emission: Vec<u64>,
+    server_emission: Vec<u64>,
+    combined_emissions: Vec<u64>,
+}
 
 impl<T: Config> Pallet<T> {
     pub fn get_float_kappa(netuid: u16) -> I32F32 {
-        I32F32::from_num(Kappa::<T>::get(netuid)) / I32F32::from_num(u16::MAX)
+        I32F32::from_num(Kappa::<T>::get()) / I32F32::from_num(u16::MAX)
     }
 
     fn get_validator_permits(netuid: u16) -> Vec<bool> {
@@ -343,10 +442,17 @@ impl<T: Config> Pallet<T> {
     }
 
     fn get_bonds_sparse(netuid: u16) -> Vec<Vec<(u16, I32F32)>> {
-        todo!()
+        let n: usize = Self::get_subnet_n(netuid) as usize;
+        let mut bonds: Vec<Vec<(u16, I32F32)>> = vec![vec![]; n];
+        for (uid_i, bonds_i) in Bonds::<T>::iter_prefix(netuid) {
+            for (uid_j, bonds_ij) in bonds_i {
+                bonds[uid_i as usize].push((uid_j, I32F32::from_num(bonds_ij)));
+            }
+        }
+        bonds
     }
 
     fn get_bonds_moving_average(netuid: u16) -> I64F64 {
-        todo!()
+        BondsMovingAverage::<T>::get(netuid)
     }
 }
