@@ -18,6 +18,9 @@ fn test_add_subnets() {
         let n = 20;
         let num_subnets: u16 = n;
 
+        // make sure that the results won´t get affected by burn
+        SubspaceModule::set_min_burn(0);
+
         for i in 0..num_subnets {
             assert_ok!(register_module(i, U256::from(i), stake_per_module));
             for j in 0..n {
@@ -159,6 +162,9 @@ fn test_emission_ratio() {
         let max_delta: f64 = 1.0;
         let _n: u16 = 10;
 
+        // make sure that the results won´t get affected by burn
+        SubspaceModule::set_min_burn(0);
+
         for i in 0..netuids.len() {
             let _key = U256::from(netuids[i]);
             let netuid = netuids[i];
@@ -197,6 +203,10 @@ fn test_set_max_allowed_uids_growing() {
         let mut max_uids: u16 = 100;
         let extra_uids: u16 = 10;
         let rounds = 10;
+
+        // make sure that the results won´t get affected by burn
+        SubspaceModule::set_min_burn(0);
+
         assert_ok!(register_module(netuid, U256::from(0), stake));
         SubspaceModule::set_max_registrations_per_block(max_uids + extra_uids * rounds);
         for i in 1..max_uids {
@@ -244,6 +254,9 @@ fn test_set_max_allowed_uids_shrinking() {
         let stake: u64 = 1_000_000_000;
         let max_uids: u16 = 100;
         let extra_uids: u16 = 20;
+
+        // make sure that the results won´t get affected by burn
+        SubspaceModule::set_min_burn(0);
 
         let mut n = SubspaceModule::get_subnet_n(netuid);
         info!("registering module {}", n);
@@ -329,6 +342,9 @@ fn test_set_max_allowed_modules() {
         let _extra_uids: u16 = 20;
         let max_allowed_modules: u16 = 100;
 
+        // make sure that the results won´t get affected by burn
+        SubspaceModule::set_min_burn(0);
+
         SubspaceModule::set_max_allowed_modules(max_allowed_modules);
         // set max_total modules
 
@@ -352,6 +368,8 @@ fn test_deregister_subnet_when_overflows_max_allowed_subnets() {
         let mut params = SubspaceModule::global_params();
         params.max_allowed_subnets = 3;
         SubspaceModule::set_global_params(params.clone());
+        // make sure that the results won´t get affected by burn
+        SubspaceModule::set_min_burn(0);
 
         assert_eq!(params.max_allowed_subnets, 3);
 

@@ -62,7 +62,7 @@ impl ModuleChangeset {
     ) -> Result<(), sp_runtime::DispatchError> {
         let max = MaxNameLength::<T>::get() as usize;
         let min = MinNameLength::<T>::get() as usize;
-        
+
         if let Some(name) = self.name {
             ensure!(!name.is_empty(), Error::<T>::InvalidModuleName);
             ensure!(name.len() <= max, Error::<T>::ModuleNameTooLong);

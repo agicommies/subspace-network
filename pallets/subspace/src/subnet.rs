@@ -413,6 +413,11 @@ impl<T: Config> Pallet<T> {
         TotalSubnets::<T>::mutate(|n| *n += 1);
         N::<T>::insert(netuid, 0);
 
+        // Insert the minimum burn to the netuid,
+        // to prevent free registrations the first target registration interval.
+        let min_burn = Self::get_min_burn();
+        Burn::<T>::insert(netuid, min_burn);
+
         // --- 6. Emit the new network event.
         Self::deposit_event(Event::NetworkAdded(netuid, name));
 
