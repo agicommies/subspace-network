@@ -1,4 +1,4 @@
-use crate::module::ModuleChangeset;
+use crate::{module::ModuleChangeset, subnet::SubnetSet};
 
 use super::*;
 
@@ -60,9 +60,6 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    // TODO:
-    //- check ip
-    // - add ability to set delegaiton fee, straight in registration
     pub fn do_register(
         origin: T::RuntimeOrigin,
         network_name: Vec<u8>,
@@ -92,8 +89,14 @@ impl<T: Config> Pallet<T> {
         let netuid = if let Some(netuid) = Self::get_netuid_for_name(&network_name) {
             netuid
         } else {
+            let params = SubnetParams {
+                name: network_name.clone(),
+                founder: key.clone(),
+                ..Self::default_subnet_params()
+            };
+            let subnet_set: SubnetSet<T> = SubnetSet::new(&network_name, &key, params);
             // Create subnet if it does not exist.
-            Self::add_subnet_from_registration(network_name, stake, &key)?
+            Self::add_subnet_from_registration(stake, subnet_set)?
         };
 
         // --- 5. Ensure the caller has enough stake to register.
@@ -116,9 +119,10 @@ impl<T: Config> Pallet<T> {
         // If we do deregister slot.
         Self::check_module_limits(netuid);
 
-        // --- 8. Register the module.
-        let changeset = ModuleChangeset::new(name, address);
-        let uid: u16 = Self::append_module(netuid, &module_key, changeset)?;
+        // --- 8. Register the module and changeset.
+        let module_changeset = ModuleChangeset::new(name, address);
+
+        let uid: u16 = Self::append_module(netuid, &module_key, module_changeset)?;
 
         // --- 9. Add the stake to the module, now that it is registered on the network.
         Self::do_add_stake(origin, netuid, module_key.clone(), stake)?;
@@ -223,13 +227,13 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn add_subnet_from_registration(
-        name: Vec<u8>,
         stake: u64,
-        founder_key: &T::AccountId,
+        subnetset: SubnetSet<T>,
     ) -> Result<u16, sp_runtime::DispatchError> {
         let num_subnets: u16 = Self::num_subnets();
         let max_subnets: u16 = Self::get_global_max_allowed_subnets();
 
+        // resolve possible subnet deregistering
         let target_subnet = if num_subnets >= max_subnets {
             let (min_stake_netuid, min_stake) = Self::least_staked_netuid();
             ensure!(stake > min_stake, Error::<T>::NotEnoughStakeToStartNetwork);
@@ -239,13 +243,7 @@ impl<T: Config> Pallet<T> {
             None
         };
 
-        let params = SubnetParams {
-            name,
-            founder: founder_key.clone(),
-            ..Self::default_subnet_params()
-        };
-
-        Ok(Self::add_subnet(params, target_subnet))
+        Ok(Self::add_subnet(subnetset, target_subnet))
     }
 
     pub fn check_module_limits(netuid: u16) {

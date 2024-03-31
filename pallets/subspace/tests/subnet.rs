@@ -272,7 +272,26 @@ fn test_set_max_allowed_uids_shrinking() {
 
         let mut params = SubspaceModule::subnet_params(netuid).clone();
         params.max_allowed_uids = max_uids;
-        let result = SubspaceModule::do_update_subnet(get_origin(keys[0]), netuid, params);
+        params.name = "test2".as_bytes().to_vec();
+        let result = SubspaceModule::update_subnet(
+            get_origin(keys[0]),
+            netuid,
+            params.founder,
+            params.founder_share,
+            params.immunity_period,
+            params.incentive_ratio,
+            params.max_allowed_uids,
+            params.max_allowed_weights,
+            params.max_stake,
+            params.min_allowed_weights,
+            params.max_weight_age,
+            params.min_stake,
+            params.name.clone(),
+            params.tempo,
+            params.trust_ratio,
+            params.vote_mode.clone(),
+            params.vote_threshold,
+        );
         let global_params = SubspaceModule::global_params();
         info!("global params {:?}", global_params);
         info!("subnet params {:?}", SubspaceModule::subnet_params(netuid));
