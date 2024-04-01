@@ -36,8 +36,8 @@ impl<T: Config> SubnetChangeset<T> {
     ) -> Self {
         let old_params = Pallet::<T>::subnet_params(netuid);
         Self {
-            name: (name != &old_params.name).then_some(name.to_vec()),
-            founder_key: (founder_key != &old_params.founder).then_some(founder_key.clone()),
+            name: (name != old_params.name).then_some(name.to_vec()),
+            founder_key: (*founder_key != old_params.founder).then_some(founder_key.clone()),
             params: (!params.eq(&old_params)).then_some(params),
         }
     }
