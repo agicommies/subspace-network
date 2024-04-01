@@ -11,19 +11,34 @@ use substrate_fixed::types::I64F64;
 extern crate alloc;
 
 #[derive(Debug)]
-pub struct SubnetSet<T: Config> {
+pub struct SubnetChangeset<T: Config> {
     pub name: Option<Vec<u8>>,
     pub founder_key: Option<T::AccountId>,
     pub params: Option<SubnetParams<T>>,
 }
 
-impl<T: Config> SubnetSet<T> {
+impl<T: Config> SubnetChangeset<T> {
     #[must_use]
-    pub fn new(name: &Vec<u8>, founder_key: &T::AccountId, params: SubnetParams<T>) -> Self {
+    pub fn new(name: &[u8], founder_key: &T::AccountId, params: SubnetParams<T>) -> Self {
         Self {
-            name: Some(name.clone()),
+            name: Some(name.to_vec()),
             founder_key: Some(founder_key.clone()),
             params: Some(params),
+        }
+    }
+
+    #[must_use]
+    pub fn update(
+        name: &[u8],
+        founder_key: &T::AccountId,
+        netuid: u16,
+        params: SubnetParams<T>,
+    ) -> Self {
+        let old_params = Pallet::<T>::subnet_params(netuid);
+        Self {
+            name: (name != &old_params.name).then_some(name.to_vec()),
+            founder_key: (founder_key != &old_params.founder).then_some(founder_key.clone()),
+            params: (!params.eq(&old_params)).then_some(params),
         }
     }
 
@@ -31,7 +46,7 @@ impl<T: Config> SubnetSet<T> {
         // check for name validity
         if let Some(name) = self.name {
             ensure!(
-                !Pallet::<T>::if_subnet_name_exists(&name),
+                !Pallet::<T>::does_subnet_name_exist(&name),
                 Error::<T>::SubnetNameAlreadyExists
             );
 
@@ -52,11 +67,6 @@ impl<T: Config> SubnetSet<T> {
             ensure!(
                 Pallet::<T>::get_vote_mode_subnet(netuid) == AUTHORITY_MODE,
                 Error::<T>::NotAuthorityMode
-            );
-
-            ensure!(
-                Pallet::<T>::if_subnet_netuid_exists(netuid),
-                Error::<T>::NetuidDoesNotExist
             );
 
             Pallet::<T>::set_subnet_params(netuid, params);
@@ -89,7 +99,7 @@ impl<T: Config> Pallet<T> {
     pub fn do_update_subnet(
         origin: T::RuntimeOrigin,
         netuid: u16,
-        subnetset: SubnetSet<T>,
+        changeset: SubnetChangeset<T>,
     ) -> DispatchResult {
         let key = ensure_signed(origin)?;
         ensure!(
@@ -97,8 +107,13 @@ impl<T: Config> Pallet<T> {
             Error::<T>::NotFounder
         );
 
+        ensure!(
+            Self::if_subnet_netuid_exists(netuid),
+            Error::<T>::NetuidDoesNotExist
+        );
+
         // apply the changeset
-        subnetset.apply(netuid)?;
+        changeset.apply(netuid)?;
 
         // --- 16. Ok and done.
         Ok(())
@@ -403,7 +418,7 @@ impl<T: Config> Pallet<T> {
         Self::calculate_network_emission(netuid)
     }
 
-    pub fn add_subnet(changeset: SubnetSet<T>, netuid: Option<u16>) -> u16 {
+    pub fn add_subnet(changeset: SubnetChangeset<T>, netuid: Option<u16>) -> u16 {
         // --- 1. Ensure that the network name does not already exist.
         let netuid = netuid.unwrap_or_else(TotalSubnets::<T>::get);
 
@@ -437,7 +452,7 @@ impl<T: Config> Pallet<T> {
         SubnetNames::<T>::contains_key(netuid)
     }
 
-    pub fn if_subnet_name_exists(name: &[u8]) -> bool {
+    pub fn does_subnet_name_exist(name: &[u8]) -> bool {
         SubnetNames::<T>::iter().any(|(_, n)| n == name)
     }
 

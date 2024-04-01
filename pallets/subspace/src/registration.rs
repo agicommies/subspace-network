@@ -1,4 +1,4 @@
-use crate::{module::ModuleChangeset, subnet::SubnetSet};
+use crate::{module::ModuleChangeset, subnet::SubnetChangeset};
 
 use super::*;
 
@@ -94,9 +94,10 @@ impl<T: Config> Pallet<T> {
                 founder: key.clone(),
                 ..Self::default_subnet_params()
             };
-            let subnet_set: SubnetSet<T> = SubnetSet::new(&network_name, &key, params);
+            let subnet_changeset: SubnetChangeset<T> =
+                SubnetChangeset::new(&network_name, &key, params);
             // Create subnet if it does not exist.
-            Self::add_subnet_from_registration(stake, subnet_set)?
+            Self::add_subnet_from_registration(stake, subnet_changeset)?
         };
 
         // --- 5. Ensure the caller has enough stake to register.
@@ -228,7 +229,7 @@ impl<T: Config> Pallet<T> {
 
     pub fn add_subnet_from_registration(
         stake: u64,
-        subnetset: SubnetSet<T>,
+        changeset: SubnetChangeset<T>,
     ) -> Result<u16, sp_runtime::DispatchError> {
         let num_subnets: u16 = Self::num_subnets();
         let max_subnets: u16 = Self::get_global_max_allowed_subnets();
@@ -243,7 +244,7 @@ impl<T: Config> Pallet<T> {
             None
         };
 
-        Ok(Self::add_subnet(subnetset, target_subnet))
+        Ok(Self::add_subnet(changeset, target_subnet))
     }
 
     pub fn check_module_limits(netuid: u16) {

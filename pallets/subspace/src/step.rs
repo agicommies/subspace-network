@@ -581,14 +581,13 @@ impl<T: Config> Pallet<T> {
             let current_burn = Self::get_burn(netuid);
             let target_registrations_per_interval = Self::get_target_registrations_per_interval();
 
-            Self::set_burn(
-                netuid,
-                Self::adjust_burn(
-                    current_burn,
-                    registrations_this_interval,
-                    target_registrations_per_interval,
-                ),
+            let adjusted_burn = Self::adjust_burn(
+                current_burn,
+                registrations_this_interval,
+                target_registrations_per_interval,
             );
+
+            Self::set_burn(netuid, adjusted_burn);
 
             // reset the registrations
             Self::set_registrations_this_interval(netuid, 0);

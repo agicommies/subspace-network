@@ -2,7 +2,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![recursion_limit = "512"]
 
-use crate::subnet::SubnetSet;
+use crate::subnet::SubnetChangeset;
 use frame_system::{self as system, ensure_signed};
 pub use pallet::*;
 
@@ -1090,8 +1090,8 @@ pub mod pallet {
                     max_weight_age: default_params.max_weight_age,
                 };
 
-                let changeset: SubnetSet<T> =
-                    SubnetSet::new(&params.name, &params.founder, params.clone());
+                let changeset: SubnetChangeset<T> =
+                    SubnetChangeset::new(&params.name, &params.founder, params.clone());
                 self::Pallet::<T>::add_subnet(changeset, Some(netuid));
 
                 for (uid_usize, (key, name, address, weights)) in
@@ -1390,7 +1390,8 @@ pub mod pallet {
             // Check if subnet parameters are valid
             Self::check_subnet_params(&params)?;
 
-            let subnet_set = SubnetSet::new(&params.name, &params.founder, params.clone());
+            let subnet_set =
+                SubnetChangeset::update(&params.name, &params.founder, netuid, params.clone());
             // if so update them
             Self::do_update_subnet(origin, netuid, subnet_set)
         }
