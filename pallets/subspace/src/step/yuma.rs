@@ -54,7 +54,7 @@ impl<T: Config> YumaCalc<T> {
         }
     }
 
-    pub fn run(mut self) {
+    pub fn run(self) {
         let (inactive, active): (Vec<_>, Vec<_>) = self
             .last_update
             .iter()
@@ -132,10 +132,12 @@ impl<T: Config> YumaCalc<T> {
                     .map(|(j, value)| (*j, fixed_proportion_to_u16(*value)))
                     .collect();
                 Bonds::<T>::insert(self.netuid, i as u16, new_bonds_row);
-            } else if self.validator_permits[i] {
-                // Only overwrite the intersection.
-                let new_empty_bonds_row: Vec<(u16, u16)> = vec![];
-                Bonds::<T>::insert(self.netuid, i as u16, new_empty_bonds_row);
+            } else {
+                if self.max_allowed_validators.is_none() || self.validator_permits[i] {
+                    // Only overwrite the intersection.
+                    let new_empty_bonds_row: Vec<(u16, u16)> = vec![];
+                    Bonds::<T>::insert(self.netuid, i as u16, new_empty_bonds_row);
+                }
             }
         }
 
@@ -150,14 +152,16 @@ impl<T: Config> YumaCalc<T> {
         }
     }
 
-    fn compute_weights(&mut self) -> WeightsVal {
+    fn compute_weights(&self) -> WeightsVal {
         // Access network weights row unnormalized.
         let mut weights = Pallet::<T>::get_weights_sparse(self.netuid);
         log::trace!("W: {weights:?}");
 
-        // Mask weights that are not from permitted validators.
-        weights = mask_rows_sparse(&self.validator_forbids, &weights);
-        log::trace!("W (permit): {weights:?}");
+        if self.max_allowed_validators.is_some() {
+            // Mask weights that are not from permitted validators.
+            weights = mask_rows_sparse(&self.validator_forbids, &weights);
+            log::trace!("W (permit): {weights:?}");
+        }
 
         // Remove self-weight by masking diagonal.
         weights = mask_diag_sparse(&weights);
@@ -190,14 +194,16 @@ impl<T: Config> YumaCalc<T> {
         StakeVal::unchecked_from_inner(vec_fixed64_to_fixed32(stake)) // range: I32F32(0, 1)
     }
 
-    fn compute_active_stake(&mut self, inactive: &[bool], stake: &StakeVal) -> ActiveStake {
+    fn compute_active_stake(&self, inactive: &[bool], stake: &StakeVal) -> ActiveStake {
         let mut active_stake = stake.as_ref().clone();
 
         // Remove inactive stake.
         inplace_mask_vector(&inactive, &mut active_stake);
 
-        // Remove non-validator stake.
-        inplace_mask_vector(&self.validator_forbids, &mut active_stake);
+        if self.max_allowed_validators.is_some() {
+            // Remove non-validator stake.
+            inplace_mask_vector(&self.validator_forbids, &mut active_stake);
+        }
 
         // Normalize active stake.
         inplace_normalize(&mut active_stake);
@@ -206,7 +212,7 @@ impl<T: Config> YumaCalc<T> {
     }
 
     fn compute_consensus_and_trust(
-        &mut self,
+        &self,
         weights: &mut WeightsVal,
         active_stake: &ActiveStake,
     ) -> ConsensusAndTrust {
@@ -318,7 +324,7 @@ impl<T: Config> YumaCalc<T> {
     }
 
     fn compute_emissions<'a>(
-        &mut self,
+        &self,
         stake: &'a StakeVal,
         active_stake: &'a ActiveStake,
         incentives: &IncentivesVal,
@@ -343,7 +349,7 @@ impl<T: Config> YumaCalc<T> {
         let normalized_combined_emission: Cow<'a, [I32F32]>;
 
         // If emission is zero, replace emission with normalized stake.
-        if emission_sum == I32F32::from(0) {
+        if emission_sum == I32F32::from_num(0) {
             // no weights set | outdated weights | self_weights
             if is_zero(active_stake) {
                 // no active stake

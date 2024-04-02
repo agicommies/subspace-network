@@ -231,6 +231,10 @@ pub fn mask_rows_sparse(
     mask: &[bool],
     sparse_matrix: &[Vec<(u16, I32F32)>],
 ) -> Vec<Vec<(u16, I32F32)>> {
+    if mask.is_empty() {
+        return sparse_matrix.to_vec();
+    }
+
     let n: usize = sparse_matrix.len();
     assert_eq!(n, mask.len());
 

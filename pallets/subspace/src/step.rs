@@ -13,7 +13,7 @@ impl<T: Config> Pallet<T> {
 
         log::debug!("block_step for block: {block_number:?}");
 
-        for (netuid, tempo) in <Tempo<T> as IterableStorageMap<u16, u16>>::iter() {
+        for (netuid, tempo) in Tempo::<T>::iter() {
             let registration_this_interval = Self::get_registrations_this_interval(netuid);
 
             // adjust registrations parameters

@@ -236,13 +236,21 @@ impl<T: Config> Pallet<T> {
         Uids::<T>::insert(netuid, key, uid); // Make uid - key association.
         RegistrationBlock::<T>::insert(netuid, uid, block_number); // Fill block at registration.
 
-        N::<T>::mutate(netuid, |n| *n += 1); // Increase the number of modules in the network.
-
-        // 4. Expand with new position.
+        // 4. Expand consensus parameters with new position.
+        Active::<T>::append(netuid, true);
+        Consensus::<T>::append(netuid, 0);
         Emission::<T>::append(netuid, 0);
         Incentive::<T>::append(netuid, 0);
         Dividends::<T>::append(netuid, 0);
         LastUpdate::<T>::append(netuid, block_number);
+        PruningScores::<T>::append(netuid, 0);
+        Rank::<T>::append(netuid, 0);
+        Trust::<T>::append(netuid, 0);
+        ValidatorPermits::<T>::append(netuid, false);
+        ValidatorTrust::<T>::append(netuid, 0);
+
+        // 5. Increase the number of modules in the network.
+        N::<T>::mutate(netuid, |n| *n += 1);
 
         // increase the stake of the new key
         Self::increase_stake(netuid, key, key, 0);
