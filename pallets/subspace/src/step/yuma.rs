@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use sp_std::borrow::Cow;
+use sp_std::{borrow::Cow, collections::btree_map::BTreeMap};
 use substrate_fixed::types::{I32F32, I64F64, I96F32};
 
 use crate::{
@@ -55,7 +55,9 @@ impl<T: Config> YumaCalc<T> {
         }
     }
 
-    pub fn run(self) {
+    /// Runs the YUMA consensus calculation on the network and distributes the emissions. Returns a
+    /// map of emissions distributed per module key.
+    pub fn run(self) -> BTreeMap<T::AccountId, u64> {
         let (inactive, active): (Vec<_>, Vec<_>) = self
             .last_update
             .iter()
@@ -142,15 +144,80 @@ impl<T: Config> YumaCalc<T> {
             }
         }
 
-        // Emission tuples ( hotkeys, server_emission, validator_emission )
+        // Emission tuples ( key, server_emission, validator_emission )
         let mut result: Vec<(T::AccountId, u64, u64)> = vec![];
-        for (uid_i, hotkey) in Keys::<T>::iter_prefix(self.netuid) {
+        for (uid_i, module_key) in Keys::<T>::iter_prefix(self.netuid) {
             result.push((
-                hotkey,
+                module_key,
                 server_emissions[uid_i as usize],
                 validator_emissions[uid_i as usize],
             ));
         }
+
+        self.distribute_emissions(result)
+    }
+
+    fn distribute_emissions(
+        &self,
+        result: Vec<(T::AccountId, u64, u64)>,
+    ) -> BTreeMap<T::AccountId, u64> {
+        let mut emissions = BTreeMap::new();
+
+        for (module_key, server_emission, mut validator_emission) in result {
+            emissions.insert(module_key.clone(), server_emission + validator_emission);
+
+            if validator_emission > 0 {
+                let ownership_vector = Pallet::<T>::get_ownership_ratios(self.netuid, &module_key);
+                let delegation_fee = Pallet::<T>::get_delegation_fee(self.netuid, &module_key);
+
+                let total_validator_emission = I64F64::from_num(validator_emission);
+                for (delegate_key, delegate_ratio) in &ownership_vector {
+                    if delegate_key == &module_key {
+                        continue;
+                    }
+
+                    let dividends_from_delegate: u64 =
+                        (total_validator_emission * *delegate_ratio).to_num::<u64>();
+
+                    let to_module: u64 = delegation_fee.mul_floor(dividends_from_delegate);
+                    let to_delegate: u64 = dividends_from_delegate.saturating_sub(to_module);
+                    Pallet::<T>::increase_stake(
+                        self.netuid,
+                        delegate_key,
+                        &module_key,
+                        to_delegate,
+                    );
+
+                    validator_emission = validator_emission.saturating_sub(to_delegate);
+                }
+            }
+
+            let remaining_emission = server_emission + validator_emission;
+            if remaining_emission > 0 {
+                let profit_share_emissions: Vec<(T::AccountId, u64)> =
+                    Pallet::<T>::get_profit_share_emissions(&module_key, remaining_emission);
+
+                if !profit_share_emissions.is_empty() {
+                    for (profit_share_key, profit_share_emission) in profit_share_emissions.iter() {
+                        Pallet::<T>::increase_stake(
+                            self.netuid,
+                            profit_share_key,
+                            &module_key,
+                            *profit_share_emission,
+                        );
+                    }
+                } else {
+                    Pallet::<T>::increase_stake(
+                        self.netuid,
+                        &module_key,
+                        &module_key,
+                        remaining_emission,
+                    );
+                }
+            }
+        }
+
+        emissions
     }
 
     fn compute_weights(&self) -> WeightsVal {

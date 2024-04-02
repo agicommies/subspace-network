@@ -519,11 +519,19 @@ impl<T: Config> Pallet<T> {
 
         // Remove consnesus vectors
         Weights::<T>::clear_prefix(netuid, u32::max_value(), None);
+
+        Active::<T>::remove(netuid);
+        Consensus::<T>::remove(netuid);
+        Dividends::<T>::remove(netuid);
         Emission::<T>::remove(netuid);
         Incentive::<T>::remove(netuid);
-        Dividends::<T>::remove(netuid);
-        Trust::<T>::remove(netuid);
         LastUpdate::<T>::remove(netuid);
+        PruningScores::<T>::remove(netuid);
+        Rank::<T>::remove(netuid);
+        Trust::<T>::remove(netuid);
+        ValidatorPermits::<T>::remove(netuid);
+        ValidatorTrust::<T>::remove(netuid);
+
         DelegationFee::<T>::clear_prefix(netuid, u32::max_value(), None);
         RegistrationBlock::<T>::clear_prefix(netuid, u32::max_value(), None);
 
