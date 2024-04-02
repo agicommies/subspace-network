@@ -7,8 +7,8 @@ use sp_core::U256;
 
 fn check_network_stats(netuid: u16) {
     let emission_buffer: u64 = 1_000; // the numbers arent perfect but we want to make sure they fall within a range (10_000 / 2**64)
-
-    let subnet_emission: u64 = SubspaceModule::get_subnet_emission(netuid);
+    let threshold = SubspaceModule::get_subnet_stake_threshold();
+    let subnet_emission: u64 = SubspaceModule::calculate_network_emission(netuid, threshold);
     let incentives: Vec<u16> = SubspaceModule::get_incentives(netuid);
     let dividends: Vec<u16> = SubspaceModule::get_dividends(netuid);
     let emissions: Vec<u64> = SubspaceModule::get_emissions(netuid);
@@ -826,7 +826,7 @@ fn test_trust() {
 // 			let emissions: Vec<u64> = SubspaceModule::get_emissions(netuid);
 
 // 			let sumed_emission: u64 = emissions.iter().sum();
-// 			let expected_emission: u64 = SubspaceModule::get_subnet_emission(netuid) as u64;
+// 			let expected_emission: u64 = SubspaceModule::calculate_network_emission(netuid) as u64;
 
 // 			let delta: u64 = 10_000_000;
 // 			assert!(
@@ -872,8 +872,9 @@ fn test_founder_share() {
         info!("founder_stake_before: {founder_stake_before:?}");
         // vote to avoid key[0] as we want to see the key[0] burn
         step_epoch(netuid);
-        let total_emission =
-            SubspaceModule::get_subnet_emission(netuid) * subnet_params.tempo as u64;
+        let threshold = SubspaceModule::get_subnet_stake_threshold();
+        let total_emission = SubspaceModule::calculate_network_emission(netuid, threshold)
+            * subnet_params.tempo as u64;
         let expected_emission = total_emission;
         let expected_founder_share = (expected_emission as f64 * founder_ratio) as u64;
         let emissions = SubspaceModule::get_emissions(netuid);

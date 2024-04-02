@@ -337,7 +337,6 @@ impl<T: Config> Pallet<T> {
     }
 
     // INCREASE
-
     pub fn increase_stake(
         netuid: u16,
         key: &T::AccountId,

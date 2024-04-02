@@ -14,13 +14,15 @@ impl<T: Config> Pallet<T> {
 
         log::debug!("block_step for block: {block_number:?}");
 
+        let subnet_stake_threshold: Percent = SubnetStakeThreshold::<T>::get();
         for (netuid, tempo) in Tempo::<T>::iter() {
             let registration_this_interval = Self::get_registrations_this_interval(netuid);
 
             // adjust registrations parameters
             Self::adjust_registration(netuid, block_number, registration_this_interval);
 
-            let new_queued_emission: u64 = Self::calculate_network_emission(netuid);
+            let new_queued_emission: u64 =
+                Self::calculate_network_emission(netuid, subnet_stake_threshold);
             PendingEmission::<T>::mutate(netuid, |queued: &mut u64| *queued += new_queued_emission);
             log::debug!("netuid_i: {netuid:?} queued_emission: +{new_queued_emission:?} ");
 
@@ -32,13 +34,12 @@ impl<T: Config> Pallet<T> {
             let has_enough_stake_for_yuma = || {
                 let subnet_stake = Self::get_total_subnet_stake(netuid) as u128;
                 let total_stake = Self::total_stake() as u128;
-                let threshold = SubnetStakeThreshold::<T>::get();
 
                 if total_stake == 0 {
                     false
                 } else {
                     let subnet_stake_percent = (subnet_stake * 100) / total_stake;
-                    threshold <= Percent::from_parts(subnet_stake_percent as u8)
+                    subnet_stake_threshold <= Percent::from_parts(subnet_stake_percent as u8)
                 }
             };
 

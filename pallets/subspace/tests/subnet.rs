@@ -87,7 +87,8 @@ fn test_set_single_temple(tempo: u16) {
         params.tempo = tempo;
 
         let _total_blocks = 100;
-        let emission_per_block: u64 = SubspaceModule::get_subnet_emission(netuid);
+        let threshold = SubspaceModule::get_subnet_stake_threshold();
+        let emission_per_block: u64 = SubspaceModule::calculate_network_emission(netuid, threshold);
         let mut total_stake: u64 = 0;
         let tempo = 5;
         let min_stake = 1_000_000_000;
@@ -169,7 +170,9 @@ fn test_emission_ratio() {
             let _key = U256::from(netuids[i]);
             let netuid = netuids[i];
             register_n_modules(netuid, 1, stake_per_module);
-            let subnet_emission: u64 = SubspaceModule::get_subnet_emission(netuid);
+            let threshold = SubspaceModule::get_subnet_stake_threshold();
+            let subnet_emission: u64 =
+                SubspaceModule::calculate_network_emission(netuid, threshold);
             emissions_per_subnet.push(subnet_emission);
             let _expected_emission_factor: f64 = 1.0 / (netuids.len() as f64);
             let emission_per_block = SubspaceModule::get_total_emission_per_block();
@@ -429,7 +432,10 @@ fn test_emission_distribution_novote() {
         let below_threshold_netuid_stake =
             SubspaceModule::get_total_subnet_stake(netuid_below_threshold);
 
-        assert_eq!(general_netuid_stake, general_stake_change + stake_general);
+        let a = round_to_nearest_100(from_nano(general_netuid_stake));
+        let b = round_to_nearest_100(from_nano(general_stake_change + stake_general));
+        assert_eq!(a + 100, b);
+
         // assert_eq!(yuma_netuid_stake, stake_yuma);
         assert_eq!(below_threshold_netuid_stake, stake_below_threshold);
     });

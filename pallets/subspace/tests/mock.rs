@@ -296,3 +296,7 @@ pub fn to_nano(x: u64) -> u64 {
 pub fn from_nano(x: u64) -> u64 {
     x / 10u64.pow(TOKEN_DECIMALS)
 }
+
+pub fn round_to_nearest_100(val: u64) -> u64 {
+    val - (val % 100)
+}
