@@ -1,6 +1,7 @@
 use super::*;
 use crate::math::*;
 use frame_support::storage::IterableStorageDoubleMap;
+use sp_arithmetic::per_things::Percent;
 use sp_std::vec;
 use substrate_fixed::types::{I110F18, I32F32, I64F64};
 
@@ -29,10 +30,16 @@ impl<T: Config> Pallet<T> {
 
             let emission_to_drain: u64 = PendingEmission::<T>::get(netuid);
             let has_enough_stake_for_yuma = || {
-                let subnet_stake = I64F64::from_num(Self::get_total_subnet_stake(netuid));
-                let total_stake = I64F64::from_num(Self::total_stake());
+                let subnet_stake = Self::get_total_subnet_stake(netuid) as u128;
+                let total_stake = Self::total_stake() as u128;
                 let threshold = SubnetStakeThreshold::<T>::get();
-                threshold <= (subnet_stake / total_stake) * 100
+
+                if total_stake == 0 {
+                    false
+                } else {
+                    let subnet_stake_percent = (subnet_stake * 100) / total_stake;
+                    threshold <= Percent::from_parts(subnet_stake_percent as u8)
+                }
             };
 
             if netuid == 0 {

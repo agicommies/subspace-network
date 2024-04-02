@@ -72,7 +72,7 @@ pub mod v2 {
                     PruningScores::<T>::mutate(netuid, |v| v.push(0));
                     Rank::<T>::mutate(netuid, |v| v.push(0));
                     Trust::<T>::mutate(netuid, |v| v.push(0));
-                    ValidatorPermit::<T>::mutate(netuid, |v| v.push(false));
+                    ValidatorPermits::<T>::mutate(netuid, |v| v.push(false));
                     ValidatorTrust::<T>::mutate(netuid, |v| v.push(0));
                 }
 

@@ -161,12 +161,13 @@ pub mod pallet {
         StorageMap<_, Identity, T::AccountId, u64, ValueQuery, DefaultLastTxBlock<T>>;
 
     #[pallet::type_value]
-    pub fn DefaultSubnetStakeThreshold<T: Config>() -> u64 {
-        10
+    pub fn DefaultSubnetStakeThreshold<T: Config>() -> Percent {
+        Percent::from_percent(10)
     }
+
     #[pallet::storage]
     pub type SubnetStakeThreshold<T> =
-        StorageValue<_, u64, ValueQuery, DefaultSubnetStakeThreshold<T>>;
+        StorageValue<_, Percent, ValueQuery, DefaultSubnetStakeThreshold<T>>;
 
     #[pallet::type_value]
     pub fn DefaultKappa<T: Config>() -> u16 {
@@ -387,6 +388,7 @@ pub mod pallet {
         pub vote_threshold: u16,   // out of 100
         pub vote_mode: Vec<u8>,    // out of 100
         pub nominator: T::AccountId,
+        pub subnet_stake_threshold: Percent,
     }
 
     impl<T: Config> core::fmt::Debug for GlobalParams<T>
@@ -410,6 +412,7 @@ pub mod pallet {
                 .field("min_stake", &self.min_stake)
                 .field("floor_delegation_fee", &self.floor_delegation_fee)
                 .field("min_weight_stake", &self.min_weight_stake)
+                .field("subnet_stake_threshold", &self.subnet_stake_threshold)
                 .field(
                     "target_registrations_per_interval",
                     &self.target_registrations_per_interval,
@@ -452,6 +455,7 @@ pub mod pallet {
             vote_threshold: DefaultVoteThreshold::<T>::get(),
             vote_mode: DefaultVoteMode::<T>::get(),
             nominator: DefaultNominator::<T>::get(),
+            subnet_stake_threshold: DefaultSubnetStakeThreshold::<T>::get(),
         }
     }
 
@@ -1365,6 +1369,7 @@ pub mod pallet {
             target_registrations_per_interval: u16,
             target_registrations_interval: u16,
             nominator: T::AccountId,
+            subnet_stake_threshold: Percent,
         ) -> DispatchResult {
             let mut params = Self::global_params();
 
@@ -1387,6 +1392,7 @@ pub mod pallet {
             params.target_registrations_per_interval = target_registrations_per_interval;
             params.target_registrations_interval = target_registrations_interval;
             params.nominator = nominator;
+            params.subnet_stake_threshold = subnet_stake_threshold;
 
             // Check if the parameters are valid
             Self::check_global_params(&params)?;

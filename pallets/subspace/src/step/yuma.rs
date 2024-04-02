@@ -4,10 +4,11 @@ use sp_std::borrow::Cow;
 use substrate_fixed::types::{I32F32, I64F64, I96F32};
 
 use crate::{
-    math::*, Active, ActivityCutoff, Bonds, BondsMovingAverage, Config, Consensus, Dividends,
+    math::*, vec, Active, ActivityCutoff, Bonds, BondsMovingAverage, Config, Consensus, Dividends,
     Emission, Incentive, Kappa, Keys, MaxAllowedValidators, Pallet, PruningScores, Rank, Stake,
     Trust, ValidatorPermits, ValidatorTrust, Weights,
 };
+use frame_support::dispatch::Vec;
 
 pub struct YumaCalc<T: Config> {
     /// The amount of modules on the subnet
