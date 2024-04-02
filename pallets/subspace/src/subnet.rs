@@ -423,6 +423,11 @@ impl<T: Config> Pallet<T> {
 
     // This is the total stake of the network without subnets that can not get emission
     pub fn adjust_total_stake(subnet_stake_threshold: Percent) -> I64F64 {
+        let total_global_stake = I64F64::from_num(Self::total_stake());
+        if total_global_stake == 0 {
+            return I64F64::from_num(0);
+        }
+
         let mut total_stake = I64F64::from_num(0);
         let subnet_stake_threshold_i64f64 =
             I64F64::from_num(subnet_stake_threshold.deconstruct()) / I64F64::from_num(100);
@@ -430,8 +435,11 @@ impl<T: Config> Pallet<T> {
         // Iterate over all subnets
         for netuid in 0..TotalSubnets::<T>::get() {
             let subnet_stake: I64F64 = I64F64::from_num(Self::get_total_subnet_stake(netuid));
-            let subnet_ratio = subnet_stake / I64F64::from_num(Self::total_stake());
+            if subnet_stake == 0 {
+                continue;
+            }
 
+            let subnet_ratio = subnet_stake / total_global_stake;
             // Check if subnet_ratio meets the subnet_stake_threshold
             if subnet_ratio >= subnet_stake_threshold_i64f64 {
                 // Add subnet_stake to total_stake if it meets the threshold
