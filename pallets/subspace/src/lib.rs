@@ -31,6 +31,9 @@ pub use autogen_weights::WeightInfo;
 #[cfg(test)]
 mod mock;
 
+#[cfg(debug_assertions)]
+pub use step::yuma;
+
 // =========================
 //	==== Pallet Imports =====
 // =========================

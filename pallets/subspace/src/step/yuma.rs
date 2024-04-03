@@ -10,7 +10,7 @@ use crate::{
 };
 use frame_support::dispatch::Vec;
 
-type EmissionMap<T> = BTreeMap<ModuleKey<T>, BTreeMap<AccountKey<T>, u64>>;
+pub type EmissionMap<T> = BTreeMap<ModuleKey<T>, BTreeMap<AccountKey<T>, u64>>;
 
 pub struct YumaCalc<T: Config> {
     /// The amount of modules on the subnet
@@ -516,11 +516,11 @@ bty::brand! {
     pub type WeightsVal = Vec<Vec<(u16, I32F32)>>;
 }
 
-#[derive(Clone, Debug)]
-pub struct ModuleKey<T: Config>(T::AccountId);
+#[derive(Clone)]
+pub struct ModuleKey<T: Config>(pub T::AccountId);
 
-#[derive(Clone, Debug)]
-pub struct AccountKey<T: Config>(T::AccountId);
+#[derive(Clone)]
+pub struct AccountKey<T: Config>(pub T::AccountId);
 
 macro_rules! impl_things {
     ($ty:ident) => {
@@ -541,6 +541,12 @@ macro_rules! impl_things {
         impl<T: Config> Ord for $ty<T> {
             fn cmp(&self, other: &Self) -> scale_info::prelude::cmp::Ordering {
                 self.0.cmp(&other.0)
+            }
+        }
+
+        impl<T: Config> core::fmt::Debug for $ty<T> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                f.write_fmt(format_args!("{}({:?})", stringify!($ty), self.0))
             }
         }
     };

@@ -5,7 +5,7 @@ use sp_arithmetic::per_things::Percent;
 use sp_std::vec;
 use substrate_fixed::types::{I110F18, I32F32, I64F64};
 
-mod yuma;
+pub mod yuma;
 
 impl<T: Config> Pallet<T> {
     pub fn block_step() {

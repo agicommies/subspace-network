@@ -289,11 +289,11 @@ pub fn add_stake_and_balance(netuid: u16, key: U256, amount: u64) {
     assert_ok!(result);
 }
 
-pub fn to_nano(x: u64) -> u64 {
+pub const fn to_nano(x: u64) -> u64 {
     x * 10u64.pow(TOKEN_DECIMALS)
 }
 
-pub fn from_nano(x: u64) -> u64 {
+pub const fn from_nano(x: u64) -> u64 {
     x / 10u64.pow(TOKEN_DECIMALS)
 }
 
