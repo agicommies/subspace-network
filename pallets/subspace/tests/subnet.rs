@@ -398,6 +398,7 @@ fn test_deregister_subnet_when_overflows_max_allowed_subnets() {
 
 #[test]
 fn test_emission_distribution_novote() {
+    // test if subnet emissions are distributed correctly, even without voting
     new_test_ext().execute_with(|| {
         let netuid_general: u16 = 0; // hold 50% of the networks stake
         let stake_general: u64 = to_nano(500_000);
@@ -408,18 +409,31 @@ fn test_emission_distribution_novote() {
         let netuid_below_threshold: u16 = 2; // holds 5% of the networks stake
         let stake_below_threshold: u64 = to_nano(50_000);
 
-        // this is aprox. the stake we expect at the end of the day
-        let _general_stake_change: u64 = to_nano(250_000);
+        // making sure the unit emission are set correctly
+        SubspaceModule::set_unit_emission(23148148148);
+        SubspaceModule::set_min_burn(0);
         let blocks_in_day: u16 = 10_800;
+        // this is aprox. the stake we expect at the end of the day with the above unit emission
+        let expected_stake_change = to_nano(250_000);
+        let expected_stake_change_general = (stake_general as f64
+            / ((stake_general + stake_yuma) as f64)
+            * expected_stake_change as f64) as u64;
+        let expected_stake_change_yuma = (stake_yuma as f64 / ((stake_general + stake_yuma) as f64)
+            * expected_stake_change as f64) as u64;
+        let expected_stake_change_below = 0;
+        let change_tolerance = to_nano(22) as i64; // we tolerate 22 token difference (due to rounding)
 
+        dbg!(expected_stake_change_general);
+        dbg!(expected_stake_change_yuma);
+        dbg!(expected_stake_change_below);
         // first register the general subnet
         assert_ok!(register_module(
             netuid_general,
             U256::from(0),
             stake_general
         ));
-        // then register the yuma subnet
 
+        // then register the yuma subnet
         assert_ok!(register_module(netuid_yuma, U256::from(1), stake_yuma));
 
         // then register the below threshold subnet
@@ -447,74 +461,141 @@ fn test_emission_distribution_novote() {
         dbg!(yuma_netuid_stake);
         dbg!(below_threshold_netuid_stake);
 
-        dbg!(general_netuid_stake + yuma_netuid_stake + below_threshold_netuid_stake);
+        let start_stake = stake_general + stake_yuma + stake_below_threshold;
+        let end_day_stake = to_nano(
+            (general_netuid_stake + yuma_netuid_stake + below_threshold_netuid_stake) as u64,
+        );
+        let stake_change = end_day_stake - start_stake;
+        assert_eq!(stake_change, expected_stake_change);
+
+        // Check the expected difference for the general subnet
+        let general_stake_change = to_nano(general_netuid_stake as u64) - stake_general;
+        dbg!(general_stake_change);
+        dbg!(expected_stake_change_general);
+        assert!(
+            (general_stake_change as i64 - expected_stake_change_general as i64).abs()
+                <= change_tolerance
+        );
+
+        // Check the expected difference for the yuma subnet
+        let yuma_stake_change = to_nano(yuma_netuid_stake as u64) - stake_yuma;
+        assert!(
+            (yuma_stake_change as i64 - expected_stake_change_yuma as i64).abs()
+                <= change_tolerance
+        );
+
+        // Check the expected difference for the below threshold subnet
+        let below_stake_change =
+            to_nano(below_threshold_netuid_stake as u64) - stake_below_threshold;
+        assert_eq!(below_stake_change, expected_stake_change_below);
     });
 }
 
 #[test]
-fn test_emission_distribution_vote() {
+fn test_yuma_self_vote() {
     new_test_ext().execute_with(|| {
-        let netuid_general: u16 = 0; // hold 50% of the networks stake
+        let netuid_general: u16 = 0;
+        let netuid_yuma: u16 = 1;
+        let netuid_below_threshold: u16 = 2;
+        // this much stake is on the general subnet 0
         let stake_general: u64 = to_nano(500_000);
-        let netuid_yuma: u16 = 1; // holds 45% of the networks stake
+        // this is how much the first voter on yuma consensus has
         let stake_yuma_voter: u64 = to_nano(440_000);
+        // miner
         let stake_yuma_miner: u64 = to_nano(10_000);
-        let netuid_below_threshold: u16 = 2; // holds 5% of the networks stake
+        // this is how much the self voter on yuma consensus has
+        let stake_yuma_voter_self: u64 = to_nano(400_000);
+        let stake_yuma_miner_self: u64 = to_nano(2_000);
+        // below threshold subnet, emission distribution should not even start
         let stake_below_threshold: u64 = to_nano(50_000);
-
-        // this is aprox. the stake we expect at the end of the day
-        let _expected_stake_change: u64 = to_nano(250_000);
         let blocks_in_day: u16 = 10_800;
-        // first register the general subnet
+        let validator_key = U256::from(1);
+        let miner_key = U256::from(2);
+        let validator_self_key = U256::from(3);
+        let miner_self_key = U256::from(4);
+
+        // making sure the unit emission are set correctly
+        SubspaceModule::set_unit_emission(23148148148);
+        SubspaceModule::set_min_burn(0);
+
         assert_ok!(register_module(
             netuid_general,
             U256::from(0),
             stake_general
         ));
-
-        // then register the yuma subnet
         assert_ok!(register_module(
             netuid_yuma,
-            U256::from(1),
+            validator_key,
             stake_yuma_voter
         ));
-
+        SubspaceModule::set_activity_cutoff(netuid_yuma, blocks_in_day + 1);
+        assert_ok!(register_module(netuid_yuma, miner_key, stake_yuma_miner));
         assert_ok!(register_module(
             netuid_yuma,
-            U256::from(2),
-            stake_yuma_miner
+            validator_self_key,
+            stake_yuma_voter_self
         ));
-
-        let uids = [1].to_vec();
-        let weights = [1].to_vec();
-        let _ = set_weights(netuid_yuma, U256::from(1), uids, weights);
-        // // then register the below threshold subnet
-
+        assert_ok!(register_module(
+            netuid_yuma,
+            miner_self_key,
+            stake_yuma_miner_self
+        ));
+        step_block(1);
+        let _ = set_weights(
+            netuid_yuma,
+            validator_key,
+            [SubspaceModule::get_uid_for_key(netuid_yuma, &miner_key)].to_vec(),
+            [1].to_vec(),
+        );
+        let _ = set_weights(
+            netuid_yuma,
+            validator_self_key,
+            [SubspaceModule::get_uid_for_key(
+                netuid_yuma,
+                &miner_self_key,
+            )]
+            .to_vec(),
+            [1].to_vec(),
+        );
         assert_ok!(register_module(
             netuid_below_threshold,
             U256::from(2),
             stake_below_threshold
         ));
 
+        // Calculate the expected daily change in total stake
+        let expected_stake_change = to_nano(250_000);
+
         step_block(blocks_in_day);
-        // println!("before");
 
-        let general_netuid_stake =
-            from_nano(SubspaceModule::get_total_subnet_stake(netuid_general));
-        let yuma_netuid_stake = from_nano(SubspaceModule::get_total_subnet_stake(netuid_yuma));
-        let below_threshold_netuid_stake = from_nano(SubspaceModule::get_total_subnet_stake(
-            netuid_below_threshold,
-        ));
+        let stake_validator = SubspaceModule::get_stake(netuid_yuma, &validator_key);
+        let stake_miner = SubspaceModule::get_stake(netuid_yuma, &miner_key);
+        let stake_validator_self_vote = SubspaceModule::get_stake(netuid_yuma, &validator_self_key);
+        let stake_miner_self_vote = SubspaceModule::get_stake(netuid_yuma, &miner_self_key);
 
-        let general_netuid_stake = (general_netuid_stake as f64 / 100.0).round() * 100.0;
-        let yuma_netuid_stake = (yuma_netuid_stake as f64 / 100.0).round() * 100.0;
+        assert!(stake_yuma_voter < stake_validator);
+        assert!(stake_yuma_miner < stake_miner);
+        assert_eq!(stake_yuma_miner_self, stake_miner_self_vote);
+        assert_eq!(stake_yuma_voter_self, stake_validator_self_vote);
+
+        let general_netuid_stake = SubspaceModule::get_total_subnet_stake(netuid_general);
+        let yuma_netuid_stake = SubspaceModule::get_total_subnet_stake(netuid_yuma);
         let below_threshold_netuid_stake =
-            (below_threshold_netuid_stake as f64 / 100.0).round() * 100.0;
+            SubspaceModule::get_total_subnet_stake(netuid_below_threshold);
 
-        dbg!(general_netuid_stake);
-        dbg!(yuma_netuid_stake);
-        dbg!(below_threshold_netuid_stake);
+        assert!(stake_general < general_netuid_stake);
+        assert!(stake_yuma_voter < yuma_netuid_stake);
+        assert_eq!(stake_below_threshold, below_threshold_netuid_stake);
+        // Check the actual daily change in total stake
+        let start_stake = stake_below_threshold
+            + stake_general
+            + stake_yuma_voter
+            + stake_yuma_voter_self
+            + stake_yuma_miner
+            + stake_yuma_miner_self;
+        let end_day_stake = general_netuid_stake + yuma_netuid_stake + below_threshold_netuid_stake;
+        let actual_stake_change = round_first_five(end_day_stake - start_stake);
 
-        dbg!(general_netuid_stake + yuma_netuid_stake + below_threshold_netuid_stake);
+        assert_eq!(actual_stake_change, expected_stake_change);
     });
 }

@@ -171,7 +171,7 @@ pub mod pallet {
 
     #[pallet::type_value]
     pub fn DefaultKappa<T: Config>() -> u16 {
-        32_767
+        32_767 // This coresponds to 0,5 (majority of stake agreement)
     }
 
     #[pallet::storage]

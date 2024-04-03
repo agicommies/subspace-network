@@ -260,7 +260,7 @@ impl<T: Config> YumaCalc<T> {
         weights = mask_diag_sparse(&weights);
         log::trace!("W (permit+diag): {weights:?}");
 
-        // Remove weights referring to deregistered neurons.
+        // Remove weights referring to deregistered modules.
         weights = vec_mask_sparse_matrix(
             &weights,
             &self.last_update,
@@ -268,7 +268,6 @@ impl<T: Config> YumaCalc<T> {
             |updated, registered| updated <= registered,
         );
         log::trace!("W (permit+diag+outdate): {weights:?}");
-
         // Normalize remaining weights.
         inplace_row_normalize_sparse(&mut weights);
 
@@ -321,7 +320,6 @@ impl<T: Config> YumaCalc<T> {
             self.kappa,
         );
         log::trace!("C: {:?}", &consensus);
-
         *weights = WeightsVal::unchecked_from_inner(col_clip_sparse(weights.as_ref(), &consensus));
         log::trace!("W: {:?}", &weights);
 
@@ -370,7 +368,7 @@ impl<T: Config> YumaCalc<T> {
         let mut bonds = Pallet::<T>::get_bonds_sparse(self.netuid);
         log::trace!("B: {:?}", &bonds);
 
-        // Remove bonds referring to deregistered neurons.
+        // Remove bonds referring to deregistered modules.
         bonds = vec_mask_sparse_matrix(
             &bonds,
             &self.last_update,

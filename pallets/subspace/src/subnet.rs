@@ -405,8 +405,9 @@ impl<T: Config> Pallet<T> {
         let subnet_stake_threshold_i64f64 =
             I64F64::from_num(subnet_stake_threshold.deconstruct()) / I64F64::from_num(100);
 
-        // Check if subnet_ratio meets the subnet_stake_threshold
-        if subnet_ratio < subnet_stake_threshold_i64f64 {
+        // Check if subnet_ratio meets the subnet_stake_threshold,
+        // or netuid is not the general subnet
+        if subnet_ratio < subnet_stake_threshold_i64f64 && netuid != 0 {
             // Return early if the threshold is not met,
             // this prevents emission gapping, of subnets that don't meet emission threshold
             return 0;
@@ -440,8 +441,9 @@ impl<T: Config> Pallet<T> {
             }
 
             let subnet_ratio = subnet_stake / total_global_stake;
-            // Check if subnet_ratio meets the subnet_stake_threshold
-            if subnet_ratio >= subnet_stake_threshold_i64f64 {
+            // Check if subnet_ratio meets the subnet_stake_threshold,
+            // or the netuid is the general subnet
+            if subnet_ratio >= subnet_stake_threshold_i64f64 || netuid == 0 {
                 // Add subnet_stake to total_stake if it meets the threshold
                 total_stake += subnet_stake;
             }
@@ -656,9 +658,6 @@ impl<T: Config> Pallet<T> {
             .collect()
     }
 
-    // ========================
-    // ==== Global Setters ====
-    // ========================
     // TEMPO (MIN IS 100)
     pub fn set_tempo(netuid: u16, tempo: u16) {
         Tempo::<T>::insert(netuid, tempo.max(100));
@@ -667,6 +666,14 @@ impl<T: Config> Pallet<T> {
     #[cfg(debug_assertions)]
     pub fn get_tempo(netuid: u16) -> u16 {
         Tempo::<T>::get(netuid).max(100)
+    }
+
+    pub fn set_activity_cutoff(netuid: u16, value: u16) {
+        ActivityCutoff::<T>::insert(netuid, value)
+    }
+
+    pub fn get_activity_cutoff(netuid: u16) -> u16 {
+        ActivityCutoff::<T>::get(netuid)
     }
 
     // FOUNDER SHARE (MAX IS 100)
