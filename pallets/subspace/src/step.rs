@@ -10,7 +10,7 @@ mod yuma;
 impl<T: Config> Pallet<T> {
     pub fn block_step() {
         let block_number: u64 = Self::get_current_block_number();
-        RegistrationsPerBlock::<T>::mutate(|val| *val = 0);
+        RegistrationsPerBlock::<T>::mutate(|val: &mut u16| *val = 0);
 
         log::debug!("block_step for block: {block_number:?}");
 

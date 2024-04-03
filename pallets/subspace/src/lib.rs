@@ -171,20 +171,11 @@ pub mod pallet {
 
     #[pallet::type_value]
     pub fn DefaultKappa<T: Config>() -> u16 {
-        128
+        32_767
     }
 
     #[pallet::storage]
     pub type Kappa<T> = StorageValue<_, u16, ValueQuery, DefaultKappa<T>>;
-
-    #[pallet::type_value]
-    pub fn DefaultActivityCutoff<T: Config>() -> u16 {
-        5_000
-    }
-
-    #[pallet::storage] // --- MAP ( netuid ) --> activity_cutoff
-    pub type ActivityCutoff<T> =
-        StorageMap<_, Identity, u16, u16, ValueQuery, DefaultActivityCutoff<T>>;
 
     #[pallet::type_value]
     pub fn DefaultBonds<T: Config>() -> Vec<(u16, u16)> {

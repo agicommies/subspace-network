@@ -4,11 +4,13 @@ use sp_std::{borrow::Cow, collections::btree_map::BTreeMap};
 use substrate_fixed::types::{I32F32, I64F64, I96F32};
 
 use crate::{
-    math::*, vec, Active, ActivityCutoff, Bonds, BondsMovingAverage, Config, Consensus, Dividends,
-    Emission, Incentive, Kappa, Keys, MaxAllowedValidators, Pallet, PruningScores, Rank, Stake,
+    math::*, vec, Active, Bonds, BondsMovingAverage, Config, Consensus, Dividends, Emission,
+    Incentive, Kappa, Keys, MaxAllowedValidators, MaxWeightAge, Pallet, PruningScores, Rank, Stake,
     Trust, ValidatorPermits, ValidatorTrust, Weights,
 };
 use frame_support::dispatch::Vec;
+
+type EmissionMap<T> = BTreeMap<ModuleKey<T>, BTreeMap<AccountKey<T>, u64>>;
 
 pub struct YumaCalc<T: Config> {
     /// The amount of modules on the subnet
@@ -17,7 +19,10 @@ pub struct YumaCalc<T: Config> {
     netuid: u16,
     /// Consensus majority ratio, e.g. 51%.
     kappa: I32F32,
-    rao_emission: u64,
+
+    founder_key: AccountKey<T>,
+    founder_emission: u64,
+    to_be_emitted: u64,
 
     current_block: u64,
     activity_cutoff: u64,
@@ -32,18 +37,25 @@ pub struct YumaCalc<T: Config> {
 }
 
 impl<T: Config> YumaCalc<T> {
-    pub fn new(netuid: u16, rao_emission: u64) -> Self {
+    pub fn new(netuid: u16, to_be_emitted: u64) -> Self {
         let validator_permits = ValidatorPermits::<T>::get(netuid);
         let validator_forbids = validator_permits.iter().map(|&b| !b).collect();
+
+        let founder_key = Pallet::<T>::get_founder(netuid);
+        let (to_be_emitted, founder_emission) =
+            Pallet::<T>::calculate_founder_emission(netuid, to_be_emitted, &founder_key);
 
         Self {
             module_count: Pallet::<T>::get_subnet_n(netuid),
             netuid,
             kappa: Pallet::<T>::get_float_kappa(),
-            rao_emission,
+
+            founder_key: AccountKey(founder_key),
+            founder_emission,
+            to_be_emitted,
 
             current_block: Pallet::<T>::get_current_block_number(),
-            activity_cutoff: ActivityCutoff::<T>::get(netuid) as u64,
+            activity_cutoff: MaxWeightAge::<T>::get(netuid),
             last_update: Pallet::<T>::get_last_update(netuid),
             block_at_registration: Pallet::<T>::get_last_update(netuid),
 
@@ -57,7 +69,7 @@ impl<T: Config> YumaCalc<T> {
 
     /// Runs the YUMA consensus calculation on the network and distributes the emissions. Returns a
     /// map of emissions distributed per module key.
-    pub fn run(self) -> BTreeMap<T::AccountId, u64> {
+    pub fn run(self) -> EmissionMap<T> {
         let (inactive, active): (Vec<_>, Vec<_>) = self
             .last_update
             .iter()
@@ -105,16 +117,16 @@ impl<T: Config> YumaCalc<T> {
         } = self.compute_emissions(&stake, &active_stake, &incentives, &dividends);
 
         let consensus: Vec<_> =
-            consensus.as_ref().iter().copied().map(fixed_proportion_to_u16).collect();
+            consensus.into_inner().into_iter().map(fixed_proportion_to_u16).collect();
         let incentives: Vec<_> =
-            incentives.as_ref().iter().copied().map(fixed_proportion_to_u16).collect();
+            incentives.into_inner().into_iter().map(fixed_proportion_to_u16).collect();
         let dividends: Vec<_> =
-            dividends.as_ref().iter().copied().map(fixed_proportion_to_u16).collect();
-        let trust: Vec<_> = trust.as_ref().iter().copied().map(fixed_proportion_to_u16).collect();
-        let ranks: Vec<_> = ranks.as_ref().iter().copied().map(fixed_proportion_to_u16).collect();
-        let pruning_scores: Vec<_> = vec_max_upscale_to_u16(pruning_scores.as_ref());
+            dividends.into_inner().into_iter().map(fixed_proportion_to_u16).collect();
+        let trust: Vec<_> = trust.into_inner().into_iter().map(fixed_proportion_to_u16).collect();
+        let ranks: Vec<_> = ranks.into_inner().into_iter().map(fixed_proportion_to_u16).collect();
+        let pruning_scores = vec_max_upscale_to_u16(pruning_scores.as_ref());
         let validator_trust: Vec<_> =
-            validator_trust.as_ref().iter().copied().map(fixed_proportion_to_u16).collect();
+            validator_trust.into_inner().into_iter().map(fixed_proportion_to_u16).collect();
 
         Active::<T>::insert(self.netuid, active.clone());
         Consensus::<T>::insert(self.netuid, consensus);
@@ -145,10 +157,10 @@ impl<T: Config> YumaCalc<T> {
         }
 
         // Emission tuples ( key, server_emission, validator_emission )
-        let mut result: Vec<(T::AccountId, u64, u64)> = vec![];
+        let mut result: Vec<(ModuleKey<T>, u64, u64)> = vec![];
         for (uid_i, module_key) in Keys::<T>::iter_prefix(self.netuid) {
             result.push((
-                module_key,
+                ModuleKey(module_key),
                 server_emissions[uid_i as usize],
                 validator_emissions[uid_i as usize],
             ));
@@ -157,65 +169,78 @@ impl<T: Config> YumaCalc<T> {
         self.distribute_emissions(result)
     }
 
-    fn distribute_emissions(
-        &self,
-        result: Vec<(T::AccountId, u64, u64)>,
-    ) -> BTreeMap<T::AccountId, u64> {
-        let mut emissions = BTreeMap::new();
+    fn distribute_emissions(&self, result: Vec<(ModuleKey<T>, u64, u64)>) -> EmissionMap<T> {
+        let mut emissions: EmissionMap<T> = Default::default();
+        let mut emitted = 0;
 
-        for (module_key, server_emission, mut validator_emission) in result {
-            emissions.insert(module_key.clone(), server_emission + validator_emission);
+        for (module_key, mut server_emission, mut validator_emission) in result {
+            if module_key.0 == self.founder_key.0 {
+                server_emission = server_emission.saturating_add(self.founder_emission);
+            }
+
+            let mut increase_stake = |account_key: &AccountKey<T>, amount: u64| {
+                Pallet::<T>::increase_stake(self.netuid, &account_key.0, &module_key.0, amount);
+                *emissions
+                    .entry(module_key.clone())
+                    .or_default()
+                    .entry(account_key.clone())
+                    .or_default() += amount;
+                emitted += amount;
+            };
 
             if validator_emission > 0 {
-                let ownership_vector = Pallet::<T>::get_ownership_ratios(self.netuid, &module_key);
-                let delegation_fee = Pallet::<T>::get_delegation_fee(self.netuid, &module_key);
+                let ownership_vector =
+                    Pallet::<T>::get_ownership_ratios(self.netuid, &module_key.0);
+                let delegation_fee = Pallet::<T>::get_delegation_fee(self.netuid, &module_key.0);
 
                 let total_validator_emission = I64F64::from_num(validator_emission);
-                for (delegate_key, delegate_ratio) in &ownership_vector {
-                    if delegate_key == &module_key {
+                for (delegate_key, delegate_ratio) in ownership_vector {
+                    if delegate_key == module_key.0 {
                         continue;
                     }
 
                     let dividends_from_delegate: u64 =
-                        (total_validator_emission * *delegate_ratio).to_num::<u64>();
+                        (total_validator_emission * delegate_ratio).to_num::<u64>();
 
                     let to_module: u64 = delegation_fee.mul_floor(dividends_from_delegate);
                     let to_delegate: u64 = dividends_from_delegate.saturating_sub(to_module);
-                    Pallet::<T>::increase_stake(
-                        self.netuid,
-                        delegate_key,
-                        &module_key,
-                        to_delegate,
-                    );
 
-                    validator_emission = validator_emission.saturating_sub(to_delegate);
+                    increase_stake(&AccountKey(delegate_key), to_delegate);
+
+                    validator_emission = validator_emission
+                        .checked_sub(to_delegate)
+                        .expect("more validator emissions were done than expected");
                 }
             }
 
-            let remaining_emission = server_emission + validator_emission;
+            let mut remaining_emission = server_emission + validator_emission;
             if remaining_emission > 0 {
-                let profit_share_emissions: Vec<(T::AccountId, u64)> =
-                    Pallet::<T>::get_profit_share_emissions(&module_key, remaining_emission);
+                let profit_share_emissions =
+                    Pallet::<T>::get_profit_share_emissions(&module_key.0, remaining_emission);
 
                 if !profit_share_emissions.is_empty() {
-                    for (profit_share_key, profit_share_emission) in profit_share_emissions.iter() {
-                        Pallet::<T>::increase_stake(
-                            self.netuid,
-                            profit_share_key,
-                            &module_key,
-                            *profit_share_emission,
-                        );
+                    for (profit_share_key, profit_share_emission) in profit_share_emissions {
+                        increase_stake(&AccountKey(profit_share_key), profit_share_emission);
+
+                        remaining_emission = remaining_emission
+                            .checked_sub(profit_share_emission)
+                            .expect("more remaining emissions were done than expected");
                     }
                 } else {
-                    Pallet::<T>::increase_stake(
-                        self.netuid,
-                        &module_key,
-                        &module_key,
-                        remaining_emission,
-                    );
+                    increase_stake(&AccountKey(module_key.0.clone()), remaining_emission);
+
+                    remaining_emission = 0;
                 }
             }
+
+            assert_eq!(remaining_emission, 0);
         }
+
+        assert!(
+            emitted <= self.founder_emission + self.to_be_emitted,
+            "emitted more than was supposed to: {emitted} > {}",
+            self.founder_emission + self.to_be_emitted
+        );
 
         emissions
     }
@@ -440,24 +465,24 @@ impl<T: Config> YumaCalc<T> {
         }
 
         // Compute rao based emission scores. range: I96F32(0, rao_emission)
-        let float_rao_emission = I96F32::from_num(self.rao_emission as usize);
+        let to_be_emitted = I96F32::from_num(self.to_be_emitted as usize);
 
         let server_emissions: Vec<u64> = normalized_server_emission
             .iter()
-            .map(|&se| I96F32::from_num(se) * float_rao_emission)
+            .map(|&se| I96F32::from_num(se) * to_be_emitted)
             .map(I96F32::to_num)
             .collect();
 
         let validator_emissions: Vec<u64> = normalized_validator_emission
             .iter()
-            .map(|&ve| I96F32::from_num(ve) * float_rao_emission)
+            .map(|&ve| I96F32::from_num(ve) * to_be_emitted)
             .map(I96F32::to_num)
             .collect();
 
         // Only used to track emission in storage.
         let combined_emissions: Vec<u64> = normalized_combined_emission
             .iter()
-            .map(|&ce| I96F32::from_num(ce) * float_rao_emission)
+            .map(|&ce| I96F32::from_num(ce) * to_be_emitted)
             .map(I96F32::to_num)
             .collect();
 
@@ -494,6 +519,39 @@ bty::brand! {
     pub type ValidatorTrustVal = Vec<I32F32>;
     pub type WeightsVal = Vec<Vec<(u16, I32F32)>>;
 }
+
+#[derive(Clone, Debug)]
+pub struct ModuleKey<T: Config>(T::AccountId);
+
+#[derive(Clone, Debug)]
+pub struct AccountKey<T: Config>(T::AccountId);
+
+macro_rules! impl_things {
+    ($ty:ident) => {
+        impl<T: Config> PartialEq for $ty<T> {
+            fn eq(&self, other: &Self) -> bool {
+                self.0 == other.0
+            }
+        }
+
+        impl<T: Config> Eq for $ty<T> {}
+
+        impl<T: Config> PartialOrd for $ty<T> {
+            fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+                self.0.partial_cmp(&other.0)
+            }
+        }
+
+        impl<T: Config> Ord for $ty<T> {
+            fn cmp(&self, other: &Self) -> scale_info::prelude::cmp::Ordering {
+                self.0.cmp(&other.0)
+            }
+        }
+    };
+}
+
+impl_things!(ModuleKey);
+impl_things!(AccountKey);
 
 struct ConsensusAndTrust {
     consensus: ConsensusVal,
