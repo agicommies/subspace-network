@@ -547,7 +547,7 @@ pub mod pallet {
 
     #[pallet::type_value]
     pub fn DefaultMaxWeightAge<T: Config>() -> u64 {
-        u64::MAX
+        15_000 // 15k blocks
     }
     #[pallet::storage] // --- MAP ( netuid ) --> min_allowed_weights
     pub type MaxWeightAge<T> =

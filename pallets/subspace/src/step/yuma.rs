@@ -147,12 +147,10 @@ impl<T: Config> YumaCalc<T> {
                     .map(|(j, value)| (*j, fixed_proportion_to_u16(*value)))
                     .collect();
                 Bonds::<T>::insert(self.netuid, i as u16, new_bonds_row);
-            } else {
-                if self.max_allowed_validators.is_none() || self.validator_permits[i] {
-                    // Only overwrite the intersection.
-                    let new_empty_bonds_row: Vec<(u16, u16)> = vec![];
-                    Bonds::<T>::insert(self.netuid, i as u16, new_empty_bonds_row);
-                }
+            } else if self.max_allowed_validators.is_none() || self.validator_permits[i] {
+                // Only overwrite the intersection.
+                let new_empty_bonds_row: Vec<(u16, u16)> = vec![];
+                Bonds::<T>::insert(self.netuid, i as u16, new_empty_bonds_row);
             }
         }
 
@@ -290,7 +288,7 @@ impl<T: Config> YumaCalc<T> {
         let mut active_stake = stake.as_ref().clone();
 
         // Remove inactive stake.
-        inplace_mask_vector(&inactive, &mut active_stake);
+        inplace_mask_vector(inactive, &mut active_stake);
 
         if self.max_allowed_validators.is_some() {
             // Remove non-validator stake.
@@ -373,7 +371,7 @@ impl<T: Config> YumaCalc<T> {
             &bonds,
             &self.last_update,
             &self.block_at_registration,
-            &|updated, registered| updated <= registered,
+            |updated, registered| updated <= registered,
         );
         log::trace!("B (outdatedmask): {:?}", &bonds);
 
@@ -536,7 +534,7 @@ macro_rules! impl_things {
 
         impl<T: Config> PartialOrd for $ty<T> {
             fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-                self.0.partial_cmp(&other.0)
+                Some(self.cmp(other))
             }
         }
 

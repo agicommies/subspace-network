@@ -256,7 +256,7 @@ impl<T: Config> Pallet<T> {
             let owner_emission: u64 = owner_emission_incentive + owner_dividends_emission;
             if owner_emission > 0 {
                 let profit_share_emissions: Vec<(T::AccountId, u64)> =
-                    Self::get_profit_share_emissions(&module_key, owner_emission);
+                    Self::get_profit_share_emissions(module_key, owner_emission);
 
                 if !profit_share_emissions.is_empty() {
                     for (profit_share_key, profit_share_emission) in profit_share_emissions.iter() {

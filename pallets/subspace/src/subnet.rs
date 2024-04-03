@@ -668,14 +668,6 @@ impl<T: Config> Pallet<T> {
         Tempo::<T>::get(netuid).max(100)
     }
 
-    pub fn set_activity_cutoff(netuid: u16, value: u16) {
-        ActivityCutoff::<T>::insert(netuid, value)
-    }
-
-    pub fn get_activity_cutoff(netuid: u16) -> u16 {
-        ActivityCutoff::<T>::get(netuid)
-    }
-
     // FOUNDER SHARE (MAX IS 100)
     pub fn set_founder_share(netuid: u16, founder_share: u16) {
         FounderShare::<T>::insert(netuid, founder_share.min(100));

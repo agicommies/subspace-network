@@ -528,7 +528,7 @@ fn test_yuma_self_vote() {
             validator_key,
             stake_yuma_voter
         ));
-        SubspaceModule::set_activity_cutoff(netuid_yuma, blocks_in_day + 1);
+        SubspaceModule::set_max_weight_age(netuid_yuma, (blocks_in_day + 1) as u64);
         assert_ok!(register_module(netuid_yuma, miner_key, stake_yuma_miner));
         assert_ok!(register_module(
             netuid_yuma,
