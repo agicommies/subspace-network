@@ -67,7 +67,7 @@ pub mod pallet {
     use sp_arithmetic::per_things::Percent;
     pub use sp_std::{vec, vec::Vec};
 
-    const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
@@ -116,6 +116,10 @@ pub mod pallet {
     }
     #[pallet::storage] // --- ITEM ( unit_emission )
     pub(super) type UnitEmission<T> = StorageValue<_, u64, ValueQuery, DefaultUnitEmission<T>>;
+
+    #[pallet::storage]
+    pub(super) type ArbitraryURI<T: Config> =
+        StorageValue<_, u16, ValueQuery, DefaulArbitraryURI<T>>;
 
     #[pallet::type_value]
     pub fn DefaultTxRateLimit<T: Config>() -> u64 {
@@ -176,6 +180,15 @@ pub mod pallet {
     pub fn DefaultKappa<T: Config>() -> u16 {
         32_767 // This coresponds to 0,5 (majority of stake agreement)
     }
+
+    #[pallet::type_value]
+    pub fn DefaultArbitraryURI<T: Config>() -> Option<String> {
+        None
+    }
+
+    #[pallet::storage]
+    pub(super) type ArbitraryURI<T: Config> =
+        StorageValue<_, u16, ValueQuery, DefaultArbitraryURI<T>>;
 
     #[pallet::storage]
     pub type Kappa<T> = StorageValue<_, u16, ValueQuery, DefaultKappa<T>>;
@@ -356,6 +369,7 @@ pub mod pallet {
     #[scale_info(skip_type_params(T))]
     pub struct GlobalParams<T: Config> {
         pub burn_rate: u16,
+        pub arbitrary_uri: Option<None>,
         // max
         pub max_name_length: u16,             // max length of a network name
         pub min_name_length: u16,             // min length of a network name
@@ -391,6 +405,7 @@ pub mod pallet {
     {
         fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
             f.debug_struct("GlobalParams")
+                .field("arbitrary_uri", &self.arbitrary_uri)
                 .field("burn_rate", &self.burn_rate)
                 .field("max_name_length", &self.max_name_length)
                 .field("max_allowed_subnets", &self.max_allowed_subnets)
@@ -428,6 +443,7 @@ pub mod pallet {
     #[pallet::type_value]
     pub fn DefaultGlobalParams<T: Config>() -> GlobalParams<T> {
         GlobalParams {
+            arbitrary_uri: ArbitraryURI::<T>::get(),
             burn_rate: DefaultBurnRate::<T>::get(),
             max_allowed_subnets: DefaultMaxAllowedSubnets::<T>::get(),
             max_allowed_modules: DefaultMaxAllowedModules::<T>::get(),

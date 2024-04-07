@@ -9,6 +9,7 @@ use system::ensure_root;
 impl<T: Config> Pallet<T> {
     pub fn global_params() -> GlobalParams<T> {
         GlobalParams {
+            arbitrary_uri: Self::get_arbitrary_uri(),
             max_name_length: Self::get_global_max_name_length(),
             min_name_length: Self::get_global_min_name_length(),
             max_allowed_subnets: Self::get_global_max_allowed_subnets(),
@@ -243,6 +244,10 @@ impl<T: Config> Pallet<T> {
 
     pub fn set_target_registrations_interval(target_registrations_interval: u16) {
         TargetRegistrationsInterval::<T>::set(target_registrations_interval);
+    }
+
+    pub fn get_arbitrary_uri() -> Option<String> {
+        ArbitraryURI::<T>::get()
     }
 
     pub fn get_global_max_name_length() -> u16 {
