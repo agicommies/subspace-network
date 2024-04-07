@@ -117,10 +117,6 @@ pub mod pallet {
     #[pallet::storage] // --- ITEM ( unit_emission )
     pub(super) type UnitEmission<T> = StorageValue<_, u64, ValueQuery, DefaultUnitEmission<T>>;
 
-    #[pallet::storage]
-    pub(super) type ArbitraryURI<T: Config> =
-        StorageValue<_, u16, ValueQuery, DefaulArbitraryURI<T>>;
-
     #[pallet::type_value]
     pub fn DefaultTxRateLimit<T: Config>() -> u64 {
         1
@@ -188,7 +184,7 @@ pub mod pallet {
 
     #[pallet::storage]
     pub(super) type ArbitraryURI<T: Config> =
-        StorageValue<_, u16, ValueQuery, DefaultArbitraryURI<T>>;
+        StorageValue<_, Option<String>, ValueQuery, DefaultArbitraryURI<T>>;
 
     #[pallet::storage]
     pub type Kappa<T> = StorageValue<_, u16, ValueQuery, DefaultKappa<T>>;
