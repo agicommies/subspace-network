@@ -369,7 +369,7 @@ pub mod pallet {
     #[scale_info(skip_type_params(T))]
     pub struct GlobalParams<T: Config> {
         pub burn_rate: u16,
-        pub arbitrary_uri: Option<None>,
+        pub arbitrary_uri: Option<String>,
         // max
         pub max_name_length: u16,             // max length of a network name
         pub min_name_length: u16,             // min length of a network name
