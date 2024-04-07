@@ -178,13 +178,13 @@ pub mod pallet {
     }
 
     #[pallet::type_value]
-    pub fn DefaultArbitraryURI<T: Config>() -> Option<String> {
+    pub fn DefaultArbitraryURI<T: Config>() -> Option<Vec<u8>> {
         None
     }
 
     #[pallet::storage]
     pub(super) type ArbitraryURI<T: Config> =
-        StorageValue<_, Option<String>, ValueQuery, DefaultArbitraryURI<T>>;
+        StorageValue<_, Option<Vec<u8>>, ValueQuery, DefaultArbitraryURI<T>>;
 
     #[pallet::storage]
     pub type Kappa<T> = StorageValue<_, u16, ValueQuery, DefaultKappa<T>>;
@@ -365,7 +365,7 @@ pub mod pallet {
     #[scale_info(skip_type_params(T))]
     pub struct GlobalParams<T: Config> {
         pub burn_rate: u16,
-        pub arbitrary_uri: Option<String>,
+        pub arbitrary_uri: Option<Vec<u8>>,
         // max
         pub max_name_length: u16,             // max length of a network name
         pub min_name_length: u16,             // min length of a network name
