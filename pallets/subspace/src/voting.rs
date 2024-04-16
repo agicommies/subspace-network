@@ -309,7 +309,7 @@ impl<T: Config> Pallet<T> {
             let minimal_stake_to_execute = Self::get_minimal_stake_to_execute(netuid);
 
             if total_stake >= minimal_stake_to_execute {
-                if votes_against > votes_against {
+                if votes_against > votes_for {
                     proposal.refuse(block_number);
                 } else {
                     Self::execute_proposal(proposal, block_number);
