@@ -206,7 +206,7 @@ fn test_whitelist() {
         let key = U256::from(0);
         let adding_key = U256::from(1);
         let mut params = SubspaceModule::global_params();
-        params.nominator = key;
+        params.curator = key;
         SubspaceModule::set_global_params(params);
 
         // add key to whitelist
@@ -591,7 +591,7 @@ fn test_add_to_whitelist() {
     new_test_ext().execute_with(|| {
         let whitelist_key = U256::from(0);
         let module_key = U256::from(1);
-        SubspaceModule::set_nominator(whitelist_key);
+        SubspaceModule::set_curator(whitelist_key);
 
         assert_ok!(SubspaceModule::add_to_whitelist(
             get_origin(whitelist_key),
@@ -607,7 +607,7 @@ fn test_remove_from_whitelist() {
     new_test_ext().execute_with(|| {
         let whitelist_key = U256::from(0);
         let module_key = U256::from(1);
-        SubspaceModule::set_nominator(whitelist_key);
+        SubspaceModule::set_curator(whitelist_key);
 
         // Add the module_key to the whitelist
         assert_ok!(SubspaceModule::add_to_whitelist(
@@ -627,17 +627,17 @@ fn test_remove_from_whitelist() {
 }
 
 #[test]
-fn test_invalid_nominator() {
+fn test_invalid_curator() {
     new_test_ext().execute_with(|| {
         let whitelist_key = U256::from(0);
         let invalid_key = U256::from(1);
         let module_key = U256::from(2);
-        SubspaceModule::set_nominator(whitelist_key);
+        SubspaceModule::set_curator(whitelist_key);
 
-        // Try to add to whitelist with an invalid nominator key
+        // Try to add to whitelist with an invalid curator key
         assert_noop!(
             SubspaceModule::add_to_whitelist(get_origin(invalid_key), module_key, 1),
-            Error::<Test>::NotNominator
+            Error::<Test>::NotCurator
         );
         assert!(!SubspaceModule::is_in_legit_whitelist(&module_key));
     });
