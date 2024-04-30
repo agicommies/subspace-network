@@ -22,6 +22,7 @@ pub struct Proposal<T: Config> {
 pub struct CuratorApplication<T: Config> {
     pub id: u64,
     pub user_id: T::AccountId,
+    pub paying_for: T::AccountId,
     pub data: Vec<u8>,
     pub status: ApplicationStatus,
     pub application_cost: u64,
@@ -212,6 +213,7 @@ impl<T: Config> Pallet<T> {
 
         let application = CuratorApplication {
             user_id: application_key,
+            paying_for: key.clone(),
             id: application_id,
             data,
             status: ApplicationStatus::Pending,
@@ -447,10 +449,9 @@ impl<T: Config> Pallet<T> {
 
         // Give the proposer back his tokens, if the application passed
         Self::add_balance_to_account(
-            &application.user_id,
+            &application.paying_for,
             Self::u64_to_balance(application.application_cost).unwrap(),
         );
-
         application.status = ApplicationStatus::Accepted;
 
         CuratorApplications::<T>::insert(application.id, application);

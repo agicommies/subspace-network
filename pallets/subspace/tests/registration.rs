@@ -241,6 +241,10 @@ fn test_whitelist() {
             1,
         ));
 
+        let balance_after_accept = SubspaceModule::get_balance_u64(&key);
+
+        assert_eq!(balance_after_accept, balance_before);
+
         // Assert that the proposal is now in the Accepted status
         for (_, value) in CuratorApplications::<Test>::iter() {
             assert_eq!(value.status, ApplicationStatus::Accepted);
