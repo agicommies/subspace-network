@@ -402,8 +402,8 @@ pub mod v5 {
                 let dao_bot = "5GnXkyoCGVHD7PL3ZRGM2oELpUhDG6HFqAHZT3hHTmFD8CZF";
                 let dao_bot_account_id = match ss58_to_account_id::<T>(dao_bot) {
                     Ok(account_id) => Some(account_id),
-                    Err(err) => {
-                        log::warn!("Failed to convert SS58 to account ID: {}", err);
+                    Err(_) => {
+                        log::warn!("Failed to convert SS58 to account ID");
                         None
                     }
                 };
