@@ -400,9 +400,19 @@ pub mod v5 {
 
             if on_chain_version == 4 {
                 let dao_bot = "5GnXkyoCGVHD7PL3ZRGM2oELpUhDG6HFqAHZT3hHTmFD8CZF";
-                let dao_bot_account_id = ss58_to_account_id::<T>(dao_bot).unwrap();
+                let dao_bot_account_id = match ss58_to_account_id::<T>(dao_bot) {
+                    Ok(account_id) => Some(account_id),
+                    Err(err) => {
+                        log::warn!("Failed to convert SS58 to account ID: {}", err);
+                        None
+                    }
+                };
 
-                Curator::<T>::put(dao_bot_account_id); // Old empty
+                if let Some(account_id) = dao_bot_account_id {
+                    Curator::<T>::put(account_id);
+                } else {
+                    log::warn!("Skipping storage update due to missing account ID");
+                }
 
                 StorageVersion::new(5).put::<Pallet<T>>();
                 log::info!("Migrated v5");
