@@ -8,8 +8,8 @@ use sp_core::U256;
 
 use log::info;
 use pallet_subspace::{
-    Emission, Error, MaxAllowedModules, MaxAllowedUids, MinStake, RemovedSubnets, Stake,
-    SubnetNames, TotalSubnets, N,
+    voting::ApplicationStatus, CuratorApplications, Emission, Error, MaxAllowedModules,
+    MaxAllowedUids, MinStake, RemovedSubnets, Stake, SubnetNames, TotalSubnets, N,
 };
 use sp_runtime::{DispatchResult, Percent};
 
@@ -209,12 +209,45 @@ fn test_whitelist() {
         params.curator = key;
         SubspaceModule::set_global_params(params);
 
+        let proposal_cost = SubspaceModule::get_proposal_cost();
+        let data = "test".as_bytes().to_vec();
+
+        add_balance(key, proposal_cost + 1);
+        // first submit an application
+        let balance_before = SubspaceModule::get_balance_u64(&key);
+
+        assert_ok!(SubspaceModule::add_dao_application(
+            get_origin(key),
+            adding_key,
+            data.clone(),
+        ));
+
+        let balance_after = SubspaceModule::get_balance_u64(&key);
+
+        dbg!(balance_before, balance_after);
+        assert_eq!(balance_after, balance_before - proposal_cost);
+
+        // Assert that the proposal is initially in the Pending status
+        for (_, value) in CuratorApplications::<Test>::iter() {
+            assert_eq!(value.status, ApplicationStatus::Pending);
+            assert_eq!(value.user_id, adding_key);
+            assert_eq!(value.data, data);
+        }
+
         // add key to whitelist
         assert_ok!(SubspaceModule::add_to_whitelist(
             get_origin(key),
             adding_key,
             1,
         ));
+
+        // Assert that the proposal is now in the Accepted status
+        for (_, value) in CuratorApplications::<Test>::iter() {
+            assert_eq!(value.status, ApplicationStatus::Accepted);
+            assert_eq!(value.user_id, adding_key);
+            assert_eq!(value.data, data);
+        }
+
         assert!(SubspaceModule::is_in_legit_whitelist(&adding_key));
     });
 }
@@ -585,29 +618,24 @@ fn test_register_invalid_subnet_name() {
 }
 
 // Subnet 0 Whitelist
-
-#[test]
-fn test_add_to_whitelist() {
-    new_test_ext().execute_with(|| {
-        let whitelist_key = U256::from(0);
-        let module_key = U256::from(1);
-        SubspaceModule::set_curator(whitelist_key);
-
-        assert_ok!(SubspaceModule::add_to_whitelist(
-            get_origin(whitelist_key),
-            module_key,
-            1,
-        ));
-        assert!(SubspaceModule::is_in_legit_whitelist(&module_key));
-    });
-}
-
 #[test]
 fn test_remove_from_whitelist() {
     new_test_ext().execute_with(|| {
         let whitelist_key = U256::from(0);
         let module_key = U256::from(1);
         SubspaceModule::set_curator(whitelist_key);
+
+        let proposal_cost = SubspaceModule::get_proposal_cost();
+        let data = "test".as_bytes().to_vec();
+
+        // apply
+        add_balance(whitelist_key, proposal_cost + 1);
+        // first submit an application
+        assert_ok!(SubspaceModule::add_dao_application(
+            get_origin(whitelist_key),
+            module_key,
+            data.clone(),
+        ));
 
         // Add the module_key to the whitelist
         assert_ok!(SubspaceModule::add_to_whitelist(

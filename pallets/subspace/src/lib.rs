@@ -1282,8 +1282,12 @@ pub mod pallet {
 
         // Subnet 0 DAO
         #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
-        pub fn add_dao_application(origin: OriginFor<T>, data: Vec<u8>) -> DispatchResult {
-            Self::do_add_dao_application(origin, data)
+        pub fn add_dao_application(
+            origin: OriginFor<T>,
+            application_key: T::AccountId,
+            data: Vec<u8>,
+        ) -> DispatchResult {
+            Self::do_add_dao_application(origin, application_key, data)
         }
 
         #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
