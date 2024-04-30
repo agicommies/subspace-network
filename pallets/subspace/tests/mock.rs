@@ -238,7 +238,9 @@ pub fn delegate_register_module(
         None,
     );
 
-    tracing::info!("Register ok module: network: {name:?}, module_key: {module_key:?} key: {key:?}",);
+    tracing::info!(
+        "Register ok module: network: {name:?}, module_key: {module_key:?} key: {key:?}",
+    );
 
     result
 }

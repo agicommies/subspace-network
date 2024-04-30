@@ -11,7 +11,6 @@ clap = "4.4.6"
 futures = "0.3.21"
 jsonrpsee = "0.16.2"
 lazy_static = "1.4.0"
-log = { version = "0.4.14", default-features = false }
 memmap2 = "0.5.0"
 ndarray = { version = "0.15.0", default-features = false }
 rand = "0.8"

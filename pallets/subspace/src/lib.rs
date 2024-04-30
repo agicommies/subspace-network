@@ -891,7 +891,7 @@ pub mod pallet {
 
     #[pallet::genesis_build]
     impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
-        fn build(&self) {           
+        fn build(&self) {
             // Set initial total issuance from balances
             // Subnet config values
 
@@ -1502,38 +1502,19 @@ where
     ) -> Result<(), TransactionValidityError> {
         if let Some((call_type, _transaction_fee, _who)) = maybe_pre {
             match call_type {
-                CallType::SetWeights => {
-                    tracing::debug!("Not Implemented!");
+                CallType::AddStake
+                | CallType::AddStakeMultiple
+                | CallType::RemoveStake
+                | CallType::RemoveStakeMultiple
+                | CallType::TransferStake
+                | CallType::TransferStakeMultiple
+                | CallType::TransferMultiple
+                | CallType::AddNetwork => {
+                    tracing::debug!(
+                        "Not Implemented! Need to add potential transaction fees here."
+                    );
                 }
-                CallType::AddStake => {
-                    tracing::debug!("Not Implemented! Need to add potential transaction fees here.");
-                }
-
-                CallType::AddStakeMultiple => {
-                    tracing::debug!("Not Implemented! Need to add potential transaction fees here.");
-                }
-                CallType::RemoveStake => {
-                    tracing::debug!("Not Implemented! Need to add potential transaction fees here.");
-                }
-                CallType::RemoveStakeMultiple => {
-                    tracing::debug!("Not Implemented! Need to add potential transaction fees here.");
-                }
-                CallType::TransferStake => {
-                    tracing::debug!("Not Implemented! Need to add potential transaction fees here.");
-                }
-                CallType::TransferStakeMultiple => {
-                    tracing::debug!("Not Implemented! Need to add potential transaction fees here.");
-                }
-                CallType::TransferMultiple => {
-                    tracing::debug!("Not Implemented! Need to add potential transaction fees here.");
-                }
-                CallType::AddNetwork => {
-                    tracing::debug!("Not Implemented! Need to add potential transaction fees here.");
-                }
-                CallType::Register => {
-                    tracing::debug!("Not Implemented!");
-                }
-                _ => {
+                CallType::SetWeights | CallType::Register | _ => {
                     tracing::debug!("Not Implemented!");
                 }
             }
