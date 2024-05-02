@@ -418,10 +418,30 @@ pub mod v5 {
                 log::info!("Migrated v5");
 
                 T::DbWeight::get().writes(1)
-            } else {
-                log::info!("Storage v4 already updated");
-                Weight::zero()
-            }
         }
     }
+}
+
+pub mod v6 {
+    use super::*;
+
+    pub struct MigrateToV6<T>(sp_std::marker::PhantomData<T>);
+
+    impl<T: Config> OnRuntimeUpgrade for MigrateToV6<T> {
+        fn on_runtime_upgrade() -> Weight {
+            let on_chain_version = StorageVersion::get::<Pallet<T>>();
+
+            if on_chain_version != 5 {
+                log::info!("Storage v6 already updated");
+                return Weight::zero();
+            }
+
+            log::info!("Migrating v6");          
+            StorageVersion::new(6).put::<Pallet<T>>();
+            log::info!("Migrated v6");
+
+            T::DbWeight::get().writes(1)
+        }
+    }
+
 }
