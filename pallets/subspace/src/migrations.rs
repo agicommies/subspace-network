@@ -441,7 +441,27 @@ pub mod v6 {
                 return Weight::zero();
             }
 
-            log::info!("Migrating v6");          
+            log::info!("Migrating v6");
+
+            MaxAllowedWeightsGlobal::<T>::set(1024);
+            log::info!("Global MaxAllowedWeights set to 1024");
+
+            FounderShare::<T>::set(0, 12);
+            log::info!("FounderShare of SubNet 0 set to 12");
+
+            TargetRegistrationsPerInterval::<T>::set(5);
+            log::info!("TargetRegistrationsPerInterval set to 5");
+
+            MinBurn::<T>::set(10_000_000_000);
+            log::info!("MinBurn set to 10 (10_000_000_000)");
+
+            let old_val = AdjustmentAlpha::<T>::get();
+            let new_val = AdjustmentAlpha::<T>::mutate(|value: &mut u64| {
+                *value += (*value as f64 * 0.1) as u64;
+                *value
+            });
+            log::info!("Adjustment alpha increased by 10%, {old_val} -> {new_val}");
+
             StorageVersion::new(6).put::<Pallet<T>>();
             log::info!("Migrated v6");
 
