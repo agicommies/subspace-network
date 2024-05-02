@@ -112,8 +112,7 @@ pub mod v2 {
 
             // Migrate StakeFrom storage
             for (netuid, module_key, stake_from) in old_storage::StakeFrom::<T>::iter() {
-                let new_stake_from: BTreeMap<T::AccountId, u64> =
-                    stake_from.into_iter().collect();
+                let new_stake_from: BTreeMap<T::AccountId, u64> = stake_from.into_iter().collect();
                 StakeFrom::<T>::insert(netuid, module_key, new_stake_from);
             }
             log::info!("Migrated StakeFrom");
@@ -143,7 +142,6 @@ pub mod v2 {
 
             log::info!("Migrated to v2");
             T::DbWeight::get().reads_writes(1, 1)
-
         }
     }
 }
@@ -229,9 +227,7 @@ pub mod v3 {
                 let overflown = (module_count as u16).saturating_sub(max_allowed);
 
                 if overflown > 0 {
-                    log::warn!(
-                        "netuid {netuid} has {overflown} overflown modules, deregistering"
-                    );
+                    log::warn!("netuid {netuid} has {overflown} overflown modules, deregistering");
                 }
 
                 for _ in 0..overflown {
@@ -268,9 +264,7 @@ pub mod v3 {
                             else {
                                 continue 'outer;
                             };
-                            log::warn!(
-                                "{netuid}: removing duplicate key {key:?} with uid {uid}"
-                            );
+                            log::warn!("{netuid}: removing duplicate key {key:?} with uid {uid}");
                             Pallet::<T>::remove_module(netuid, uid);
                         }
                     }
@@ -468,5 +462,4 @@ pub mod v6 {
             T::DbWeight::get().writes(1)
         }
     }
-
 }
