@@ -49,7 +49,7 @@ impl<T: Config> SubnetChangeset<T> {
         } else {
             MaximumSetWeightCallsPerEpoch::<T>::insert(
                 netuid,
-                &self.params.maximum_set_weight_calls_per_epoch,
+                self.params.maximum_set_weight_calls_per_epoch,
             );
         }
 
