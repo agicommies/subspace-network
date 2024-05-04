@@ -454,8 +454,6 @@ pub mod v6 {
             }
             log::info!("All founder share set to minimum floor founder share");
 
-            MinBurn::<T>::set(10_000_000_000);
-            log::info!("MinBurn set to 10 (10_000_000_000)");
             TargetRegistrationsInterval::<T>::set(400);
             log::info!("TargetRegistrationsInterval set to 400");
 
