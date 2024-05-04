@@ -73,7 +73,7 @@ impl<T: Config> Pallet<T> {
                 Self::has_enough_balance(&key, *amount), // do not allow zero stakes.
                 Error::<T>::NotEnoughBalanceToTransfer
             );
-            Self::transfer_balance_to_account(&key, m_key, *amount);
+            Self::transfer_balance_to_account(&key, m_key, *amount)?;
         }
 
         // --- 5. Done and ok
@@ -476,14 +476,16 @@ impl<T: Config> Pallet<T> {
         from: &T::AccountId,
         to: &T::AccountId,
         amount: u64,
-    ) -> bool {
+    ) -> Result<(), DispatchError> {
         T::Currency::transfer(
             from,
             to,
             Self::u64_to_balance(amount).unwrap(),
             ExistenceRequirement::KeepAlive,
         )
-        .is_ok()
+        .map_err(|_| Error::<T>::NotEnoughBalanceToTransfer)?;
+
+        Ok(())
     }
 
     pub fn get_balance(key: &T::AccountId) -> BalanceOf<T> {
@@ -510,7 +512,10 @@ impl<T: Config> Pallet<T> {
         }
     }
 
-    pub fn remove_balance_from_account(key: &T::AccountId, amount: BalanceOf<T>) -> Result<(), DispatchError> {
+    pub fn remove_balance_from_account(
+        key: &T::AccountId,
+        amount: BalanceOf<T>,
+    ) -> Result<(), DispatchError> {
         let _ = T::Currency::withdraw(
             key,
             amount,
@@ -518,7 +523,7 @@ impl<T: Config> Pallet<T> {
             ExistenceRequirement::KeepAlive,
         )
         .map_err(|_| Error::<T>::BalanceCouldNotBeRemoved)?;
-        
+
         Ok(())
     }
 }
