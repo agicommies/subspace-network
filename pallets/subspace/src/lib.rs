@@ -541,11 +541,6 @@ pub mod pallet {
         8
     }
 
-    #[pallet::type_value]
-    pub fn DefaultGlobalDaoTreasure<T: Config>() -> u64 {
-        0
-    }
-
     #[pallet::storage]
     pub type Curator<T: Config> = StorageValue<_, T::AccountId, ValueQuery, DefaultCurator<T>>;
 
