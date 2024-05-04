@@ -532,8 +532,7 @@ pub mod pallet {
         StorageValue<_, u8, ValueQuery, DefaultFloorFounderShare<T>>;
 
     #[pallet::storage]
-    pub type GlobalDaoTreasury<T: Config> =
-        StorageValue<_, u64, ValueQuery>;
+    pub type GlobalDaoTreasury<T: Config> = StorageValue<_, u64, ValueQuery>;
 
     // VOTING MODE
     #[pallet::type_value]

@@ -236,12 +236,12 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         let burn_amount_per_epoch: u64 = Self::get_burn_per_epoch(netuid);
 
         let founder_uid = Self::get_uid_for_key(netuid, founder_key);
-        if netuid == 0 {
+        if netuid == 0 && founder_emission > 0 {
             // Update global treasure
             GlobalDaoTreasury::<T>::mutate(|global_treasure| {
-                *global_treasure += founder_emission;
+                *global_treasure = global_treasure.saturating_add(founder_emission);
             });
-        } else {  
+        } else {
             incentive_emission[founder_uid as usize] =
                 incentive_emission[founder_uid as usize].saturating_add(founder_emission);
         }
