@@ -533,7 +533,7 @@ pub mod pallet {
 
     #[pallet::storage]
     pub type GlobalDaoTreasury<T: Config> =
-        StorageValue<_, u64, ValueQuery, DefaultGlobalDaoTreasure<T>>;
+        StorageValue<_, u64, ValueQuery>;
 
     // VOTING MODE
     #[pallet::type_value]
