@@ -113,10 +113,12 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         let (token_emission, founder_emission) =
             Self::calculate_founder_emission(netuid, token_emission, &founder_key);
 
-        // Update global treasure
-        GlobalDaoTreasury::mutate(|global_treasure| {
-            *global_treasure += founder_emission;
-        });
+        if netuid == 0 {
+            // Update global treasure
+            GlobalDaoTreasury::mutate(|global_treasure| {
+                *global_treasure += founder_emission;
+            });
+        }
 
         // STAKE
         let uid_key_tuples: Vec<(u16, T::AccountId)> = Self::get_uid_key_tuples(netuid);
