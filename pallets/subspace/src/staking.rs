@@ -1,6 +1,7 @@
 use super::*;
 
 use sp_arithmetic::per_things::Percent;
+use sp_runtime::DispatchError;
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
 impl<T: Config> Pallet<T> {
@@ -186,10 +187,7 @@ impl<T: Config> Pallet<T> {
         let module_stake_before_add: u64 = Self::get_stake_for_key(netuid, &module_key);
 
         // --- 6. We remove the balance from the key.
-        let removed_balance: bool =
-            Self::remove_balance_from_account(&key, removed_balance_as_currency.unwrap());
-
-        ensure!(removed_balance, Error::<T>::BalanceCouldNotBeRemoved);
+        Self::remove_balance_from_account(&key, removed_balance_as_currency.unwrap())?;
 
         // --- 7. We add the stake to the module.
         Self::increase_stake(netuid, &key, &module_key, amount);
@@ -512,13 +510,15 @@ impl<T: Config> Pallet<T> {
         }
     }
 
-    pub fn remove_balance_from_account(key: &T::AccountId, amount: BalanceOf<T>) -> bool {
-        T::Currency::withdraw(
+    pub fn remove_balance_from_account(key: &T::AccountId, amount: BalanceOf<T>) -> Result<(), DispatchError> {
+        let _ = T::Currency::withdraw(
             key,
             amount,
             WithdrawReasons::except(WithdrawReasons::TIP),
             ExistenceRequirement::KeepAlive,
         )
-        .is_ok()
+        .map_err(|_| Error::<T>::BalanceCouldNotBeRemoved)?;
+        
+        Ok(())
     }
 }
