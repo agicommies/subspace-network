@@ -429,7 +429,6 @@ pub mod v6 {
     impl<T: Config> OnRuntimeUpgrade for MigrateToV6<T> {
         fn on_runtime_upgrade() -> Weight {
             let on_chain_version = StorageVersion::get::<Pallet<T>>();
-            let floor_founder_share = FloorFounderShare::<T>::get() as u16;
 
             if on_chain_version != 5 {
                 log::info!("Storage v6 already updated");
@@ -447,6 +446,7 @@ pub mod v6 {
             TargetRegistrationsPerInterval::<T>::set(5);
             log::info!("TargetRegistrationsPerInterval set to 5");
 
+            let floor_founder_share = FloorFounderShare::<T>::get() as u16;
             for (subnet_id, value) in FounderShare::<T>::iter() {
                 FounderShare::<T>::insert(subnet_id, value.max(floor_founder_share));
             }
