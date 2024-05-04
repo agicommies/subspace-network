@@ -115,7 +115,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
 
         if netuid == 0 {
             // Update global treasure
-            GlobalDaoTreasury::mutate(|global_treasure| {
+            GlobalDaoTreasury::<T>::mutate(|global_treasure| {
                 *global_treasure += founder_emission;
             });
         }
