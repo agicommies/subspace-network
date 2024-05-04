@@ -440,9 +440,11 @@ pub mod v6 {
             MaxAllowedWeightsGlobal::<T>::set(1024);
             log::info!("Global MaxAllowedWeights set to 1024");
 
+            // Subnet building incentives
             FounderShare::<T>::set(0, 12);
-            log::info!("FounderShare of SubNet 0 set to 12");
+            log::info!("FounderShare of Subnet 0 set to 12");
 
+            // Target of registrations per day, per subnet, is set to 135
             TargetRegistrationsPerInterval::<T>::set(5);
             log::info!("TargetRegistrationsPerInterval set to 5");
 
@@ -454,6 +456,15 @@ pub mod v6 {
 
             MinBurn::<T>::set(10_000_000_000);
             log::info!("MinBurn set to 10 (10_000_000_000)");
+            TargetRegistrationsInterval::<T>::set(400);
+            log::info!("TargetRegistrationsInterval set to 400");
+
+            let min_burn = 10_000_000_000;
+            MinBurn::<T>::set(min_burn);
+            for (netuid, burn) in Burn::<T>::iter() {
+                Burn::<T>::set(netuid, min_burn.max(burn));
+            }
+            log::info!("MinBurn set to 10 (10_000_000_000) and migrated subnets");
 
             let old_val = AdjustmentAlpha::<T>::get();
             let new_val = AdjustmentAlpha::<T>::mutate(|value: &mut u64| {
