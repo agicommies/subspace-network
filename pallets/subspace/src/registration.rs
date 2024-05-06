@@ -233,7 +233,7 @@ impl<T: Config> Pallet<T> {
             .collect();
 
         // Sort the UIDs based on their registration block in ascending order
-        uids.sort_by(|a, b| a.1.cmp(&b.1));
+        uids.sort_by_key(|a| a.1);
 
         for (module_uid_i, block_at_registration) in uids {
             let pruning_score: u64 = Self::get_pruning_score_for_uid(netuid, module_uid_i);
