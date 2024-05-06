@@ -220,6 +220,8 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn get_lowest_uid(netuid: u16, ignore_immunity: bool) -> u16 {
+        // immunity ignoring is used if the deregistration is forced by global (network) module
+        // limit immunity period is considered if the deregistration is forced by subnet
         let mut min_score: u64 = u64::MAX;
         let mut lowest_priority_uid: u16 = 0;
         let current_block = Self::get_current_block_number();
