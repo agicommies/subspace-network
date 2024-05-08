@@ -258,13 +258,6 @@ impl<T: Config> Pallet<T> {
         emission_per_block
     }
 
-    #[cfg(debug_assertions)]
-    // TODO: ger rid of this fn
-    pub fn get_total_subnet_balance(netuid: u16) -> u64 {
-        let keys = Self::get_keys(netuid);
-        return keys.iter().map(|x| Self::get_balance_u64(x)).sum();
-    }
-
     /// Empties out all:
     /// emission, dividends, incentives, trust on the specific netuid.
     fn deactivate_subnet(netuid: u16) {
@@ -526,15 +519,6 @@ impl<T: Config> Pallet<T> {
         TrustRatio::<T>::get(netuid)
     }
 
-    /// Returns the stake of the uid on network or 0 if it doesnt exist.
-    #[cfg(debug_assertions)]
-    pub fn get_stake_for_uid(netuid: u16, module_uid: u16) -> u64 {
-        let Some(key) = Self::get_key_for_uid(netuid, module_uid) else {
-            return 0;
-        };
-        Self::get_stake_for_key(netuid, &key)
-    }
-
     pub fn get_stake_for_key(netuid: u16, key: &T::AccountId) -> u64 {
         Stake::<T>::get(netuid, key)
     }
@@ -588,12 +572,6 @@ impl<T: Config> Pallet<T> {
         }
     }
 
-    #[cfg(debug_assertions)]
-    pub fn get_emission_for_key(netuid: u16, key: &T::AccountId) -> u64 {
-        let uid = Self::get_uid_for_key(netuid, key);
-        Self::get_emission_for_uid(netuid, uid)
-    }
-
     pub fn get_emission_for_uid(netuid: u16, uid: u16) -> u64 {
         Emission::<T>::get(netuid).get(uid as usize).copied().unwrap_or_default()
     }
@@ -616,16 +594,6 @@ impl<T: Config> Pallet<T> {
     // ============================
     // ==== Subnetwork Getters ====
     // ============================
-
-    #[cfg(debug_assertions)]
-    pub fn get_pending_emission(netuid: u16) -> u64 {
-        PendingEmission::<T>::get(netuid)
-    }
-
-    #[cfg(debug_assertions)]
-    pub fn get_registrations_this_block() -> u16 {
-        RegistrationsPerBlock::<T>::get()
-    }
 
     pub fn get_module_registration_block(netuid: u16, uid: u16) -> u64 {
         RegistrationBlock::<T>::get(netuid, uid)
@@ -704,11 +672,6 @@ impl<T: Config> Pallet<T> {
             addresses.push(key);
         }
         addresses
-    }
-
-    #[cfg(debug_assertions)]
-    pub fn get_trust(netuid: u16) -> Vec<u16> {
-        Trust::<T>::get(netuid)
     }
 
     pub fn get_emissions(netuid: u16) -> Vec<u64> {

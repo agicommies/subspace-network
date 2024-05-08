@@ -610,24 +610,6 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         ownership_vector
     }
 
-    #[cfg(debug_assertions)]
-    pub fn get_ownership_ratios_emission(
-        netuid: u16,
-        module_key: &T::AccountId,
-        emission: u64,
-    ) -> Vec<(T::AccountId, u64)> {
-        let ownership_vector: Vec<(T::AccountId, I64F64)> =
-            Self::get_ownership_ratios(netuid, module_key);
-        let mut emission_vector: Vec<(T::AccountId, u64)> = Vec::new();
-
-        for (k, v) in ownership_vector {
-            let emission_for_delegate = (v * I64F64::from_num(emission)).to_num::<u64>();
-            emission_vector.push((k, emission_for_delegate));
-        }
-
-        emission_vector
-    }
-
     pub fn adjust_registration(
         netuid: u16,
         block_number: u64,

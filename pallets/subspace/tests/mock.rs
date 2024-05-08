@@ -248,6 +248,34 @@ pub fn check_subnet_storage(netuid: u16) -> bool {
 }
 
 #[allow(dead_code)]
+pub fn get_stake_for_uid(netuid: u16, module_uid: u16) -> u64 {
+    let Some(key) = SubspaceModule::get_key_for_uid(netuid, module_uid) else {
+        return 0;
+    };
+    SubspaceModule::get_stake_for_key(netuid, &key)
+}
+
+#[allow(dead_code)]
+pub fn get_emission_for_key(netuid: u16, key: &AccountId) -> u64 {
+    let uid = SubspaceModule::get_uid_for_key(netuid, key);
+    SubspaceModule::get_emission_for_uid(netuid, uid)
+}
+
+#[allow(dead_code)]
+pub fn get_stakes(netuid: u16) -> Vec<u64> {
+    SubspaceModule::get_uid_key_tuples(netuid)
+        .into_iter()
+        .map(|(_, key)| SubspaceModule::get_stake(netuid, &key))
+        .collect()
+}
+
+#[allow(dead_code)]
+pub fn get_total_subnet_balance(netuid: u16) -> u64 {
+    let keys = SubspaceModule::get_keys(netuid);
+    keys.iter().map(|x| SubspaceModule::get_balance_u64(x)).sum()
+}
+
+#[allow(dead_code)]
 pub fn delegate_register_module(
     netuid: u16,
     key: U256,

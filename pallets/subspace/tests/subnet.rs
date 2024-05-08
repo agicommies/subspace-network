@@ -48,7 +48,7 @@ fn test_add_subnets() {
 
         for netuid in 0..num_subnets {
             let total_stake = SubspaceModule::get_total_subnet_stake(netuid);
-            let total_balance = SubspaceModule::get_total_subnet_balance(netuid);
+            let total_balance = get_total_subnet_balance(netuid);
             let total_tokens_before = total_stake + total_balance;
 
             let keys = SubspaceModule::get_keys(netuid);
@@ -248,7 +248,7 @@ fn test_set_max_allowed_uids_shrinking() {
             "min allowed weights is not equal to expected min allowed weights"
         );
 
-        let stake_vector: Vec<u64> = SubspaceModule::get_stakes(netuid);
+        let stake_vector: Vec<u64> = get_stakes(netuid);
         let calc_stake: u64 = stake_vector.iter().sum();
 
         info!("calculated  stake {}", calc_stake);
