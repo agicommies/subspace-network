@@ -41,7 +41,7 @@ fn test_min_stake() {
             .map(U256::from)
             .collect();
 
-        let min_stake_to_register = SubspaceModule::get_min_stake(netuid);
+        let min_stake_to_register = MinStake::<Test>::get(netuid);
 
         for key in keys_list {
             let _ = register_module(netuid, key, min_stake_to_register);
