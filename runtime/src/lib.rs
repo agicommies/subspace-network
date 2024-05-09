@@ -23,8 +23,8 @@ use sp_core::{
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
-        AccountIdLookup, BlakeTwo256, Block as BlockT, DispatchInfoOf,
-        IdentifyAccount, NumberFor, One, PostDispatchInfoOf, Verify,
+        AccountIdLookup, BlakeTwo256, Block as BlockT, DispatchInfoOf, IdentifyAccount, NumberFor,
+        One, PostDispatchInfoOf, Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError},
     ApplyExtrinsicResult, ConsensusEngineId, MultiSignature,
@@ -474,46 +474,36 @@ impl fp_self_contained::SelfContainedCall for RuntimeCall {
     type SignedInfo = H160;
 
     fn is_self_contained(&self) -> bool {
-        match self {
-            _ => false,
-        }
+        false
     }
 
     fn check_self_contained(&self) -> Option<Result<Self::SignedInfo, TransactionValidityError>> {
-        match self {
-            _ => None,
-        }
+        None
     }
 
     fn validate_self_contained(
         &self,
-        info: &Self::SignedInfo,
-        dispatch_info: &DispatchInfoOf<RuntimeCall>,
-        len: usize,
+        _info: &Self::SignedInfo,
+        _dispatch_info: &DispatchInfoOf<RuntimeCall>,
+        _len: usize,
     ) -> Option<TransactionValidity> {
-        match self {
-            _ => None,
-        }
+        None
     }
 
     fn pre_dispatch_self_contained(
         &self,
-        info: &Self::SignedInfo,
-        dispatch_info: &DispatchInfoOf<RuntimeCall>,
-        len: usize,
+        _info: &Self::SignedInfo,
+        _dispatch_info: &DispatchInfoOf<RuntimeCall>,
+        _len: usize,
     ) -> Option<Result<(), TransactionValidityError>> {
-        match self {
-            _ => None,
-        }
+        None
     }
 
     fn apply_self_contained(
         self,
-        info: Self::SignedInfo,
+        _info: Self::SignedInfo,
     ) -> Option<sp_runtime::DispatchResultWithInfo<PostDispatchInfoOf<Self>>> {
-        match self {
-            _ => None,
-        }
+        None
     }
 }
 
