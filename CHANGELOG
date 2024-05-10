@@ -3,8 +3,8 @@
 [Unreleased]
 
 - Deleted, or moved useless code and values of:
-- Burn rate
-- Min Stake
+  - Burn rate
+  - Min Stake
 
 ## Version 1.7.2
 
