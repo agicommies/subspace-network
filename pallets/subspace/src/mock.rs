@@ -4,7 +4,7 @@ use frame_system as system;
 
 use sp_core::{H256, U256};
 use sp_runtime::{
-    traits::{BlakeTwo256, IdentityLookup},
+    traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
     BuildStorage,
 };
 
@@ -92,6 +92,16 @@ impl pallet_subspace::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type WeightInfo = ();
+}
+
+impl BlockNumberProvider for Test {
+    type BlockNumber = u64;
+    fn current_block_number() -> Self::BlockNumber {
+        frame_system::Pallet::block_number()
+            .try_into()
+            .ok()
+            .expect("blockchain will not exceed 2^64 blocks; QED.")
+    }
 }
 
 // Build genesis storage according to the mock runtime.

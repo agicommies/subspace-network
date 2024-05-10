@@ -62,11 +62,12 @@ pub mod pallet {
     use self::voting::{CuratorApplication, Proposal, VoteMode};
 
     use super::*;
-    use frame_support::{pallet_prelude::*, traits::Currency, Identity};
+    use frame_support::{dispatch::EncodeLike, pallet_prelude::*, traits::Currency, Identity};
     use frame_system::pallet_prelude::*;
 
     use module::ModuleChangeset;
     use sp_arithmetic::per_things::Percent;
+    use sp_runtime::traits::BlockNumberProvider;
     pub use sp_std::{vec, vec::Vec};
 
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(6);
@@ -79,7 +80,7 @@ pub mod pallet {
 
     // Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + BlockNumberProvider where Self::BlockNumber: EncodeLike<<<Self::Block as sp_runtime::traits::Block>::Header as sp_runtime::traits::Header>::Number> {
         // Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -758,6 +759,9 @@ pub mod pallet {
         target_registrations_intervalSet(u16), // --- Event created when we set target registrations
         RegistrationBurnChanged(u64),
 
+        // faucet
+        Faucet(T::AccountId, BalanceOf<T>), // (id, balance_to_add)
+
         //voting
         ProposalCreated(u64),                        // id of the proposal
         ApplicationCreated(u64),                     // id of the application
@@ -880,6 +884,13 @@ pub mod pallet {
         InvalidMinBurn,
         InvalidMaxBurn,
         InvalidTargetRegistrationsPerInterval,
+
+        // Faucet
+        FaucetDisabled, // --- Thrown when the faucet is disabled.
+        InvalidDifficulty,
+        InvalidWorkBlock,
+        InvalidSeal,
+        InvalidBalance,
 
         // Modules
         /// The module name is too long.
@@ -1067,6 +1078,23 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        #[pallet::call_index(60)]
+        #[pallet::weight((Weight::from_parts(91_000_000, 0)
+		.saturating_add(T::DbWeight::get().reads(27))
+		.saturating_add(T::DbWeight::get().writes(22)), DispatchClass::Normal, Pays::No))]
+        pub fn faucet(
+            origin: OriginFor<T>,
+            block_number: u64,
+            nonce: u64,
+            work: Vec<u8>,
+        ) -> DispatchResult {
+            if cfg!(test) {
+                Self::do_faucet(origin, block_number, nonce, work)
+            } else {
+                Err(Error::<T>::FaucetDisabled.into())
+            }
+        }
+
         #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
         pub fn set_weights(
             origin: OriginFor<T>,
