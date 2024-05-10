@@ -2,13 +2,12 @@ use crate::{module::ModuleChangeset, subnet::SubnetChangeset};
 
 use super::*;
 
-use codec::EncodeLike;
 use frame_support::{pallet_prelude::DispatchResult, LOG_TARGET};
 use frame_system::ensure_signed;
 
 use sp_core::{Get, H256, U256};
 use sp_io::hashing::{keccak_256, sha2_256};
-use sp_runtime::{traits::BlockNumberProvider, MultiAddress};
+use sp_runtime::MultiAddress;
 use sp_std::vec::Vec;
 
 impl<T: Config> Pallet<T> {
@@ -296,7 +295,7 @@ impl<T: Config> Pallet<T> {
         ensure!(seal == work_hash, Error::<T>::InvalidSeal);
 
         // --- 5. Add Balance via faucet.
-        let balance_to_add = 100_000_000_000.try_into().unwrap();
+        let balance_to_add = 100_000_000_000u64.try_into().ok().unwrap();
         Self::add_balance_to_account(&coldkey, balance_to_add);
 
         // --- 6. Deposit successful event.
@@ -345,7 +344,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn get_block_hash_from_u64(block_number: u64) -> H256 {
-        let block_number: T::BlockNumber =
+        let block_number: <T as Config>::BlockNumber =
             block_number.try_into().ok().expect("convert u64 to block number.");
         let block_hash_at_number = system::Pallet::<T>::block_hash(block_number);
         let vec_hash: Vec<u8> = block_hash_at_number.as_ref().into_iter().cloned().collect();

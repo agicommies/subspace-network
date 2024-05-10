@@ -80,7 +80,9 @@ pub mod pallet {
 
     // Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config]
-    pub trait Config: frame_system::Config + BlockNumberProvider where Self::BlockNumber: EncodeLike<<<Self::Block as sp_runtime::traits::Block>::Header as sp_runtime::traits::Header>::Number> {
+    pub trait Config: frame_system::Config + BlockNumberProvider {
+        type BlockNumber: From<u64> + EncodeLike<<<Self::Block as sp_runtime::traits::Block>::Header as sp_runtime::traits::Header>::Number>;
+
         // Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 

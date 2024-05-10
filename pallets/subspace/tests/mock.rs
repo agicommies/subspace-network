@@ -7,7 +7,7 @@ use frame_support::{
 use frame_system as system;
 use sp_core::{H256, U256};
 use sp_runtime::{
-    traits::{BlakeTwo256, IdentityLookup},
+    traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
     BuildStorage, DispatchResult,
 };
 
@@ -104,6 +104,15 @@ impl pallet_subspace::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type WeightInfo = ();
+    type BlockNumber = u64;
+}
+
+impl BlockNumberProvider for Test {
+    type BlockNumber = u64;
+
+    fn current_block_number() -> Self::BlockNumber {
+        System::block_number()
+    }
 }
 
 #[allow(dead_code)]

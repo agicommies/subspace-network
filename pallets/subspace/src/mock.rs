@@ -92,12 +92,13 @@ impl pallet_subspace::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type WeightInfo = ();
+    type BlockNumber = u64;
 }
 
 impl BlockNumberProvider for Test {
     type BlockNumber = u64;
     fn current_block_number() -> Self::BlockNumber {
-        frame_system::Pallet::block_number()
+        System::block_number()
             .try_into()
             .ok()
             .expect("blockchain will not exceed 2^64 blocks; QED.")
