@@ -60,7 +60,7 @@ pub mod pallet {
     use self::voting::{CuratorApplication, Proposal, VoteMode};
 
     use super::*;
-    use frame_support::{dispatch::EncodeLike, pallet_prelude::*, traits::Currency, Identity};
+    use frame_support::{pallet_prelude::*, traits::Currency, Identity};
     use frame_system::pallet_prelude::*;
 
     use module::ModuleChangeset;
