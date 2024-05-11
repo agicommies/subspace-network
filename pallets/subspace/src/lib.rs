@@ -1090,7 +1090,7 @@ pub mod pallet {
             nonce: u64,
             work: Vec<u8>,
         ) -> DispatchResult {
-            if cfg!(test) {
+            if cfg!(testnet) {
                 Self::do_faucet(origin, block_number, nonce, work)
             } else {
                 Err(Error::<T>::FaucetDisabled.into())
