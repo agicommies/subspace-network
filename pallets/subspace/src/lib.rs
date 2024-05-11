@@ -76,10 +76,9 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     // Configure the pallet by specifying the parameters and types on which it depends.
-    #[pallet::config]
+    #[pallet::config(with_default)]
     pub trait Config: frame_system::Config {
         // Because this pallet emits events, it depends on the runtime's definition of an event.
-        #[pallet::no_default_bounds]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         // --- Currency type that will be used to place deposits on modules
