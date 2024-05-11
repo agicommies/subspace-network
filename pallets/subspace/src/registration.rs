@@ -307,17 +307,17 @@ impl<T: Config> Pallet<T> {
     }
 
     #[allow(clippy::indexing_slicing)]
-    pub fn hash_block_and_hotkey(block_hash_bytes: &[u8; 32], hotkey: &T::AccountId) -> H256 {
+    pub fn hash_block_and_key(block_hash_bytes: &[u8; 32], hotkey: &T::AccountId) -> H256 {
         // Get the public key from the account id.
-        let hotkey_pubkey: MultiAddress<T::AccountId, ()> = MultiAddress::Id(hotkey.clone());
-        let binding = hotkey_pubkey.encode();
+        let key_pubkey: MultiAddress<T::AccountId, ()> = MultiAddress::Id(hotkey.clone());
+        let binding = key_pubkey.encode();
         // Skip extra 0th byte.
-        let hotkey_bytes: &[u8] = binding[1..].as_ref();
+        let key_bytes: &[u8] = binding[1..].as_ref();
         let mut full_bytes = [0u8; 64];
         let (first_half, second_half) = full_bytes.split_at_mut(32);
         first_half.copy_from_slice(block_hash_bytes);
         // Safe because Substrate guarantees that all AccountId types are at least 32 bytes
-        second_half.copy_from_slice(&hotkey_bytes[..32]);
+        second_half.copy_from_slice(&key_bytes[..32]);
         let keccak_256_seal_hash_vec: [u8; 32] = keccak_256(&full_bytes[..]);
 
         H256::from_slice(&keccak_256_seal_hash_vec)
@@ -327,7 +327,7 @@ impl<T: Config> Pallet<T> {
         let nonce = nonce_u64.to_be_bytes();
         let block_hash_at_number: H256 = Self::get_block_hash_from_u64(block_number_u64);
         let block_hash_bytes: &[u8; 32] = block_hash_at_number.as_fixed_bytes();
-        let binding = Self::hash_block_and_hotkey(block_hash_bytes, hotkey);
+        let binding = Self::hash_block_and_key(block_hash_bytes, hotkey);
         let block_and_hotkey_hash_bytes: &[u8; 32] = binding.as_fixed_bytes();
 
         let mut full_bytes = [0u8; 40];
