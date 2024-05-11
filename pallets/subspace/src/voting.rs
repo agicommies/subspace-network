@@ -341,7 +341,7 @@ impl<T: Config> Pallet<T> {
         let vote_mode = VoteModeSubnet::<T>::get(netuid);
         ensure!(vote_mode == VoteMode::Vote, Error::<T>::NotVoteMode);
 
-        Self::check_subnet_params(&params)?;
+        SubnetChangeset::<T>::update(netuid, params.clone())?;
         let proposal_data = ProposalData::SubnetParams { netuid, params };
         Self::add_proposal(key, proposal_data)
     }
@@ -510,8 +510,8 @@ impl<T: Config> Pallet<T> {
                     Ok(())
                 })?;
 
-                let amount = Self::u64_to_balance(*value)
-                    .ok_or_else(|| Error::<T>::CouldNotConvertToBalance)?;
+                let amount =
+                    Self::u64_to_balance(*value).ok_or(Error::<T>::CouldNotConvertToBalance)?;
                 Self::add_balance_to_account(dest, amount);
             }
             ProposalData::Expired => {

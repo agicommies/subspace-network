@@ -293,10 +293,8 @@ pub mod v3 {
 
             // -- GENERAL SUBNET PARAMS --
 
-            // Due to the incoming incentives refactoring, `max_stake` value
             // is no longer needed to be limited on the general subnet 0
             let general_netuid = 0;
-            MaxStake::<T>::insert(general_netuid, u64::MAX);
             log::info!("Min stake migrated");
 
             // Due to the incoming subnet 0 whitelist, `min_allowed_weights`,
@@ -373,7 +371,6 @@ pub mod v4 {
                 return Weight::zero();
             }
 
-            MinStakeGlobal::<T>::set(0);
             TrustRatio::<T>::set(0, 5);
 
             StorageVersion::new(4).put::<Pallet<T>>();
@@ -473,6 +470,31 @@ pub mod v6 {
 
             StorageVersion::new(6).put::<Pallet<T>>();
             log::info!("Migrated v6");
+
+            T::DbWeight::get().writes(1)
+        }
+    }
+}
+
+pub mod v7 {
+    use super::*;
+
+    pub struct MigrateToV7<T>(sp_std::marker::PhantomData<T>);
+
+    impl<T: Config> OnRuntimeUpgrade for MigrateToV7<T> {
+        fn on_runtime_upgrade() -> Weight {
+            let on_chain_version = StorageVersion::get::<Pallet<T>>();
+
+            if on_chain_version != 6 {
+                log::info!("Storage v7 already updated");
+                return Weight::zero();
+            }
+
+            // Update the delegation fee to the minimum value
+            GeneralSubnetApplicationCost::<T>::set(1_000_000_000_000);
+
+            StorageVersion::new(7).put::<Pallet<T>>();
+            log::info!("Migrated GeneralSubnetApplicationCost to v7");
 
             T::DbWeight::get().writes(1)
         }
