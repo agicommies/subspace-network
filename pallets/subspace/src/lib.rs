@@ -14,7 +14,6 @@ use frame_support::{
     dispatch,
     dispatch::{DispatchInfo, PostDispatchInfo},
     ensure,
-    parity_scale_codec::encode_like::EncodeLike,
     traits::{tokens::WithdrawReasons, Currency, ExistenceRequirement, IsSubType},
 };
 
@@ -60,6 +59,7 @@ pub mod pallet {
     use self::voting::{CuratorApplication, Proposal, VoteMode};
 
     use super::*;
+    use codec::EncodeLike;
     use frame_support::{pallet_prelude::*, traits::Currency, Identity};
     use frame_system::pallet_prelude::*;
 
@@ -77,7 +77,9 @@ pub mod pallet {
 
     // Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config(with_default)]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + BlockNumberProvider {
+        type BlockNumber: From<u64> + EncodeLike<<<Self::Block as sp_runtime::traits::Block>::Header as sp_runtime::traits::Header>::Number>;
+
         // Because this pallet emits events, it depends on the runtime's definition of an event.
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
