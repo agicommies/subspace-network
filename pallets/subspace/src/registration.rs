@@ -264,8 +264,10 @@ impl<T: Config> Pallet<T> {
         work: Vec<u8>,
     ) -> DispatchResult {
         // --- 1. Check that the caller has signed the transaction.
-        let coldkey = ensure_signed(origin)?;
-        log::info!("do faucet with coldkey {coldkey:?}");
+        let key = ensure_signed(origin)?;
+        log::info!(
+            "do faucet with key: {key:?} and block number: {block_number} and nonce: {nonce}"
+        );
 
         // --- 2. Ensure the passed block number is valid, not in the future or too old.
         // Work must have been done within 3 blocks (stops long range attacks).
@@ -289,16 +291,16 @@ impl<T: Config> Pallet<T> {
 
         // --- 4. Check Work is the product of the nonce, the block number, and hotkey. Add this as
         // used work.
-        let seal: H256 = Self::create_seal_hash(block_number, nonce, &coldkey);
+        let seal: H256 = Self::create_seal_hash(block_number, nonce, &key);
         ensure!(seal == work_hash, Error::<T>::InvalidSeal);
 
         // --- 5. Add Balance via faucet.
         let balance_to_add = 100_000_000_000u64.try_into().ok().unwrap();
-        Self::add_balance_to_account(&coldkey, balance_to_add);
+        Self::add_balance_to_account(&key, balance_to_add);
 
         // --- 6. Deposit successful event.
-        log::info!("Faucet(coldkey: {coldkey:?} amount: {balance_to_add:?})",);
-        Self::deposit_event(Event::Faucet(coldkey, balance_to_add));
+        log::info!("faucet done successfully with key: {key:?} and amount: {balance_to_add:?})",);
+        Self::deposit_event(Event::Faucet(key, balance_to_add));
 
         // --- 7. Ok and done.
         Ok(())
