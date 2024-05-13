@@ -34,7 +34,7 @@ fn creates_global_params_proposal_correctly_and_expires() {
 
         let mut burn_config = BurnConfiguration::<Test>::default();
         burn_config.min_burn = 100_000_000;
-        burn_config.apply();
+        assert_ok!(burn_config.apply());
 
         let BurnConfiguration {
             min_burn,
@@ -136,7 +136,7 @@ fn creates_global_params_proposal_correctly_and_is_approved() {
 
         let mut burn_config = BurnConfiguration::<Test>::default();
         burn_config.min_burn = 100_000_000;
-        burn_config.apply();
+        assert_ok!(burn_config.apply());
 
         let BurnConfiguration {
             min_burn,
@@ -257,7 +257,7 @@ fn creates_global_params_proposal_correctly_and_is_refused() {
 
         let mut burn_config = BurnConfiguration::<Test>::default();
         burn_config.min_burn = 100_000_000;
-        burn_config.apply();
+        assert_ok!(burn_config.apply());
 
         let BurnConfiguration {
             min_burn,

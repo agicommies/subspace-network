@@ -7,13 +7,18 @@ use sp_runtime::DispatchError;
 #[derive(Clone, Debug, TypeInfo, Decode, Encode)]
 #[scale_info(skip_type_params(T))]
 pub struct BurnConfiguration<T: Config> {
-    pub min_burn: u64,               // min burn the adjustment algorithm can set
-    pub max_burn: u64,               // max burn the adjustment algorithm can set
-    pub adjustment_alpha: u64,       /* the steepness with which the burn curve will increase
-                                      * every interval */
-    pub adjustment_interval: u16, // interval in blocks for the burn to be adjusted
-    pub expected_registrations: u16, /* the number of registrations expected per interval, if
-                                   * below, burn gets decreased, it is increased otherwise */
+    /// min burn the adjustment algorithm can set
+    pub min_burn: u64,
+    /// max burn the adjustment algorithm can set
+    pub max_burn: u64,
+    /// the steepness with which the burn curve will increase
+    /// every interval
+    pub adjustment_alpha: u64,
+    /// interval in blocks for the burn to be adjusted
+    pub adjustment_interval: u16,
+    /// the number of registrations expected per interval, if
+    /// below, burn gets decreased, it is increased otherwise
+    pub expected_registrations: u16,
     pub _pd: PhantomData<T>,
 }
 

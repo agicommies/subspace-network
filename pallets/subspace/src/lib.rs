@@ -1148,16 +1148,16 @@ pub mod pallet {
             max_allowed_modules: u16,         // max number of modules allowed per subnet
             max_registrations_per_block: u16, // max number of registrations per block
             max_allowed_weights: u16,         // max number of weights per module
-            max_burn: u64,                    // max burn allowed to register
-            min_burn: u64,                    // min burn required to register
+            _max_burn: u64,                   // max burn allowed to register
+            _min_burn: u64,                   // min burn required to register
             floor_delegation_fee: Percent,    // min delegation fee
             floor_founder_share: u8,          // min founder share
             min_weight_stake: u64,            // min weight stake required
-            target_registrations_per_interval: u16, /* desired number of registrations per
+            _target_registrations_per_interval: u16, /* desired number of registrations per
                                                * interval */
-            target_registrations_interval: u16, /* the number of blocks that defines the
-                                                 * registration interval */
-            adjustment_alpha: u64,           // adjustment alpha
+            _target_registrations_interval: u16, /* the number of blocks that defines the
+                                                  * registration interval */
+            _adjustment_alpha: u64,          // adjustment alpha
             unit_emission: u64,              // emission per block
             curator: T::AccountId,           // subnet 0 dao multisig
             subnet_stake_threshold: Percent, // stake needed to start subnet emission
@@ -1186,6 +1186,9 @@ pub mod pallet {
             params.proposal_expiration = proposal_expiration;
             params.proposal_participation_threshold = proposal_participation_threshold;
             params.general_subnet_application_cost = general_subnet_application_cost;
+
+            // TODO: re-add burn stuff
+
             Self::do_add_global_proposal(origin, params)
         }
 

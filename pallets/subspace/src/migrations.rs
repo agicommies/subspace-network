@@ -562,16 +562,11 @@ pub mod v8 {
             SubnetGaps::<T>::set(gaps);
 
             let burn_config = BurnConfiguration::<T> {
-                min_burn: MinBurn::<T>::get(), // min burn the adjustment algorithm can set
-                max_burn: MaxBurn::<T>::get(), // max burn the adjustment algorithm can set
-                adjustment_alpha: AdjustmentAlpha::<T>::get(), /* the steepness with which the
-                                                * burn curve will increase every
-                                                * interval */
-                adjustment_interval: TargetRegistrationsInterval::<T>::get(), /* interval in
-                                                                               * blocks for the
-                                                                               * burn to be
-                                                                               * adjusted */
-                expected_registrations: TargetRegistrationsPerInterval::<T>::get(), /* the number of registrations expected per interval, if below, burn gets decreased, it is increased otherwise */
+                min_burn: MinBurn::<T>::get(),
+                max_burn: MaxBurn::<T>::get(),
+                adjustment_alpha: AdjustmentAlpha::<T>::get(),
+                adjustment_interval: TargetRegistrationsInterval::<T>::get(),
+                expected_registrations: TargetRegistrationsPerInterval::<T>::get(),
                 _pd: PhantomData,
             };
 

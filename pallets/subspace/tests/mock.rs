@@ -382,6 +382,7 @@ pub fn round_first_five(num: u64) -> u64 {
     }
 }
 
+#[allow(dead_code)]
 pub fn zero_min_burn() {
     BurnConfig::<Test>::mutate(|cfg| cfg.min_burn = 0);
 }

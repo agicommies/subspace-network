@@ -706,7 +706,7 @@ fn test_dynamic_burn() {
         burn_config.adjustment_alpha = 0;
         burn_config.adjustment_interval = 200;
         burn_config.expected_registrations = 100;
-        burn_config.apply();
+        assert_ok!(burn_config.apply());
 
         let BurnConfiguration { min_burn, .. } = BurnConfig::<Test>::get();
 
