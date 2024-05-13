@@ -4,7 +4,7 @@ use sp_arithmetic::per_things::Percent;
 use sp_core::Get;
 use sp_runtime::DispatchError;
 
-#[derive(Clone, Debug, TypeInfo, Decode, Encode)]
+#[derive(Clone, TypeInfo, Decode, Encode, PartialEq, Eq, frame_support::DebugNoBound)]
 #[scale_info(skip_type_params(T))]
 pub struct BurnConfiguration<T: Config> {
     /// min burn the adjustment algorithm can set
@@ -76,7 +76,7 @@ impl<T: Config> Pallet<T> {
             max_allowed_weights: Self::get_max_allowed_weights_global(),
             subnet_stake_threshold: Self::get_subnet_stake_threshold(),
             min_weight_stake: Self::get_min_weight_stake(),
-            //
+            // proposals
             proposal_cost: Self::get_proposal_cost(), // denominated in $COMAI
             proposal_expiration: Self::get_proposal_expiration(), /* denominated in the number of
                                                        * blocks */
@@ -84,6 +84,8 @@ impl<T: Config> Pallet<T> {
                                                                                             in percent of the overall network stake */
             // s0
             general_subnet_application_cost: Self::get_general_subnet_application_cost(),
+
+            burn_config: BurnConfig::<T>::get(),
         }
     }
 
@@ -184,11 +186,13 @@ impl<T: Config> Pallet<T> {
         Self::set_max_allowed_weights_global(params.max_allowed_weights);
         Self::set_min_weight_stake(params.min_weight_stake);
 
-        //
-
+        // proposals
         Self::set_proposal_cost(params.proposal_cost);
         Self::set_proposal_expiration(params.proposal_expiration);
         Self::set_proposal_participation_threshold(params.proposal_participation_threshold);
+
+        // burn
+        params.burn_config.apply().expect("invalid burn configuration");
     }
 
     pub fn get_curator() -> T::AccountId {
@@ -230,7 +234,7 @@ impl<T: Config> Pallet<T> {
         FloorDelegationFee::<T>::put(delegation_fee)
     }
 
-    //
+    // Proposals
 
     pub fn get_proposal_cost() -> u64 {
         ProposalCost::<T>::get()

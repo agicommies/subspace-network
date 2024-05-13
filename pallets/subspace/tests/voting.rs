@@ -30,11 +30,11 @@ fn creates_global_params_proposal_correctly_and_expires() {
         assert_ok!(register_module(0, U256::from(1), 1_000_000_000));
         assert_ok!(register_module(0, U256::from(2), 1_000_000_100));
 
-        let original = SubspaceModule::global_params();
-
         let mut burn_config = BurnConfiguration::<Test>::default();
         burn_config.min_burn = 100_000_000;
         assert_ok!(burn_config.apply());
+
+        let original = SubspaceModule::global_params();
 
         let BurnConfiguration {
             min_burn,
@@ -62,6 +62,7 @@ fn creates_global_params_proposal_correctly_and_expires() {
             proposal_expiration,
             proposal_participation_threshold,
             general_subnet_application_cost,
+            ..
         } = original.clone();
 
         SubspaceModule::add_global_proposal(
@@ -166,6 +167,7 @@ fn creates_global_params_proposal_correctly_and_is_approved() {
             proposal_expiration,
             proposal_participation_threshold,
             general_subnet_application_cost,
+            ..
         } = params.clone();
 
         SubspaceModule::add_global_proposal(
@@ -235,6 +237,10 @@ fn creates_global_params_proposal_correctly_and_is_refused() {
         ProposalCost::<Test>::set(COST);
         ProposalExpiration::<Test>::set(200);
 
+        let mut burn_config = BurnConfiguration::<Test>::default();
+        burn_config.min_burn = 100_000_000;
+        assert_ok!(burn_config.apply());
+
         let original = SubspaceModule::global_params();
         let GlobalParams {
             floor_founder_share,
@@ -253,11 +259,8 @@ fn creates_global_params_proposal_correctly_and_is_refused() {
             proposal_expiration,
             proposal_participation_threshold,
             general_subnet_application_cost,
+            ..
         } = GlobalParams { ..original.clone() };
-
-        let mut burn_config = BurnConfiguration::<Test>::default();
-        burn_config.min_burn = 100_000_000;
-        assert_ok!(burn_config.apply());
 
         let BurnConfiguration {
             min_burn,

@@ -280,7 +280,7 @@ pub mod pallet {
 
         pub subnet_stake_threshold: Percent,
 
-        // porposals
+        // proposals
         pub proposal_cost: u64,
         pub proposal_expiration: u32,
         pub proposal_participation_threshold: Percent,
@@ -289,6 +289,8 @@ pub mod pallet {
 
         // founder share
         pub floor_founder_share: u8,
+
+        pub burn_config: BurnConfiguration<T>,
     }
 
     pub struct DefaultSubnetParams<T: Config>(sp_std::marker::PhantomData<((), T)>);
@@ -1148,16 +1150,16 @@ pub mod pallet {
             max_allowed_modules: u16,         // max number of modules allowed per subnet
             max_registrations_per_block: u16, // max number of registrations per block
             max_allowed_weights: u16,         // max number of weights per module
-            _max_burn: u64,                   // max burn allowed to register
-            _min_burn: u64,                   // min burn required to register
+            max_burn: u64,                    // max burn allowed to register
+            min_burn: u64,                    // min burn required to register
             floor_delegation_fee: Percent,    // min delegation fee
             floor_founder_share: u8,          // min founder share
             min_weight_stake: u64,            // min weight stake required
-            _target_registrations_per_interval: u16, /* desired number of registrations per
+            target_registrations_per_interval: u16, /* desired number of registrations per
                                                * interval */
-            _target_registrations_interval: u16, /* the number of blocks that defines the
-                                                  * registration interval */
-            _adjustment_alpha: u64,          // adjustment alpha
+            target_registrations_interval: u16, /* the number of blocks that defines the
+                                                 * registration interval */
+            adjustment_alpha: u64,           // adjustment alpha
             unit_emission: u64,              // emission per block
             curator: T::AccountId,           // subnet 0 dao multisig
             subnet_stake_threshold: Percent, // stake needed to start subnet emission
@@ -1187,7 +1189,11 @@ pub mod pallet {
             params.proposal_participation_threshold = proposal_participation_threshold;
             params.general_subnet_application_cost = general_subnet_application_cost;
 
-            // TODO: re-add burn stuff
+            params.burn_config.min_burn = min_burn;
+            params.burn_config.max_burn = max_burn;
+            params.burn_config.adjustment_alpha = adjustment_alpha;
+            params.burn_config.adjustment_interval = target_registrations_interval;
+            params.burn_config.expected_registrations = target_registrations_per_interval;
 
             Self::do_add_global_proposal(origin, params)
         }
