@@ -65,7 +65,6 @@ pub mod pallet {
 
     use module::ModuleChangeset;
     use sp_arithmetic::per_things::Percent;
-    use sp_runtime::traits::BlockNumberProvider;
     pub use sp_std::{vec, vec::Vec};
 
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(7);
@@ -77,9 +76,7 @@ pub mod pallet {
 
     // Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config(with_default)]
-    pub trait Config: frame_system::Config + BlockNumberProvider {
-        type BlockNumber: From<u64> + EncodeLike<<<Self::Block as sp_runtime::traits::Block>::Header as sp_runtime::traits::Header>::Number>;
-
+    pub trait Config: frame_system::Config {
         // Because this pallet emits events, it depends on the runtime's definition of an event.
         #[pallet::no_default_bounds]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -1011,23 +1008,6 @@ pub mod pallet {
     // Dispatchable functions must be annotated with a weight and must return a DispatchResult.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::call_index(60)]
-        #[pallet::weight((Weight::from_parts(91_000_000, 0)
-		.saturating_add(T::DbWeight::get().reads(27))
-		.saturating_add(T::DbWeight::get().writes(22)), DispatchClass::Normal, Pays::No))]
-        pub fn faucet(
-            origin: OriginFor<T>,
-            block_number: u64,
-            nonce: u64,
-            work: Vec<u8>,
-        ) -> DispatchResult {
-            if cfg!(testnet) {
-                Self::do_faucet(origin, block_number, nonce, work)
-            } else {
-                Err(Error::<T>::FaucetDisabled.into())
-            }
-        }
-
         #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
         pub fn set_weights(
             origin: OriginFor<T>,
@@ -1354,6 +1334,20 @@ pub mod pallet {
         #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
         pub fn unvote_proposal(origin: OriginFor<T>, proposal_id: u64) -> DispatchResult {
             Self::do_unregister_vote(origin, proposal_id)
+        }
+
+        #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
+        pub fn faucet(
+            origin: OriginFor<T>,
+            block_number: u64,
+            nonce: u64,
+            work: Vec<u8>,
+        ) -> DispatchResult {
+            if cfg!(testnet) {
+                Self::do_faucet(origin, block_number, nonce, work)
+            } else {
+                Err(Error::<T>::FaucetDisabled.into())
+            }
         }
     }
 

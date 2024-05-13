@@ -8,6 +8,7 @@ use frame_system::ensure_signed;
 use sp_core::{keccak_256, sha2_256, Get, H256, U256};
 use sp_runtime::MultiAddress;
 use sp_std::vec::Vec;
+use system::pallet_prelude::BlockNumberFor;
 
 impl<T: Config> Pallet<T> {
     pub fn do_add_to_whitelist(
@@ -264,7 +265,7 @@ impl<T: Config> Pallet<T> {
     ) -> DispatchResult {
         // --- 1. Check that the caller has signed the transaction.
         let coldkey = ensure_signed(origin)?;
-        log::info!("do_faucet(coldkey: {coldkey:?})");
+        log::info!("do faucet with coldkey {coldkey:?}");
 
         // --- 2. Ensure the passed block number is valid, not in the future or too old.
         // Work must have been done within 3 blocks (stops long range attacks).
@@ -341,10 +342,11 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn get_block_hash_from_u64(block_number: u64) -> H256 {
-        let block_number: <T as Config>::BlockNumber =
-            block_number.try_into().ok().expect("convert u64 to block number.");
+        let block_number: BlockNumberFor<T> = block_number.try_into().unwrap_or_else(|_| {
+            panic!("Block number {block_number} is too large to be converted to BlockNumberFor<T>")
+        });
         let block_hash_at_number = system::Pallet::<T>::block_hash(block_number);
-        let vec_hash: Vec<u8> = block_hash_at_number.as_ref().into_iter().cloned().collect();
+        let vec_hash: Vec<u8> = block_hash_at_number.as_ref().to_vec();
         let real_hash: H256 = H256::from_slice(&vec_hash);
 
         log::trace!(

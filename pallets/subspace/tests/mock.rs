@@ -108,7 +108,6 @@ impl pallet_subspace::Config for Test {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type WeightInfo = ();
-    type BlockNumber = u64;
 }
 
 impl BlockNumberProvider for Test {

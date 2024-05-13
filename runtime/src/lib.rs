@@ -365,7 +365,6 @@ impl pallet_subspace::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type WeightInfo = pallet_subspace::autogen_weights::SubstrateWeight<Runtime>;
-    type BlockNumber = u64;
 }
 
 impl BlockNumberProvider for Runtime {
