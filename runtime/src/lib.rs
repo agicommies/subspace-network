@@ -23,8 +23,7 @@ use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
         AccountIdLookup, BlakeTwo256, Block as BlockT, BlockNumberProvider, DispatchInfoOf,
-        Dispatchable, IdentifyAccount, NumberFor, One, PostDispatchInfoOf, UniqueSaturatedInto,
-        Verify,
+        IdentifyAccount, NumberFor, One, PostDispatchInfoOf, Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError},
     ApplyExtrinsicResult, MultiSignature,

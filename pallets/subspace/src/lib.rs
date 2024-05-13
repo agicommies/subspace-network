@@ -59,7 +59,6 @@ pub mod pallet {
     use self::voting::{CuratorApplication, Proposal, VoteMode};
 
     use super::*;
-    use codec::EncodeLike;
     use frame_support::{pallet_prelude::*, traits::Currency, Identity};
     use frame_system::pallet_prelude::*;
 
