@@ -351,29 +351,28 @@ threshold {subnet_stake_threshold:?}"
         changeset: SubnetChangeset<T>,
         netuid: Option<u16>,
     ) -> Result<u16, DispatchError> {
-        // let netuid = netuid.unwrap_or_else(|| match RemovedSubnets::<T>::get().first().copied() {
-        //     Some(removed) => removed,
-        //     None => TotalSubnets::<T>::get(),
-        // });
+        let netuid = netuid.unwrap_or_else(|| match SubnetGaps::<T>::get().first().copied() {
+            Some(removed) => removed,
+            None => TotalSubnets::<T>::get(),
+        });
 
-        // let name = changeset.params.name.clone();
-        // changeset.apply(netuid)?;
-        // TotalSubnets::<T>::mutate(|n| *n += 1);
-        // N::<T>::insert(netuid, 0);
-        // SubnetEmission::<T>::insert(netuid, 0);
+        let name = changeset.params.name.clone();
+        changeset.apply(netuid)?;
+        TotalSubnets::<T>::mutate(|n| *n += 1);
+        N::<T>::insert(netuid, 0);
+        SubnetEmission::<T>::insert(netuid, 0);
 
-        // // Insert the minimum burn to the netuid,
-        // // to prevent free registrations the first target registration interval.
-        // let BurnConfiguration { min_burn, ..  } = BurnConfig::<T>::get();
-        // Burn::<T>::insert(netuid, min_burn);
+        // Insert the minimum burn to the netuid,
+        // to prevent free registrations the first target registration interval.
+        let BurnConfiguration { min_burn, .. } = BurnConfig::<T>::get();
+        Burn::<T>::insert(netuid, min_burn);
 
-        // RemovedSubnets::<T>::mutate(|subnets| subnets.remove(&netuid));
+        SubnetGaps::<T>::mutate(|subnets| subnets.remove(&netuid));
 
-        // // --- 6. Emit the new network event.
-        // Self::deposit_event(Event::NetworkAdded(netuid, name));
+        // --- 6. Emit the new network event.
+        Self::deposit_event(Event::NetworkAdded(netuid, name));
 
-        // Ok(netuid)
-        Ok(0u16)
+        Ok(netuid)
     }
     // Initializes a new subnetwork under netuid with parameters.
     pub fn subnet_name_exists(name: Vec<u8>) -> bool {
@@ -463,7 +462,7 @@ threshold {subnet_stake_threshold:?}"
         // Adjust the total number of subnets. and remove the subnet from the list of subnets.
         N::<T>::remove(netuid);
         TotalSubnets::<T>::mutate(|val| *val -= 1);
-        // RemovedSubnets::<T>::mutate(|subnets| subnets.insert(netuid));
+        SubnetGaps::<T>::mutate(|subnets| subnets.insert(netuid));
 
         // --- 4. Emit the event.
         Self::deposit_event(Event::NetworkRemoved(netuid));

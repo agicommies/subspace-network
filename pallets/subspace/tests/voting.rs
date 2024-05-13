@@ -5,7 +5,10 @@ use std::{array::from_fn, collections::BTreeSet};
 use frame_support::{assert_err, assert_ok};
 use mock::*;
 use pallet_subspace::{
-    global::BurnConfiguration, voting::{ProposalData, ProposalStatus, VoteMode}, BurnConfig, Error, FloorFounderShare, GlobalDaoTreasury, GlobalParams, ProposalCost, ProposalExpiration, Proposals, SubnetParams, Tempo, VoteModeSubnet
+    global::BurnConfiguration,
+    voting::{ProposalData, ProposalStatus, VoteMode},
+    BurnConfig, Error, FloorFounderShare, GlobalDaoTreasury, GlobalParams, ProposalCost,
+    ProposalExpiration, Proposals, SubnetParams, Tempo, VoteModeSubnet,
 };
 use sp_core::U256;
 
@@ -38,7 +41,8 @@ fn creates_global_params_proposal_correctly_and_expires() {
             max_burn,
             adjustment_alpha,
             adjustment_interval,
-            expected_registrations, ..
+            expected_registrations,
+            ..
         } = BurnConfig::<Test>::get();
 
         let GlobalParams {
@@ -116,7 +120,7 @@ fn creates_global_params_proposal_correctly_and_expires() {
 fn creates_global_params_proposal_correctly_and_is_approved() {
     new_test_ext().execute_with(|| {
         const COST: u64 = to_nano(10);
-  
+
         zero_min_burn();
 
         let keys: [_; 3] = from_fn(U256::from);
@@ -139,7 +143,8 @@ fn creates_global_params_proposal_correctly_and_is_approved() {
             max_burn,
             adjustment_alpha,
             adjustment_interval,
-            expected_registrations, ..
+            expected_registrations,
+            ..
         } = BurnConfig::<Test>::get();
 
         let params = SubspaceModule::global_params();
@@ -248,9 +253,7 @@ fn creates_global_params_proposal_correctly_and_is_refused() {
             proposal_expiration,
             proposal_participation_threshold,
             general_subnet_application_cost,
-        } = GlobalParams {
-            ..original.clone()
-        };
+        } = GlobalParams { ..original.clone() };
 
         let mut burn_config = BurnConfiguration::<Test>::default();
         burn_config.min_burn = 100_000_000;
@@ -261,7 +264,8 @@ fn creates_global_params_proposal_correctly_and_is_refused() {
             max_burn,
             adjustment_alpha,
             adjustment_interval,
-            expected_registrations, ..
+            expected_registrations,
+            ..
         } = BurnConfig::<Test>::get();
 
         SubspaceModule::add_global_proposal(

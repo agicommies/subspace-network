@@ -4,7 +4,8 @@ use frame_support::assert_ok;
 use log::info;
 use mock::*;
 use pallet_subspace::{
-    global::BurnConfiguration, BurnConfig, DaoTreasuryDistribution, GlobalDaoTreasury, MaxAllowedWeights, MinAllowedWeights, SubnetStakeThreshold, Tempo, Trust
+    global::BurnConfiguration, BurnConfig, DaoTreasuryDistribution, GlobalDaoTreasury,
+    MaxAllowedWeights, MinAllowedWeights, SubnetStakeThreshold, Tempo, Trust,
 };
 use sp_core::U256;
 use sp_runtime::Percent;
@@ -707,9 +708,7 @@ fn test_dynamic_burn() {
         burn_config.expected_registrations = 100;
         burn_config.apply();
 
-        let BurnConfiguration {
-            min_burn, ..
-        } = BurnConfig::<Test>::get();
+        let BurnConfiguration { min_burn, .. } = BurnConfig::<Test>::get();
 
         // update the burn to the minimum
         step_block(200);

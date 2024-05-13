@@ -148,14 +148,18 @@ pub mod v2 {
 
 // Incentives update, migrations.
 pub mod v3 {
-    use super::*;
-    use super::v8::old_storage::*;
+    use frame_support::{pallet_prelude::ValueQuery, storage_alias};
+
+    use super::{v8::old_storage::*, *};
 
     use crate::voting::{ProposalStatus, VoteMode};
 
     const SUBNET_CEILING: u16 = 42;
 
     pub struct MigrateToV3<T>(sp_std::marker::PhantomData<T>);
+
+    #[storage_alias]
+    pub type RemovedSubnets<T: Config> = StorageValue<Pallet<T>, BTreeSet<u16>, ValueQuery>;
 
     impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
         fn on_runtime_upgrade() -> Weight {
@@ -420,8 +424,7 @@ pub mod v5 {
 }
 
 pub mod v6 {
-    use super::*;
-    use super::v8::old_storage::*;
+    use super::{v8::old_storage::*, *};
 
     pub struct MigrateToV6<T>(sp_std::marker::PhantomData<T>);
 
@@ -504,8 +507,13 @@ pub mod v7 {
 }
 
 pub mod v8 {
-
-    use self::{global::BurnConfiguration, old_storage::{AdjustmentAlpha, MaxBurn, MinBurn, TargetRegistrationsInterval, TargetRegistrationsPerInterval}};
+    use self::{
+        global::BurnConfiguration,
+        old_storage::{
+            AdjustmentAlpha, MaxBurn, MinBurn, TargetRegistrationsInterval,
+            TargetRegistrationsPerInterval,
+        },
+    };
 
     use super::*;
 
@@ -516,18 +524,18 @@ pub mod v8 {
         #[storage_alias]
         pub type MinBurn<T: Config> = StorageValue<Pallet<T>, u64, ValueQuery>;
 
-        #[storage_alias]    
+        #[storage_alias]
         pub type MaxBurn<T: Config> = StorageValue<Pallet<T>, u64, ValueQuery>;
 
-        #[storage_alias]    
+        #[storage_alias]
         pub type AdjustmentAlpha<T: Config> = StorageValue<Pallet<T>, u64, ValueQuery>;
-    
-        #[storage_alias]    
+
+        #[storage_alias]
         pub type TargetRegistrationsInterval<T: Config> = StorageValue<Pallet<T>, u16, ValueQuery>;
 
         #[storage_alias]
-        pub type TargetRegistrationsPerInterval<T: Config> = StorageValue<Pallet<T>, u16, ValueQuery>;
-
+        pub type TargetRegistrationsPerInterval<T: Config> =
+            StorageValue<Pallet<T>, u16, ValueQuery>;
     }
 
     pub struct MigrateToV8<T>(sp_std::marker::PhantomData<T>);
@@ -541,13 +549,30 @@ pub mod v8 {
                 return Weight::zero();
             }
 
+            let mut gaps = BTreeSet::new();
+            let netuids: BTreeSet<_> = N::<T>::iter_keys().collect();
+            for netuid in 0..netuids.last().copied().unwrap_or_default() {
+                if !netuids.contains(&netuid) {
+                    gaps.insert(netuid);
+                }
+            }
+
+            log::info!("Existing subnets:        {netuids:?}");
+            log::info!("Updated subnets gaps: {gaps:?}");
+            SubnetGaps::<T>::set(gaps);
+
             let burn_config = BurnConfiguration::<T> {
                 min_burn: MinBurn::<T>::get(), // min burn the adjustment algorithm can set
                 max_burn: MaxBurn::<T>::get(), // max burn the adjustment algorithm can set
-                adjustment_alpha: AdjustmentAlpha::<T>::get(), // the steepness with which the burn curve will increase every interval
-                adjustment_interval: TargetRegistrationsInterval::<T>::get(), // interval in blocks for the burn to be adjusted
-                expected_registrations: TargetRegistrationsPerInterval::<T>::get(), // the number of registrations expected per interval, if below, burn gets decreased, it is increased otherwise
-                _pd: PhantomData
+                adjustment_alpha: AdjustmentAlpha::<T>::get(), /* the steepness with which the
+                                                * burn curve will increase every
+                                                * interval */
+                adjustment_interval: TargetRegistrationsInterval::<T>::get(), /* interval in
+                                                                               * blocks for the
+                                                                               * burn to be
+                                                                               * adjusted */
+                expected_registrations: TargetRegistrationsPerInterval::<T>::get(), /* the number of registrations expected per interval, if below, burn gets decreased, it is increased otherwise */
+                _pd: PhantomData,
             };
 
             if let Err(err) = burn_config.apply() {

@@ -275,7 +275,7 @@ pub mod pallet {
         pub floor_delegation_fee: Percent, // min delegation fee
         pub min_weight_stake: u64,         // min weight stake required
 
-        pub unit_emission: u64,    // emission per block
+        pub unit_emission: u64, // emission per block
         pub curator: T::AccountId,
 
         pub subnet_stake_threshold: Percent,
@@ -570,7 +570,7 @@ pub mod pallet {
     >;
 
     #[pallet::storage] // --- MAP( netuid ) --> lowest_subnet
-    pub type RemovedSubnets<T> = StorageValue<_, BTreeSet<u16>, ValueQuery>;
+    pub type SubnetGaps<T> = StorageValue<_, BTreeSet<u16>, ValueQuery>;
 
     // TOTAL STAKE PER SUBNET
     #[pallet::storage] // --- MAP ( netuid ) --> subnet_total_stake

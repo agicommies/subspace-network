@@ -7,23 +7,25 @@ use sp_runtime::DispatchError;
 #[derive(Clone, Debug, TypeInfo, Decode, Encode)]
 #[scale_info(skip_type_params(T))]
 pub struct BurnConfiguration<T: Config> {
-    pub min_burn: u64, // min burn the adjustment algorithm can set
-    pub max_burn: u64, // max burn the adjustment algorithm can set
-    pub adjustment_alpha: u64, // the steepness with which the burn curve will increase every interval
+    pub min_burn: u64,               // min burn the adjustment algorithm can set
+    pub max_burn: u64,               // max burn the adjustment algorithm can set
+    pub adjustment_alpha: u64,       /* the steepness with which the burn curve will increase
+                                      * every interval */
     pub adjustment_interval: u16, // interval in blocks for the burn to be adjusted
-    pub expected_registrations: u16, // the number of registrations expected per interval, if below, burn gets decreased, it is increased otherwise
-    pub _pd: PhantomData<T>
+    pub expected_registrations: u16, /* the number of registrations expected per interval, if
+                                   * below, burn gets decreased, it is increased otherwise */
+    pub _pd: PhantomData<T>,
 }
 
 impl<T: Config> Default for BurnConfiguration<T> {
     fn default() -> Self {
         Self {
             min_burn: 4_000_000_000,
-            max_burn: 250_000_000_000 ,
+            max_burn: 250_000_000_000,
             adjustment_alpha: u64::MAX / 2,
             adjustment_interval: DefaultTempo::<T>::get() * 2,
             expected_registrations: DefaultTempo::<T>::get(),
-            _pd: PhantomData
+            _pd: PhantomData,
         }
     }
 }
@@ -34,13 +36,19 @@ impl<T: Config> BurnConfiguration<T> {
 
         ensure!(self.max_burn > self.min_burn, Error::<T>::InvalidMaxBurn);
 
-        ensure!(self.expected_registrations > 0, Error::<T>::InvalidTargetRegistrationsPerInterval);
-        
-        ensure!(self.adjustment_interval > 0, Error::<T>::InvalidTargetRegistrationsInterval);
+        ensure!(
+            self.expected_registrations > 0,
+            Error::<T>::InvalidTargetRegistrationsPerInterval
+        );
+
+        ensure!(
+            self.adjustment_interval > 0,
+            Error::<T>::InvalidTargetRegistrationsInterval
+        );
 
         BurnConfig::<T>::set(self);
-        
-        Ok(())        
+
+        Ok(())
     }
 }
 
@@ -63,8 +71,7 @@ impl<T: Config> Pallet<T> {
             max_allowed_weights: Self::get_max_allowed_weights_global(),
             subnet_stake_threshold: Self::get_subnet_stake_threshold(),
             min_weight_stake: Self::get_min_weight_stake(),
-            // 
-            
+            //
             proposal_cost: Self::get_proposal_cost(), // denominated in $COMAI
             proposal_expiration: Self::get_proposal_expiration(), /* denominated in the number of
                                                        * blocks */
@@ -172,8 +179,8 @@ impl<T: Config> Pallet<T> {
         Self::set_max_allowed_weights_global(params.max_allowed_weights);
         Self::set_min_weight_stake(params.min_weight_stake);
 
-        // 
-        
+        //
+
         Self::set_proposal_cost(params.proposal_cost);
         Self::set_proposal_expiration(params.proposal_expiration);
         Self::set_proposal_participation_threshold(params.proposal_participation_threshold);
@@ -218,8 +225,8 @@ impl<T: Config> Pallet<T> {
         FloorDelegationFee::<T>::put(delegation_fee)
     }
 
-    // 
-    
+    //
+
     pub fn get_proposal_cost() -> u64 {
         ProposalCost::<T>::get()
     }

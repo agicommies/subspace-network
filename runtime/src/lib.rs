@@ -233,7 +233,7 @@ impl frame_system::Config for Runtime {
     type Nonce = u32;
 
     type RuntimeTask = ();
-    type SingleBlockMigrations = Migrations;
+    type SingleBlockMigrations = ();
     type MultiBlockMigrator = ();
     type PreInherents = ();
     type PostInherents = ();
@@ -465,7 +465,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    Migrations
+    Migrations,
 >;
 
 impl fp_self_contained::SelfContainedCall for RuntimeCall {

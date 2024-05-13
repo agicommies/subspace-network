@@ -1,6 +1,5 @@
 use super::*;
-use crate::math::*;
-use crate::global::BurnConfiguration;
+use crate::{global::BurnConfiguration, math::*};
 use frame_support::storage::with_storage_layer;
 use sp_arithmetic::per_things::Percent;
 use sp_std::vec;
@@ -24,7 +23,7 @@ impl<T: Config> Pallet<T> {
         let BurnConfiguration {
             adjustment_interval: target_registrations_interval,
             expected_registrations: target_registrations_per_interval,
-            ..  
+            ..
         } = BurnConfig::<T>::get();
 
         let total_stake = Self::total_stake() as u128;
@@ -654,10 +653,9 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
             min_burn,
             max_burn,
             adjustment_alpha,
-            ..  
+            ..
         } = BurnConfig::<T>::get();
-        let alpha: I110F18 =
-            I110F18::from_num(adjustment_alpha) / I110F18::from_num(u64::MAX);
+        let alpha: I110F18 = I110F18::from_num(adjustment_alpha) / I110F18::from_num(u64::MAX);
         let next_value: I110F18 = alpha * I110F18::from_num(current_burn)
             + (I110F18::from_num(1.0) - alpha) * updated_burn;
         if next_value >= I110F18::from_num(max_burn) {
