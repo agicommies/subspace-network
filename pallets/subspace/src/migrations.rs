@@ -149,6 +149,7 @@ pub mod v2 {
 // Incentives update, migrations.
 pub mod v3 {
     use super::*;
+    use super::v8::old_storage::*;
 
     use crate::voting::{ProposalStatus, VoteMode};
 
@@ -420,6 +421,7 @@ pub mod v5 {
 
 pub mod v6 {
     use super::*;
+    use super::v8::old_storage::*;
 
     pub struct MigrateToV6<T>(sp_std::marker::PhantomData<T>);
 
@@ -496,6 +498,65 @@ pub mod v7 {
             StorageVersion::new(7).put::<Pallet<T>>();
             log::info!("Migrated GeneralSubnetApplicationCost to v7");
 
+            T::DbWeight::get().writes(1)
+        }
+    }
+}
+
+pub mod v8 {
+
+    use self::{global::BurnConfiguration, old_storage::{AdjustmentAlpha, MaxBurn, MinBurn, TargetRegistrationsInterval, TargetRegistrationsPerInterval}};
+
+    use super::*;
+
+    pub mod old_storage {
+        use super::*;
+        use frame_support::{pallet_prelude::ValueQuery, storage_alias};
+
+        #[storage_alias]
+        pub type MinBurn<T: Config> = StorageValue<Pallet<T>, u64, ValueQuery>;
+
+        #[storage_alias]    
+        pub type MaxBurn<T: Config> = StorageValue<Pallet<T>, u64, ValueQuery>;
+
+        #[storage_alias]    
+        pub type AdjustmentAlpha<T: Config> = StorageValue<Pallet<T>, u64, ValueQuery>;
+    
+        #[storage_alias]    
+        pub type TargetRegistrationsInterval<T: Config> = StorageValue<Pallet<T>, u16, ValueQuery>;
+
+        #[storage_alias]
+        pub type TargetRegistrationsPerInterval<T: Config> = StorageValue<Pallet<T>, u16, ValueQuery>;
+
+    }
+
+    pub struct MigrateToV8<T>(sp_std::marker::PhantomData<T>);
+
+    impl<T: Config> OnRuntimeUpgrade for MigrateToV8<T> {
+        fn on_runtime_upgrade() -> Weight {
+            let on_chain_version = StorageVersion::get::<Pallet<T>>();
+
+            if on_chain_version != 7 {
+                log::info!("Storage v8 already updated");
+                return Weight::zero();
+            }
+
+            let burn_config = BurnConfiguration::<T> {
+                min_burn: MinBurn::<T>::get(), // min burn the adjustment algorithm can set
+                max_burn: MaxBurn::<T>::get(), // max burn the adjustment algorithm can set
+                adjustment_alpha: AdjustmentAlpha::<T>::get(), // the steepness with which the burn curve will increase every interval
+                adjustment_interval: TargetRegistrationsInterval::<T>::get(), // interval in blocks for the burn to be adjusted
+                expected_registrations: TargetRegistrationsPerInterval::<T>::get(), // the number of registrations expected per interval, if below, burn gets decreased, it is increased otherwise
+                _pd: PhantomData
+            };
+
+            if let Err(err) = burn_config.apply() {
+                log::error!("error migrating burn configurations: {err:?}")
+            } else {
+                log::info!("Migrated burn-related params to BurnConfig in v8");
+            }
+
+            StorageVersion::new(8).put::<Pallet<T>>();
             T::DbWeight::get().writes(1)
         }
     }
