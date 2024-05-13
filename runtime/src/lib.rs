@@ -22,8 +22,8 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H160, U256};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
     traits::{
-        AccountIdLookup, BlakeTwo256, Block as BlockT, BlockNumberProvider, DispatchInfoOf,
-        IdentifyAccount, NumberFor, One, PostDispatchInfoOf, Verify,
+        AccountIdLookup, BlakeTwo256, Block as BlockT, DispatchInfoOf, IdentifyAccount, NumberFor,
+        One, PostDispatchInfoOf, Verify,
     },
     transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError},
     ApplyExtrinsicResult, MultiSignature,
@@ -364,14 +364,6 @@ impl pallet_subspace::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
     type WeightInfo = pallet_subspace::autogen_weights::SubstrateWeight<Runtime>;
-}
-
-impl BlockNumberProvider for Runtime {
-    type BlockNumber = BlockNumber;
-
-    fn current_block_number() -> Self::BlockNumber {
-        System::block_number()
-    }
 }
 
 pub const WEIGHT_MILLISECS_PER_BLOCK: u64 = 2000;
