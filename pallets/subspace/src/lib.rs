@@ -311,7 +311,7 @@ pub mod pallet {
                 founder_share: FloorFounderShare::<T>::get() as u16,
                 incentive_ratio: DefaultIncentiveRatio::<T>::get(),
                 min_stake: 0,
-                founder: DefaultFounder::<T>::get(),
+                founder: DefaultKey::<T>::get(),
                 vote_mode: DefaultVoteMode::<T>::get(),
                 maximum_set_weight_calls_per_epoch: 0,
                 bonds_ma: DefaultBondsMovingAverage::<T>::get(),
@@ -401,13 +401,9 @@ pub mod pallet {
     pub type MaxAllowedWeights<T> =
         StorageMap<_, Identity, u16, u16, ValueQuery, DefaultMaxAllowedWeights<T>>;
 
-    #[pallet::type_value]
-    pub fn DefaultFounder<T: Config>() -> T::AccountId {
-        T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).unwrap()
-    }
     #[pallet::storage] // --- DMAP ( key, netuid ) --> bool
     pub type Founder<T: Config> =
-        StorageMap<_, Identity, u16, T::AccountId, ValueQuery, DefaultFounder<T>>;
+        StorageMap<_, Identity, u16, T::AccountId, ValueQuery, DefaultKey<T>>;
 
     #[pallet::storage] // --- DMAP ( key, netuid ) --> bool
     pub type FounderShare<T: Config> =
@@ -440,15 +436,18 @@ pub mod pallet {
     // ==== Voting  ====
     // =======================================
 
-    #[pallet::type_value]
-    pub fn DefaultCurator<T: Config>() -> T::AccountId {
-        T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).unwrap()
-    }
-
     #[pallet::storage]
     pub type FloorFounderShare<T: Config> =
         StorageValue<_, u8, ValueQuery, DefaultFloorFounderShare<T>>;
 
+    #[pallet::storage]
+    pub type DaoTreasuryAddress<T: Config> =
+        StorageValue<_, T::AccountId, ValueQuery, DefaultKey<T>>;
+
+    #[deprecated(
+        since = "1.7.4",
+        note = "Will be deleted on 1.7.5 (spec. v. 115). Use `DaoTreasuryAddress` instead"
+    )]
     #[pallet::storage]
     pub type GlobalDaoTreasury<T: Config> = StorageValue<_, u64, ValueQuery>;
 
@@ -468,7 +467,7 @@ pub mod pallet {
     }
 
     #[pallet::storage]
-    pub type Curator<T: Config> = StorageValue<_, T::AccountId, ValueQuery, DefaultCurator<T>>;
+    pub type Curator<T: Config> = StorageValue<_, T::AccountId, ValueQuery, DefaultKey<T>>;
 
     // VOTING MODE
     #[pallet::type_value]

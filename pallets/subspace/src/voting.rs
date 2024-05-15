@@ -1,7 +1,7 @@
 use super::*;
 use codec::MaxEncodedLen;
 use frame_support::{pallet_prelude::DispatchResult, storage::with_storage_layer};
-use sp_runtime::{DispatchError, Percent, SaturatedConversion};
+use sp_runtime::{Percent, SaturatedConversion};
 
 #[derive(Clone, Debug, TypeInfo, Decode, Encode)]
 #[scale_info(skip_type_params(T))]
@@ -307,7 +307,7 @@ impl<T: Config> Pallet<T> {
         ensure!(!data.is_empty(), Error::<T>::ProposalCustomDataTooSmall);
         ensure!(data.len() <= 256, Error::<T>::ProposalCustomDataTooLarge);
         ensure!(
-            GlobalDaoTreasury::<T>::get() >= value,
+            Self::has_enough_balance(&DaoTreasuryAddress::<T>::get(), value),
             Error::<T>::InsufficientDaoTreasuryFunds
         );
         sp_std::str::from_utf8(&data).map_err(|_| Error::<T>::InvalidProposalCustomData)?;
@@ -505,15 +505,7 @@ impl<T: Config> Pallet<T> {
                 value,
                 dest,
             } => {
-                GlobalDaoTreasury::<T>::try_mutate::<(), DispatchError, _>(|treasury| {
-                    *treasury =
-                        treasury.checked_sub(*value).ok_or(Error::<T>::BalanceCouldNotBeRemoved)?;
-                    Ok(())
-                })?;
-
-                let amount =
-                    Self::u64_to_balance(*value).ok_or(Error::<T>::CouldNotConvertToBalance)?;
-                Self::add_balance_to_account(dest, amount);
+                Self::transfer_balance_to_account(&DaoTreasuryAddress::<T>::get(), &dest, *value)?;
             }
             ProposalData::Expired => {
                 unreachable!("Expired data is illegal at this point")

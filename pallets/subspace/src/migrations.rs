@@ -24,6 +24,18 @@ pub fn ss58_to_account_id<T: Config>(
     Ok(T::AccountId::decode(&mut &account_id_vec[..]).unwrap())
 }
 
+use sp_runtime::traits::TrailingZeroInput;
+
+fn generate_account_id<T: Config>() -> T::AccountId {
+    let mut buf = TrailingZeroInput::zeroes();
+    let account_id = T::AccountId::decode(&mut buf).unwrap();
+
+    let mut modified_bytes = account_id.encode();
+    let len = modified_bytes.len();
+    modified_bytes[len - 1] = 42;
+
+    T::AccountId::decode(&mut &modified_bytes[..]).unwrap()
+}
 // Delegation update, migrations.
 pub mod v1 {
     use super::*;
@@ -514,7 +526,6 @@ pub mod v8 {
             TargetRegistrationsPerInterval,
         },
     };
-
     use super::*;
 
     pub mod old_storage {
@@ -557,7 +568,7 @@ pub mod v8 {
                 }
             }
 
-            log::info!("Existing subnets:        {netuids:?}");
+            log::info!("Existing subnets: {netuids:?}");
             log::info!("Updated subnets gaps: {gaps:?}");
             SubnetGaps::<T>::set(gaps);
 
@@ -569,6 +580,18 @@ pub mod v8 {
                 expected_registrations: TargetRegistrationsPerInterval::<T>::get(),
                 _pd: PhantomData,
             };
+
+            let treasury_account = generate_account_id::<T>();
+            DaoTreasuryAddress::<T>::set(treasury_account.clone());
+            log::info!("Treasury address created");
+
+            let old_treasury_balance = GlobalDaoTreasury::<T>::get();
+            Pallet::<T>::add_balance_to_account(
+                &treasury_account,
+                Pallet::<T>::u64_to_balance(old_treasury_balance).unwrap_or_default(),
+            );
+            GlobalDaoTreasury::<T>::set(0);
+            log::info!("Treasury transfered");
 
             if let Err(err) = burn_config.apply() {
                 log::error!("error migrating burn configurations: {err:?}")
