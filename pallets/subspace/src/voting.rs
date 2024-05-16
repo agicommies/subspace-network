@@ -505,6 +505,7 @@ impl<T: Config> Pallet<T> {
                 value,
                 dest,
             } => {
+                // ! Make sure transfer balance is using safe transfer (keep alive)
                 Self::transfer_balance_to_account(&DaoTreasuryAddress::<T>::get(), &dest, *value)?;
             }
             ProposalData::Expired => {

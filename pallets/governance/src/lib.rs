@@ -292,6 +292,7 @@ fn execute_proposal<T: Config>(proposal: Proposal<T>) -> DispatchResult {
         }
         ProposalData::TransferDaoTreasury { account, amount } => {
             SubspacePallet::<T>::transfer_balance_to_account(
+                // ! Make sure transfer balance is using safe transfer (keep alive)
                 &DaoTreasuryAddress::<T>::get(),
                 &account,
                 *amount,
