@@ -15,12 +15,15 @@ use frame_support::{
     dispatch::{DispatchInfo, PostDispatchInfo},
     ensure,
     traits::{tokens::WithdrawReasons, Currency, ExistenceRequirement, IsSubType},
+    PalletId,
 };
 
 use codec::{Decode, Encode};
 use frame_support::sp_runtime::transaction_validity::ValidTransaction;
 use sp_runtime::{
-    traits::{DispatchInfoOf, Dispatchable, PostDispatchInfoOf, SignedExtension},
+    traits::{
+        AccountIdConversion, DispatchInfoOf, Dispatchable, PostDispatchInfoOf, SignedExtension,
+    },
     transaction_validity::{TransactionValidity, TransactionValidityError},
 };
 use sp_std::marker::PhantomData;
@@ -69,6 +72,8 @@ pub mod pallet {
 
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(8);
 
+    /// The treasury's pallet id, used for deriving its sovereign account ID.
+
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
     #[pallet::without_storage_info]
@@ -77,6 +82,8 @@ pub mod pallet {
     // Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config(with_default)]
     pub trait Config: frame_system::Config {
+        #[pallet::constant]
+        type PalletId: Get<PalletId>;
         // Because this pallet emits events, it depends on the runtime's definition of an event.
         #[pallet::no_default_bounds]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -440,18 +447,9 @@ pub mod pallet {
     pub type FloorFounderShare<T: Config> =
         StorageValue<_, u8, ValueQuery, DefaultFloorFounderShare<T>>;
 
-    // THe default will be used, pretty much only on testing,
-    // because the treasury address is set on a migration.
     #[pallet::type_value] // This has to be different than DefaultKey, so we are not conflicting in tests.
     pub fn DefaultDaoTreasuryAddress<T: Config>() -> T::AccountId {
-        let account_id = T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
-            .expect("Failed to decode account ID");
-        let mut account_id_bytes = account_id.encode();
-        if let Some(last_byte) = account_id_bytes.last_mut() {
-            *last_byte = 42;
-        }
-        T::AccountId::decode(&mut account_id_bytes.as_slice())
-            .expect("Failed to decode modified account ID")
+        T::PalletId::get().into_account_truncating()
     }
 
     #[pallet::storage]

@@ -1,11 +1,8 @@
 [workspace]
-# List of workspace members
 members = ["node", "pallets/subspace", "pallets/governance", "runtime", "xtask"]
-# Resolver version
 resolver = "2"
 
 [profile.release]
-# Panic behavior for the release profile
 panic = "unwind"
 
 [workspace.dependencies]
