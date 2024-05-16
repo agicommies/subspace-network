@@ -26,16 +26,16 @@ pub fn ss58_to_account_id<T: Config>(
 
 use sp_runtime::traits::TrailingZeroInput;
 
-fn generate_account_id<T: Config>() -> T::AccountId {
+fn generate_account_id<T: Config>() -> Result<T::AccountId, &'static str> {
     let mut buf = TrailingZeroInput::zeroes();
-    let account_id = T::AccountId::decode(&mut buf).unwrap();
-
+    let account_id = T::AccountId::decode(&mut buf).map_err(|_| "Failed to decode account ID")?;
     let mut modified_bytes = account_id.encode();
     let len = modified_bytes.len();
     modified_bytes[len - 1] = 42;
-
-    T::AccountId::decode(&mut &modified_bytes[..]).unwrap()
+    T::AccountId::decode(&mut &modified_bytes[..])
+        .map_err(|_| "Failed to decode modified account ID")
 }
+
 // Delegation update, migrations.
 pub mod v1 {
     use super::*;
@@ -581,22 +581,33 @@ pub mod v8 {
                 _pd: PhantomData,
             };
 
-            let treasury_account = generate_account_id::<T>();
-            DaoTreasuryAddress::<T>::set(treasury_account.clone());
-            log::info!("Treasury address created");
-
-            let old_treasury_balance = GlobalDaoTreasury::<T>::get();
-            Pallet::<T>::add_balance_to_account(
-                &treasury_account,
-                Pallet::<T>::u64_to_balance(old_treasury_balance).unwrap_or_default(),
-            );
-            GlobalDaoTreasury::<T>::set(0);
-            log::info!("Treasury transfered");
-
             if let Err(err) = burn_config.apply() {
                 log::error!("error migrating burn configurations: {err:?}")
             } else {
                 log::info!("Migrated burn-related params to BurnConfig in v8");
+            }
+
+            match generate_account_id::<T>() {
+                Ok(treasury_account) => {
+                    DaoTreasuryAddress::<T>::set(treasury_account.clone());
+                    log::info!("Treasury address created");
+
+                    let old_treasury_balance = GlobalDaoTreasury::<T>::get();
+                    Pallet::<T>::add_balance_to_account(
+                        &treasury_account,
+                        Pallet::<T>::u64_to_balance(old_treasury_balance).unwrap_or_default(),
+                    );
+                    GlobalDaoTreasury::<T>::set(0);
+
+                    let account_balance = Pallet::<T>::get_balance_u64(&treasury_account);
+                    log::info!("Treasury transferred, treasury account now has {account_balance}");
+                }
+                Err(e) => {
+                    log::error!(
+                        "Failed to generate treasury account: {:?}. Skipping migration.",
+                        e
+                    );
+                }
             }
 
             StorageVersion::new(8).put::<Pallet<T>>();
