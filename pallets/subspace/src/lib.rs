@@ -440,6 +440,8 @@ pub mod pallet {
     pub type FloorFounderShare<T: Config> =
         StorageValue<_, u8, ValueQuery, DefaultFloorFounderShare<T>>;
 
+    // THe default will be used, pretty much only on testing,
+    // because the treasury address is set on a migration.
     #[pallet::type_value] // This has to be different than DefaultKey, so we are not conflicting in tests.
     pub fn DefaultDaoTreasuryAddress<T: Config>() -> T::AccountId {
         let account_id = T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
