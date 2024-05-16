@@ -620,7 +620,6 @@ fn test_trust() {
 }
 
 #[test]
-#[ignore = "This is failing due to transfer fee, fix it"]
 fn test_founder_share() {
     new_test_ext().execute_with(|| {
         let netuid = 0;
@@ -761,7 +760,6 @@ fn test_dynamic_burn() {
 }
 
 #[test]
-#[ignore = "This is failing due to transfer fee, fix it"]
 fn test_dao_treasury_distribution_for_subnet_owners() {
     new_test_ext().execute_with(|| {
         const STAKE: u64 = to_nano(1000);

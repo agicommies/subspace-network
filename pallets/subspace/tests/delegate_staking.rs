@@ -11,7 +11,6 @@ use substrate_fixed::types::I64F64;
 // 	staking::add_stake() tests
 // ************************************************************/
 #[test]
-#[ignore = "let's wait a bit"]
 fn test_ownership_ratio() {
     new_test_ext().execute_with(|| {
         let netuid: u16 = 0;

@@ -440,9 +440,21 @@ pub mod pallet {
     pub type FloorFounderShare<T: Config> =
         StorageValue<_, u8, ValueQuery, DefaultFloorFounderShare<T>>;
 
+    #[pallet::type_value] // This has to be different than DefaultKey, so we are not conflicting in tests.
+    pub fn DefaultDaoTreasuryAddress<T: Config>() -> T::AccountId {
+        let account_id = T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
+            .expect("Failed to decode account ID");
+        let mut account_id_bytes = account_id.encode();
+        if let Some(last_byte) = account_id_bytes.last_mut() {
+            *last_byte = 42;
+        }
+        T::AccountId::decode(&mut account_id_bytes.as_slice())
+            .expect("Failed to decode modified account ID")
+    }
+
     #[pallet::storage]
     pub type DaoTreasuryAddress<T: Config> =
-        StorageValue<_, T::AccountId, ValueQuery, DefaultKey<T>>;
+        StorageValue<_, T::AccountId, ValueQuery, DefaultDaoTreasuryAddress<T>>;
 
     #[deprecated(
         since = "1.7.4",
