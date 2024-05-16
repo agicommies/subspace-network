@@ -506,7 +506,7 @@ impl<T: Config> Pallet<T> {
                 dest,
             } => {
                 // ! Make sure transfer balance is using safe transfer (keep alive)
-                Self::transfer_balance_to_account(&DaoTreasuryAddress::<T>::get(), &dest, *value)?;
+                Self::transfer_balance_to_account(&DaoTreasuryAddress::<T>::get(), dest, *value)?;
             }
             ProposalData::Expired => {
                 unreachable!("Expired data is illegal at this point")
