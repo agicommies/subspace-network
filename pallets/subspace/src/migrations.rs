@@ -510,7 +510,7 @@ pub mod v8 {
     use self::{
         global::BurnConfiguration,
         old_storage::{
-            AdjustmentAlpha, MaxBurn, MinBurn, TargetRegistrationsInterval,
+            AdjustmentAlpha, GlobalDaoTreasury, MaxBurn, MinBurn, TargetRegistrationsInterval,
             TargetRegistrationsPerInterval,
         },
     };
@@ -535,6 +535,9 @@ pub mod v8 {
         #[storage_alias]
         pub type TargetRegistrationsPerInterval<T: Config> =
             StorageValue<Pallet<T>, u16, ValueQuery>;
+
+        #[storage_alias]
+        pub type GlobalDaoTreasury<T: Config> = StorageValue<Pallet<T>, u64, ValueQuery>;
     }
 
     pub struct MigrateToV8<T>(sp_std::marker::PhantomData<T>);

@@ -455,13 +455,6 @@ pub mod pallet {
     pub type DaoTreasuryAddress<T: Config> =
         StorageValue<_, T::AccountId, ValueQuery, DefaultDaoTreasuryAddress<T>>;
 
-    #[deprecated(
-        since = "1.7.4",
-        note = "Will be deleted on 1.7.5 (spec. v. 115). Use `DaoTreasuryAddress` instead"
-    )]
-    #[pallet::storage]
-    pub type GlobalDaoTreasury<T: Config> = StorageValue<_, u64, ValueQuery>;
-
     #[pallet::type_value]
     pub fn DefaultDaoTreasuryDistribution<T: Config>() -> Percent {
         Percent::from_percent(5u8)
