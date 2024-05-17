@@ -1319,14 +1319,16 @@ pub mod pallet {
             Self::do_unregister_vote(origin, proposal_id)
         }
 
-        #[pallet::weight((Weight::zero(), DispatchClass::Normal, Pays::No))]
+        #[pallet::weight((Weight::from_parts(85_000_000, 0)
+        .saturating_add(T::DbWeight::get().reads(16))
+        .saturating_add(T::DbWeight::get().writes(28)), DispatchClass::Operational, Pays::No))]
         pub fn faucet(
             origin: OriginFor<T>,
             block_number: u64,
             nonce: u64,
             work: Vec<u8>,
         ) -> DispatchResult {
-            if cfg!(testnet) {
+            if cfg!(feature = "testnet-faucet") {
                 Self::do_faucet(origin, block_number, nonce, work)
             } else {
                 Err(Error::<T>::FaucetDisabled.into())

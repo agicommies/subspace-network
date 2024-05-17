@@ -577,6 +577,7 @@ pub mod v8 {
 
             let old_treasury_balance = GlobalDaoTreasury::<T>::get();
             let treasury_account = DaoTreasuryAddress::<T>::get();
+            log::info!("Treasury balance: {old_treasury_balance}");
             Pallet::<T>::add_balance_to_account(
                 &treasury_account,
                 Pallet::<T>::u64_to_balance(old_treasury_balance).unwrap_or_default(),
@@ -585,6 +586,7 @@ pub mod v8 {
 
             let account_balance = Pallet::<T>::get_balance_u64(&treasury_account);
             log::info!("Treasury transferred, treasury account now has {account_balance}");
+            log::info!("Treasury account: {treasury_account:?}");
 
             StorageVersion::new(8).put::<Pallet<T>>();
             T::DbWeight::get().writes(1)
