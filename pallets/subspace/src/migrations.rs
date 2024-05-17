@@ -3,8 +3,8 @@ use super::*;
 use frame_support::{
     traits::{Get, OnRuntimeUpgrade, StorageInstance, StorageVersion},
     weights::Weight,
+    Identity,
 };
-
 impl<T: Config> StorageInstance for Pallet<T> {
     fn pallet_prefix() -> &'static str {
         "Subspace"
@@ -510,11 +510,14 @@ pub mod v8 {
     use self::{
         global::BurnConfiguration,
         old_storage::{
-            AdjustmentAlpha, GlobalDaoTreasury, MaxBurn, MinBurn, TargetRegistrationsInterval,
-            TargetRegistrationsPerInterval,
+            AdjustmentAlpha, GlobalDaoTreasury, MaxBurn, MinBurn, Proposals,
+            TargetRegistrationsInterval, TargetRegistrationsPerInterval,
         },
+        voting::Proposal,
     };
     use super::*;
+    use codec::EncodeLike;
+    use voting::{ProposalData, ProposalStatus};
 
     pub mod old_storage {
         use super::*;
@@ -538,6 +541,26 @@ pub mod v8 {
 
         #[storage_alias]
         pub type GlobalDaoTreasury<T: Config> = StorageValue<Pallet<T>, u64, ValueQuery>;
+
+        #[derive(Clone, Debug, TypeInfo, Decode, Encode)]
+        #[scale_info(skip_type_params(T))]
+        pub struct OldProposal<T: Config> {
+            pub id: u64,
+            pub proposer: T::AccountId,
+            pub expiration_block: u64,
+            pub data: ProposalData<T>,
+            pub status: ProposalStatus,
+            pub votes_for: BTreeSet<T::AccountId>,
+            pub votes_against: BTreeSet<T::AccountId>,
+            pub proposal_cost: u64,
+            pub creation_block: u64,
+            pub finalization_block: Option<u64>,
+        }
+
+        impl<T: Config> EncodeLike<OldProposal<T>> for Proposal<T> {}
+
+        #[storage_alias]
+        pub(super) type Proposals<T: Config> = StorageMap<Pallet<T>, Identity, u64, OldProposal<T>>;
     }
 
     pub struct MigrateToV8<T>(sp_std::marker::PhantomData<T>);
@@ -577,6 +600,26 @@ pub mod v8 {
             } else {
                 log::info!("Migrated burn-related params to BurnConfig in v8");
             }
+
+            for proposal in Proposals::<T>::iter_values() {
+                let new_proposal = Proposal::<T> {
+                    id: proposal.id,
+                    proposer: proposal.proposer,
+                    expiration_block: proposal.expiration_block,
+                    min_uptime_block: 0,
+                    data: proposal.data,
+                    status: proposal.status,
+                    votes_for: proposal.votes_for,
+                    votes_against: proposal.votes_against,
+                    proposal_cost: proposal.proposal_cost,
+                    creation_block: proposal.creation_block,
+                    finalization_block: None,
+                };
+
+                Proposals::<T>::insert(proposal.id, new_proposal);
+            }
+
+            log::info!("Migrated proposal min_uptime_block to 0");
 
             let old_treasury_balance = GlobalDaoTreasury::<T>::get();
             let treasury_account = DaoTreasuryAddress::<T>::get();
