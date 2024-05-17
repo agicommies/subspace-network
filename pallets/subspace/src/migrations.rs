@@ -588,6 +588,10 @@ pub mod v8 {
             log::info!("Treasury transferred, treasury account now has {account_balance}");
             log::info!("Treasury account: {treasury_account:?}");
 
+            // Expiration is at 130000 (13 days), so 75600 (7 days) is not a problem.
+            MinProposalUptime::<T>::set(75600);
+            log::info!("Migrate MinProposalUptime to 7 days");
+
             StorageVersion::new(8).put::<Pallet<T>>();
             T::DbWeight::get().writes(1)
         }

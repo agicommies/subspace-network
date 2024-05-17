@@ -7,8 +7,8 @@ use mock::*;
 use pallet_subspace::{
     global::BurnConfiguration,
     voting::{ProposalData, ProposalStatus, VoteMode},
-    BurnConfig, DaoTreasuryAddress, Error, FloorFounderShare, GlobalParams, ProposalCost,
-    ProposalExpiration, Proposals, SubnetParams, Tempo, VoteModeSubnet,
+    BurnConfig, DaoTreasuryAddress, Error, FloorFounderShare, GlobalParams, MinProposalUptime,
+    ProposalCost, ProposalExpiration, Proposals, SubnetParams, Tempo, VoteModeSubnet,
 };
 use sp_core::U256;
 
@@ -62,6 +62,7 @@ fn creates_global_params_proposal_correctly_and_expires() {
             subnet_stake_threshold,
             proposal_cost,
             proposal_expiration,
+            min_proposal_uptime,
             proposal_participation_threshold,
             general_subnet_application_cost,
             ..
@@ -88,6 +89,7 @@ fn creates_global_params_proposal_correctly_and_expires() {
             subnet_stake_threshold,
             proposal_cost,
             proposal_expiration,
+            min_proposal_uptime,
             proposal_participation_threshold,
             general_subnet_application_cost,
         )
@@ -169,6 +171,7 @@ fn creates_global_params_proposal_correctly_and_is_approved() {
             subnet_stake_threshold,
             proposal_cost,
             proposal_expiration,
+            min_proposal_uptime,
             proposal_participation_threshold,
             general_subnet_application_cost,
             ..
@@ -195,6 +198,7 @@ fn creates_global_params_proposal_correctly_and_is_approved() {
             subnet_stake_threshold,
             proposal_cost,
             proposal_expiration,
+            min_proposal_uptime,
             proposal_participation_threshold,
             general_subnet_application_cost,
         )
@@ -264,6 +268,7 @@ fn creates_global_params_proposal_correctly_and_is_refused() {
             proposal_cost,
             proposal_expiration,
             proposal_participation_threshold,
+            min_proposal_uptime,
             general_subnet_application_cost,
             ..
         } = GlobalParams { ..original.clone() };
@@ -298,6 +303,7 @@ fn creates_global_params_proposal_correctly_and_is_refused() {
             subnet_stake_threshold,
             proposal_cost,
             proposal_expiration,
+            min_proposal_uptime,
             proposal_participation_threshold,
             general_subnet_application_cost,
         )
@@ -444,7 +450,6 @@ fn fails_if_insufficient_dao_treasury_fund() {
         zero_min_burn();
         ProposalCost::<Test>::set(COST);
         SubspaceModule::add_balance_to_account(&DaoTreasuryAddress::<Test>::get(), 10);
-        // GlobalDaoTreasury::<Test>::set(10);
 
         let key = U256::from(0);
         assert_ok!(register_module(0, key, 1_000_000_000));
@@ -455,5 +460,47 @@ fn fails_if_insufficient_dao_treasury_fund() {
             SubspaceModule::add_transfer_dao_treasury_proposal(origin, vec![0], 11, key),
             Error::<Test>::InsufficientDaoTreasuryFunds
         )
+    });
+}
+
+#[test]
+fn proposal_is_not_executed_before_min_uptime() {
+    new_test_ext().execute_with(|| {
+        let min_uptime = 300;
+        const COST: u64 = to_nano(10);
+        zero_min_burn();
+        ProposalCost::<Test>::set(COST);
+        MinProposalUptime::<Test>::set(min_uptime);
+
+        // Register a module that will vote on a proposal
+        let key = U256::from(0);
+        // registration automatically stakes this
+        assert_ok!(register_module(0, key, 1_000_000_000));
+        add_balance(key, COST);
+
+        let origin = get_origin(key);
+        assert_ok!(SubspaceModule::add_custom_proposal(
+            origin.clone(),
+            "test".as_bytes().to_vec()
+        ));
+
+        // Vote on the proposal
+        assert_ok!(SubspaceModule::vote_proposal(origin, 0, true));
+
+        // Check that the proposal is not going to be executed after passing MinUptime - 1
+        step_block(min_uptime as u16 - 1);
+
+        assert_eq!(
+            Proposals::<Test>::get(0).unwrap().status,
+            ProposalStatus::Pending
+        );
+
+        // Now go 1 blocks and expect the proposal to be accepted
+        step_block(1);
+
+        assert_eq!(
+            Proposals::<Test>::get(0).unwrap().status,
+            ProposalStatus::Accepted
+        );
     });
 }

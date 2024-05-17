@@ -85,15 +85,12 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
 {emission_to_drain} tokens will be emitted on the next epoch.\
 "
                     );
-
                     Err("yuma failed")
                 });
-
                 if res.is_err() {
                     return;
                 }
             }
-
             PendingEmission::<T>::insert(netuid, 0);
         }
     }

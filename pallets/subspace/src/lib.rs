@@ -181,8 +181,7 @@ pub mod pallet {
         32
     }
     #[pallet::storage] // --- ITEM ( max_name_length )
-    pub(super) type MaxNameLength<T: Config> =
-        StorageValue<_, u16, ValueQuery, DefaultMaxNameLength<T>>;
+    pub type MaxNameLength<T: Config> = StorageValue<_, u16, ValueQuery, DefaultMaxNameLength<T>>;
 
     #[pallet::type_value]
     pub fn DefaultMinNameLength<T: Config>() -> u16 {
@@ -190,15 +189,14 @@ pub mod pallet {
     }
 
     #[pallet::storage]
-    pub(super) type MinNameLength<T: Config> =
-        StorageValue<_, u16, ValueQuery, DefaultMinNameLength<T>>;
+    pub type MinNameLength<T: Config> = StorageValue<_, u16, ValueQuery, DefaultMinNameLength<T>>;
 
     #[pallet::type_value]
     pub fn DefaultMaxAllowedSubnets<T: Config>() -> u16 {
         256
     }
     #[pallet::storage] // --- ITEM ( max_allowed_subnets )
-    pub(super) type MaxAllowedSubnets<T: Config> =
+    pub type MaxAllowedSubnets<T: Config> =
         StorageValue<_, u16, ValueQuery, DefaultMaxAllowedSubnets<T>>;
 
     #[pallet::storage]
@@ -292,6 +290,7 @@ pub mod pallet {
         // proposals
         pub proposal_cost: u64,
         pub proposal_expiration: u32,
+        pub min_proposal_uptime: u32, // minimum uptime, after which the proposal is unlocked
         pub proposal_participation_threshold: Percent,
         // s0 governance
         pub general_subnet_application_cost: u64,
@@ -831,6 +830,7 @@ pub mod pallet {
         InvalidProposalCost,
         InvalidGeneralSubnetApplicationCost,
         InvalidProposalExpiration,
+        InvalidMinProposalUptime,
         InvalidProposalParticipationThreshold,
         InsufficientStake,
         VoteNotFound,
@@ -943,6 +943,15 @@ pub mod pallet {
     #[pallet::storage]
     pub type ProposalExpiration<T: Config> =
         StorageValue<_, u32, ValueQuery, DefaultProposalExpiration<T>>;
+
+    #[pallet::type_value]
+    pub fn DefaultMinProposalUptime<T: Config>() -> u32 {
+        0
+    }
+
+    #[pallet::storage]
+    pub type MinProposalUptime<T: Config> =
+        StorageValue<_, u32, ValueQuery, DefaultMinProposalUptime<T>>;
 
     #[pallet::type_value]
     pub fn DefaultProposalParticipationThreshold<T: Config>() -> Percent {
@@ -1191,6 +1200,7 @@ pub mod pallet {
             proposal_cost: u64,              /*amount of $COMAI to create a proposal
                                               * returned if proposal gets accepted */
             proposal_expiration: u32, // the block number, proposal expires at
+            min_proposal_uptime: u32, // minimum uptime for a proposal to be executed
             proposal_participation_threshold: Percent, /*  minimum stake of the overall network
                                        * stake,
                                        *  in order for proposal to get executed */
@@ -1211,6 +1221,7 @@ pub mod pallet {
             params.subnet_stake_threshold = subnet_stake_threshold;
             params.proposal_cost = proposal_cost;
             params.proposal_expiration = proposal_expiration;
+            params.min_proposal_uptime = min_proposal_uptime;
             params.proposal_participation_threshold = proposal_participation_threshold;
             params.general_subnet_application_cost = general_subnet_application_cost;
 

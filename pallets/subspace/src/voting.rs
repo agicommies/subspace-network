@@ -9,6 +9,8 @@ pub struct Proposal<T: Config> {
     pub id: u64,
     pub proposer: T::AccountId,
     pub expiration_block: u64,
+    pub min_uptime_block: u64, /* The block_number that has to pass, before proposal
+                                * can get resolved. */
     pub data: ProposalData<T>,
     pub status: ProposalStatus,
     pub votes_for: BTreeSet<T::AccountId>, // account addresses
@@ -162,6 +164,7 @@ impl<T: Config> Pallet<T> {
         // Create the proposal
         let current_block = Self::get_current_block_number();
         let expiration_block = current_block + proposal_expiration as u64;
+        let min_proposal_uptime_block = current_block + MinProposalUptime::<T>::get() as u64;
 
         // TODO: extract rounding function
         let expiration_block = if expiration_block % 100 == 0 {
@@ -174,6 +177,7 @@ impl<T: Config> Pallet<T> {
             id: proposal_id,
             proposer: key.clone(),
             expiration_block,
+            min_uptime_block: min_proposal_uptime_block,
             data,
             status: ProposalStatus::Pending,
             votes_for: BTreeSet::new(),
@@ -240,7 +244,7 @@ impl<T: Config> Pallet<T> {
         let key = ensure_signed(origin)?;
 
         // --- 2. Ensure that the key is the curator multisig.
-        ensure!(Self::get_curator() == key, Error::<T>::NotCurator);
+        ensure!(Curator::<T>::get() == key, Error::<T>::NotCurator);
 
         let mut application =
             CuratorApplications::<T>::get(application_id).ok_or(Error::<T>::ApplicationNotFound)?;
@@ -423,7 +427,9 @@ impl<T: Config> Pallet<T> {
         for proposal in Proposals::<T>::iter_values() {
             let proposal_id = proposal.id;
 
-            if !matches!(proposal.status, ProposalStatus::Pending) {
+            if proposal.status != ProposalStatus::Pending
+                || proposal.min_uptime_block > block_number
+            {
                 continue;
             }
 
@@ -526,7 +532,7 @@ impl<T: Config> Pallet<T> {
 
     /// Returns how much stake is needed to execute a proposal
     pub fn get_minimal_stake_to_execute(netuid: Option<u16>) -> u64 {
-        let threshold: Percent = Self::get_proposal_participation_threshold();
+        let threshold: Percent = ProposalParticipationThreshold::<T>::get();
 
         let stake = match netuid {
             Some(specific_netuid) => TotalStake::<T>::get(specific_netuid),

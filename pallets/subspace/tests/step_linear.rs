@@ -18,7 +18,7 @@ fn update_params(netuid: u16, tempo: u16, max_weights: u16, min_weights: u16) {
 
 fn check_network_stats(netuid: u16) {
     let emission_buffer: u64 = 1_000; // the numbers arent perfect but we want to make sure they fall within a range (10_000 / 2**64)
-    let threshold = SubspaceModule::get_subnet_stake_threshold();
+    let threshold = SubnetStakeThreshold::<Test>::get();
     let subnet_emission: u64 = SubspaceModule::calculate_network_emission(netuid, threshold);
     let incentives: Vec<u16> = SubspaceModule::get_incentives(netuid);
     let dividends: Vec<u16> = SubspaceModule::get_dividends(netuid);
@@ -645,7 +645,7 @@ fn test_founder_share() {
         info!("founder_stake_before: {founder_stake_before:?}");
         // vote to avoid key[0] as we want to see the key[0] burn
         step_epoch(netuid);
-        let threshold = SubspaceModule::get_subnet_stake_threshold();
+        let threshold = SubnetStakeThreshold::<Test>::get();
         let total_emission = SubspaceModule::calculate_network_emission(netuid, threshold)
             * subnet_params.tempo as u64;
         let expected_founder_share = (total_emission as f64 * founder_ratio) as u64;
@@ -784,7 +784,7 @@ fn test_dao_treasury_distribution_for_subnet_owners() {
         let founder_ratio = 2;
         let treasury_distribution = 2;
 
-        let threshold = SubspaceModule::get_subnet_stake_threshold();
+        let threshold = SubnetStakeThreshold::<Test>::get();
         let total_emission = SubspaceModule::calculate_network_emission(general.0, threshold) * 100;
 
         step_epoch(general.0);
