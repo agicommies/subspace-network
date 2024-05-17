@@ -258,7 +258,7 @@ impl<T: Config> Pallet<T> {
 
     // returns the amount of total modules on the network
     pub fn global_n_modules() -> u16 {
-        Self::netuids().into_iter().map(|netuid| N::<T>::get(netuid)).sum()
+        Self::netuids().into_iter().map(N::<T>::get).sum()
     }
 
     // Whitelist management

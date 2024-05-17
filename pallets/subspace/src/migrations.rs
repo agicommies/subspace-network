@@ -601,12 +601,14 @@ pub mod v8 {
                 log::info!("Migrated burn-related params to BurnConfig in v8");
             }
 
+            let min_proposal_uptime: u32 = 75600;
+
             for proposal in Proposals::<T>::iter_values() {
                 let new_proposal = Proposal::<T> {
                     id: proposal.id,
                     proposer: proposal.proposer,
                     expiration_block: proposal.expiration_block,
-                    min_uptime_block: 0,
+                    min_uptime_block: min_proposal_uptime as u64,
                     data: proposal.data,
                     status: proposal.status,
                     votes_for: proposal.votes_for,
@@ -635,7 +637,7 @@ pub mod v8 {
             log::info!("Treasury account: {treasury_account:?}");
 
             // Expiration is at 130000 (13 days), so 75600 (7 days) is not a problem.
-            MinProposalUptime::<T>::set(75600);
+            MinProposalUptime::<T>::set(min_proposal_uptime);
             log::info!("Migrate MinProposalUptime to 7 days");
 
             StorageVersion::new(8).put::<Pallet<T>>();
