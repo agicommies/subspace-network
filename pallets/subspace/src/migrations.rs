@@ -3,8 +3,8 @@ use super::*;
 use frame_support::{
     traits::{Get, OnRuntimeUpgrade, StorageInstance, StorageVersion},
     weights::Weight,
-    Identity,
 };
+
 impl<T: Config> StorageInstance for Pallet<T> {
     fn pallet_prefix() -> &'static str {
         "Subspace"
@@ -510,14 +510,11 @@ pub mod v8 {
     use self::{
         global::BurnConfiguration,
         old_storage::{
-            AdjustmentAlpha, GlobalDaoTreasury, MaxBurn, MinBurn, Proposals,
-            TargetRegistrationsInterval, TargetRegistrationsPerInterval,
+            AdjustmentAlpha, GlobalDaoTreasury, MaxBurn, MinBurn, TargetRegistrationsInterval,
+            TargetRegistrationsPerInterval,
         },
-        voting::Proposal,
     };
     use super::*;
-    use codec::EncodeLike;
-    use voting::{ProposalData, ProposalStatus};
 
     pub mod old_storage {
         use super::*;
@@ -593,10 +590,6 @@ pub mod v8 {
             let account_balance = Pallet::<T>::get_balance_u64(&treasury_account);
             log::info!("Treasury transferred, treasury account now has {account_balance}");
             log::info!("Treasury account: {treasury_account:?}");
-
-            // Expiration is at 130000 (13 days), so 75600 (7 days) is not a problem.
-            MinProposalUptime::<T>::set(75600);
-            log::info!("Migrate MinProposalUptime to 7 days");
 
             StorageVersion::new(8).put::<Pallet<T>>();
             T::DbWeight::get().writes(1)

@@ -84,9 +84,6 @@ impl<T: Config> Pallet<T> {
             proposal_cost: ProposalCost::<T>::get(), // denominated in $COMAI
             proposal_expiration: ProposalExpiration::<T>::get(), /* denominated in the number of
                                                       * blocks */
-            min_proposal_uptime: MinProposalUptime::<T>::get(), /* The minimal uptime of
-                                                                 * proposal, before it can get
-                                                                 * executed */
             proposal_participation_threshold: ProposalParticipationThreshold::<T>::get(), /* denominated
                                                                                           in percent of the overall network stake */
             // s0 config
@@ -163,11 +160,6 @@ impl<T: Config> Pallet<T> {
         );
 
         ensure!(
-            params.min_proposal_uptime < params.proposal_expiration,
-            Error::<T>::InvalidMinProposalUptime
-        );
-
-        ensure!(
             params.proposal_participation_threshold.deconstruct() <= 100,
             Error::<T>::InvalidProposalParticipationThreshold
         );
@@ -200,7 +192,6 @@ impl<T: Config> Pallet<T> {
         // proposals
         Self::set_proposal_cost(params.proposal_cost);
         Self::set_proposal_expiration(params.proposal_expiration);
-        Self::set_min_proposal_uptime(params.min_proposal_uptime);
         Self::set_proposal_participation_threshold(params.proposal_participation_threshold);
 
         // burn
@@ -238,10 +229,6 @@ impl<T: Config> Pallet<T> {
 
     pub fn set_proposal_expiration(proposal_expiration: u32) {
         ProposalExpiration::<T>::put(proposal_expiration);
-    }
-
-    pub fn set_min_proposal_uptime(min_proposal_uptime: u32) {
-        MinProposalUptime::<T>::put(min_proposal_uptime);
     }
 
     pub fn set_proposal_participation_threshold(proposal_participation_threshold: Percent) {
