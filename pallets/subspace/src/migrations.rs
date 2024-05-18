@@ -601,27 +601,7 @@ pub mod v8 {
                 log::info!("Migrated burn-related params to BurnConfig in v8");
             }
 
-            let min_proposal_uptime: u32 = 75600;
-
-            for proposal in Proposals::<T>::iter_values() {
-                let new_proposal = Proposal::<T> {
-                    id: proposal.id,
-                    proposer: proposal.proposer,
-                    expiration_block: proposal.expiration_block,
-                    min_uptime_block: min_proposal_uptime as u64,
-                    data: proposal.data,
-                    status: proposal.status,
-                    votes_for: proposal.votes_for,
-                    votes_against: proposal.votes_against,
-                    proposal_cost: proposal.proposal_cost,
-                    creation_block: proposal.creation_block,
-                    finalization_block: None,
-                };
-
-                Proposals::<T>::insert(proposal.id, new_proposal);
-            }
-
-            log::info!("Migrated proposal min_uptime_block to 0");
+            let _min_proposal_uptime: u32 = 75600;
 
             let old_treasury_balance = GlobalDaoTreasury::<T>::get();
             let treasury_account = DaoTreasuryAddress::<T>::get();
