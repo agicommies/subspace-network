@@ -541,26 +541,6 @@ pub mod v8 {
 
         #[storage_alias]
         pub type GlobalDaoTreasury<T: Config> = StorageValue<Pallet<T>, u64, ValueQuery>;
-
-        #[derive(Clone, Debug, TypeInfo, Decode, Encode)]
-        #[scale_info(skip_type_params(T))]
-        pub struct OldProposal<T: Config> {
-            pub id: u64,
-            pub proposer: T::AccountId,
-            pub expiration_block: u64,
-            pub data: ProposalData<T>,
-            pub status: ProposalStatus,
-            pub votes_for: BTreeSet<T::AccountId>,
-            pub votes_against: BTreeSet<T::AccountId>,
-            pub proposal_cost: u64,
-            pub creation_block: u64,
-            pub finalization_block: Option<u64>,
-        }
-
-        impl<T: Config> EncodeLike<OldProposal<T>> for Proposal<T> {}
-
-        #[storage_alias]
-        pub(super) type Proposals<T: Config> = StorageMap<Pallet<T>, Identity, u64, OldProposal<T>>;
     }
 
     pub struct MigrateToV8<T>(sp_std::marker::PhantomData<T>);
@@ -601,8 +581,6 @@ pub mod v8 {
                 log::info!("Migrated burn-related params to BurnConfig in v8");
             }
 
-            let _min_proposal_uptime: u32 = 75600;
-
             let old_treasury_balance = GlobalDaoTreasury::<T>::get();
             let treasury_account = DaoTreasuryAddress::<T>::get();
             log::info!("Treasury balance: {old_treasury_balance}");
@@ -617,7 +595,7 @@ pub mod v8 {
             log::info!("Treasury account: {treasury_account:?}");
 
             // Expiration is at 130000 (13 days), so 75600 (7 days) is not a problem.
-            MinProposalUptime::<T>::set(min_proposal_uptime);
+            MinProposalUptime::<T>::set(75600);
             log::info!("Migrate MinProposalUptime to 7 days");
 
             StorageVersion::new(8).put::<Pallet<T>>();
