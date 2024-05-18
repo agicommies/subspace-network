@@ -72,8 +72,6 @@ pub mod pallet {
 
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(8);
 
-    /// The treasury's pallet id, used for deriving its sovereign account ID.
-
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
     #[pallet::without_storage_info]
@@ -82,6 +80,7 @@ pub mod pallet {
     // Configure the pallet by specifying the parameters and types on which it depends.
     #[pallet::config(with_default)]
     pub trait Config: frame_system::Config {
+        /// This pallet's ID, used for generating the treasury account ID.
         #[pallet::constant]
         type PalletId: Get<PalletId>;
         // Because this pallet emits events, it depends on the runtime's definition of an event.
