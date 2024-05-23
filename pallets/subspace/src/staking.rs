@@ -8,7 +8,6 @@ impl<T: Config> Pallet<T> {
     /// Adds stake to multiple modules in a single transaction
     pub fn do_add_stake_multiple(
         origin: T::RuntimeOrigin,
-        netuid: u16,
         module_keys: Vec<T::AccountId>,
         amounts: Vec<u64>,
     ) -> dispatch::DispatchResult {
@@ -39,7 +38,7 @@ impl<T: Config> Pallet<T> {
         // --- 4. Add stake to each module
         for (m_key, amount) in module_keys.iter().zip(amounts.iter()) {
             // do not allow zero amounts in add_stake
-            Self::do_add_stake(origin.clone(), netuid, m_key.clone(), *amount)?;
+            Self::do_add_stake(origin.clone(), m_key.clone(), *amount)?;
         }
 
         // --- 5. Done and ok
@@ -82,7 +81,6 @@ impl<T: Config> Pallet<T> {
 
     pub fn do_remove_stake_multiple(
         origin: T::RuntimeOrigin,
-        netuid: u16,
         module_keys: Vec<T::AccountId>,
         amounts: Vec<u64>,
     ) -> dispatch::DispatchResult {
@@ -104,10 +102,10 @@ impl<T: Config> Pallet<T> {
         // --- 3. Remove stake from each module
         for (m_key, amount) in module_keys.iter().zip(amounts.iter()) {
             ensure!(
-                Self::has_enough_stake(netuid, &key, m_key, *amount),
+                Self::has_enough_stake(&key, m_key, *amount),
                 Error::<T>::NotEnoughStakeToWithdraw
             );
-            Self::do_remove_stake(origin.clone(), netuid, m_key.clone(), *amount)?;
+            Self::do_remove_stake(origin.clone(), m_key.clone(), *amount)?;
         }
 
         // --- 4. Done and ok
@@ -117,7 +115,6 @@ impl<T: Config> Pallet<T> {
     /// Transfers stake from one module to another
     pub fn do_transfer_stake(
         origin: T::RuntimeOrigin,
-        netuid: u16,
         module_key: T::AccountId,
         new_module_key: T::AccountId,
         amount: u64,
@@ -128,25 +125,25 @@ impl<T: Config> Pallet<T> {
         // --- 2. Check if both modules are registered
         // --- 2.1 old module check
         ensure!(
-            Self::is_registered(netuid, &module_key),
+            Self::is_registered(None, &module_key),
             Error::<T>::NotRegistered
         );
         // --- 2.2 new module check
         ensure!(
-            Self::is_registered(netuid, &new_module_key),
+            Self::is_registered(None, &new_module_key),
             Error::<T>::NotRegistered
         );
 
         // --- 3. Check if the caller has enough stake in the old module
         ensure!(
-            Self::has_enough_stake(netuid, &key, &module_key, amount),
+            Self::has_enough_stake(&key, &module_key, amount),
             Error::<T>::NotEnoughStakeToWithdraw
         );
 
         // --- 4. Remove stake from the source module and add it to the destination module
-        Self::do_remove_stake(origin.clone(), netuid, module_key.clone(), amount)?;
+        Self::do_remove_stake(origin.clone(), module_key.clone(), amount)?;
         // don't allow zero stakes
-        Self::do_add_stake(origin.clone(), netuid, new_module_key, amount)?;
+        Self::do_add_stake(origin.clone(), new_module_key, amount)?;
 
         // --- 5. Done and ok
         Ok(())
@@ -154,7 +151,6 @@ impl<T: Config> Pallet<T> {
 
     pub fn do_add_stake(
         origin: T::RuntimeOrigin,
-        netuid: u16,
         module_key: T::AccountId,
         amount: u64,
     ) -> dispatch::DispatchResult {
@@ -164,7 +160,7 @@ impl<T: Config> Pallet<T> {
 
         // --- 2. We check that the module is registered.
         ensure!(
-            Self::is_registered(netuid, &module_key.clone()),
+            Self::is_registered(None, &module_key.clone()),
             Error::<T>::NotRegistered
         );
 
@@ -182,20 +178,20 @@ impl<T: Config> Pallet<T> {
         );
 
         // -- 5. Check before values
-        let stake_before_add: u64 = Self::get_stake_to_module(netuid, &key, &module_key.clone());
+        let stake_before_add: u64 = Self::get_stake_to_module(&key, &module_key.clone());
         let balance_before_add: u64 = Self::get_balance_u64(&key);
-        let module_stake_before_add: u64 = Stake::<T>::get(netuid, &module_key);
+        let module_stake_before_add: u64 = Stake::<T>::get(&module_key);
 
         // --- 6. We remove the balance from the key.
         Self::remove_balance_from_account(&key, removed_balance_as_currency.unwrap())?;
 
         // --- 7. We add the stake to the module.
-        Self::increase_stake(netuid, &key, &module_key, amount);
+        Self::increase_stake(&key, &module_key, amount);
 
         // -- 8. Check after values
-        let stake_after_add: u64 = Self::get_stake_to_module(netuid, &key, &module_key.clone());
+        let stake_after_add: u64 = Self::get_stake_to_module(&key, &module_key.clone());
         let balance_after_add: u64 = Self::get_balance_u64(&key);
-        let module_stake_after_add = Stake::<T>::get(netuid, &module_key);
+        let module_stake_after_add = Stake::<T>::get(&module_key);
 
         // -- 9. Make sure everything went as expected.
         // Otherwise these ensurers will revert the storage changes.
@@ -220,7 +216,6 @@ impl<T: Config> Pallet<T> {
 
     pub fn do_remove_stake(
         origin: T::RuntimeOrigin,
-        netuid: u16,
         module_key: T::AccountId,
         amount: u64,
     ) -> dispatch::DispatchResult {
@@ -230,13 +225,13 @@ impl<T: Config> Pallet<T> {
 
         // --- 2. We check that the module is registered.
         ensure!(
-            Self::is_registered(netuid, &module_key.clone()),
+            Self::is_registered(None, &module_key.clone()),
             Error::<T>::NotRegistered
         );
 
         // --- 3. We check that the caller has enough stake in the module.
         ensure!(
-            Self::has_enough_stake(netuid, &key, &module_key, amount),
+            Self::has_enough_stake(&key, &module_key, amount),
             Error::<T>::NotEnoughStakeToWithdraw
         );
 
@@ -248,20 +243,20 @@ impl<T: Config> Pallet<T> {
         );
 
         // -- 5. Check before values
-        let stake_before_remove: u64 = Self::get_stake_to_module(netuid, &key, &module_key.clone());
+        let stake_before_remove: u64 = Self::get_stake_to_module(&key, &module_key.clone());
         let balance_before_remove: u64 = Self::get_balance_u64(&key);
-        let module_stake_before_remove: u64 = Stake::<T>::get(netuid, &module_key);
+        let module_stake_before_remove: u64 = Stake::<T>::get(&module_key);
 
         // --- 6. We remove the balance from the key.
-        Self::decrease_stake(netuid, &key, &module_key, amount);
+        Self::decrease_stake(&key, &module_key, amount);
 
         // --- 7. We add the balancer to the key. If the above fails we will not credit this key.
         Self::add_balance_to_account(&key, Self::u64_to_balance(amount).unwrap());
 
         // --- 8. Check after values
-        let stake_after_remove: u64 = Self::get_stake_to_module(netuid, &key, &module_key.clone());
+        let stake_after_remove: u64 = Self::get_stake_to_module(&key, &module_key.clone());
         let balance_after_remove: u64 = Self::get_balance_u64(&key);
-        let module_stake_after_remove = Stake::<T>::get(netuid, &module_key);
+        let module_stake_after_remove = Stake::<T>::get(&module_key);
 
         // -- 9. Make sure everything went as expected.
         // Otherwise these ensurers will revert the storage changes.
@@ -285,18 +280,19 @@ impl<T: Config> Pallet<T> {
     }
 
     /// Returns the total amount of stake in the staking table.
-    pub fn get_total_subnet_stake(netuid: u16) -> u64 {
-        TotalStake::<T>::get(netuid)
-    }
 
     /// Returns the total amount of stake in the staking table.
     pub fn total_stake() -> u64 {
-        TotalStake::<T>::iter().map(|(_, stake)| stake).sum()
+        TotalStake::<T>::get()
+    }
+
+    pub fn get_total_subnet_stake(_netuid: u16) -> u64 {
+        0 // TODO: placeholder, replace with subnet pricing
     }
 
     /// Returns the stake under the cold - hot pairing in the staking table.
-    pub fn get_stake(netuid: u16, key: &T::AccountId) -> u64 {
-        Stake::<T>::get(netuid, key)
+    pub fn get_stake(key: &T::AccountId) -> u64 {
+        Stake::<T>::get(key)
     }
 
     // Returns the delegation fee of a module
@@ -307,65 +303,47 @@ impl<T: Config> Pallet<T> {
         delegation_fee.max(min_deleg_fee_global)
     }
 
-    pub fn has_enough_stake(
-        netuid: u16,
-        key: &T::AccountId,
-        module_key: &T::AccountId,
-        amount: u64,
-    ) -> bool {
-        amount > 0 && Self::get_stake_to_module(netuid, key, module_key) >= amount
+    pub fn has_enough_stake(key: &T::AccountId, module_key: &T::AccountId, amount: u64) -> bool {
+        amount > 0 && Self::get_stake_to_module(key, module_key) >= amount
     }
 
-    pub fn get_stake_to_module(netuid: u16, key: &T::AccountId, module_key: &T::AccountId) -> u64 {
-        Self::get_stake_to_vector(netuid, key)
+    pub fn get_stake_to_module(key: &T::AccountId, module_key: &T::AccountId) -> u64 {
+        Self::get_stake_to_vector(key)
             .into_iter()
             .find(|(k, _)| k == module_key)
             .map(|(_, v)| v)
             .unwrap_or(0)
     }
 
-    pub fn get_stake_to_vector(netuid: u16, key: &T::AccountId) -> BTreeMap<T::AccountId, u64> {
-        StakeTo::<T>::get(netuid, key)
+    pub fn get_stake_to_vector(key: &T::AccountId) -> BTreeMap<T::AccountId, u64> {
+        StakeTo::<T>::get(key)
     }
 
-    pub fn set_stake_to_vector(
-        netuid: u16,
-        key: &T::AccountId,
-        stake_to_vector: BTreeMap<T::AccountId, u64>,
-    ) {
+    pub fn set_stake_to_vector(key: &T::AccountId, stake_to_vector: BTreeMap<T::AccountId, u64>) {
         if stake_to_vector.is_empty() {
-            StakeTo::<T>::remove(netuid, key);
+            StakeTo::<T>::remove(key);
         } else {
-            StakeTo::<T>::insert(netuid, key, stake_to_vector);
+            StakeTo::<T>::insert(key, stake_to_vector);
         }
     }
 
     pub fn set_stake_from_vector(
-        netuid: u16,
         module_key: &T::AccountId,
         stake_from_vector: BTreeMap<T::AccountId, u64>,
     ) {
-        StakeFrom::<T>::insert(netuid, module_key, stake_from_vector);
+        StakeFrom::<T>::insert(module_key, stake_from_vector);
     }
 
-    pub fn get_stake_from_vector(
-        netuid: u16,
-        module_key: &T::AccountId,
-    ) -> BTreeMap<T::AccountId, u64> {
-        StakeFrom::<T>::get(netuid, module_key).into_iter().collect::<BTreeMap<_, _>>()
+    pub fn get_stake_from_vector(module_key: &T::AccountId) -> BTreeMap<T::AccountId, u64> {
+        StakeFrom::<T>::get(module_key).into_iter().collect::<BTreeMap<_, _>>()
     }
 
-    pub fn get_total_stake_to(netuid: u16, key: &T::AccountId) -> u64 {
-        Self::get_stake_to_vector(netuid, key).into_values().sum()
+    pub fn get_total_stake_to(key: &T::AccountId) -> u64 {
+        Self::get_stake_to_vector(key).into_values().sum()
     }
 
-    pub fn increase_stake(
-        netuid: u16,
-        key: &T::AccountId,
-        module_key: &T::AccountId,
-        amount: u64,
-    ) -> bool {
-        let mut stake_from_vector = Self::get_stake_from_vector(netuid, module_key);
+    pub fn increase_stake(key: &T::AccountId, module_key: &T::AccountId, amount: u64) -> bool {
+        let mut stake_from_vector = Self::get_stake_from_vector(module_key);
         let found_key_in_vector = stake_from_vector.iter_mut().find(|(k, _)| *k == key);
         if let Some((_, v)) = found_key_in_vector {
             *v = v.saturating_add(amount);
@@ -374,7 +352,7 @@ impl<T: Config> Pallet<T> {
         }
 
         // reset the stake to vector, as we have updated the stake_to_vector
-        let mut stake_to_vector = Self::get_stake_to_vector(netuid, key);
+        let mut stake_to_vector = Self::get_stake_to_vector(key);
         let found_key_in_vector = stake_to_vector.iter_mut().find(|(k, _)| *k == module_key);
         if let Some((_, v)) = found_key_in_vector {
             *v = v.saturating_add(amount);
@@ -382,27 +360,18 @@ impl<T: Config> Pallet<T> {
             stake_to_vector.insert(module_key.clone(), amount);
         }
 
-        Self::set_stake_to_vector(netuid, key, stake_to_vector);
-        Self::set_stake_from_vector(netuid, module_key, stake_from_vector);
+        Self::set_stake_to_vector(key, stake_to_vector);
+        Self::set_stake_from_vector(module_key, stake_from_vector);
 
-        Stake::<T>::mutate(netuid, module_key, |stake| {
-            *stake = stake.saturating_add(amount)
-        });
-        TotalStake::<T>::mutate(netuid, |total_stake| {
-            *total_stake = total_stake.saturating_add(amount)
-        });
+        Stake::<T>::mutate(module_key, |stake| *stake = stake.saturating_add(amount));
+        TotalStake::<T>::mutate(|total_stake| *total_stake = total_stake.saturating_add(amount));
 
         true
     }
 
-    pub fn decrease_stake(
-        netuid: u16,
-        key: &T::AccountId,
-        module_key: &T::AccountId,
-        amount: u64,
-    ) -> bool {
+    pub fn decrease_stake(key: &T::AccountId, module_key: &T::AccountId, amount: u64) -> bool {
         // FROM DELEGATE STAKE
-        let mut stake_from_vector = Self::get_stake_from_vector(netuid, module_key);
+        let mut stake_from_vector = Self::get_stake_from_vector(module_key);
         for (k, v) in stake_from_vector.iter_mut() {
             if k == key {
                 let remaining_stake = v.saturating_sub(amount);
@@ -411,9 +380,9 @@ impl<T: Config> Pallet<T> {
             }
         }
         stake_from_vector.retain(|_, v| *v != 0);
-        Self::set_stake_from_vector(netuid, module_key, stake_from_vector);
+        Self::set_stake_from_vector(module_key, stake_from_vector);
 
-        let mut stake_to_vector = Self::get_stake_to_vector(netuid, key);
+        let mut stake_to_vector = Self::get_stake_to_vector(key);
         // TO STAKE
         for (k, v) in stake_to_vector.iter_mut() {
             if k == module_key {
@@ -423,31 +392,27 @@ impl<T: Config> Pallet<T> {
             }
         }
         stake_to_vector.retain(|_, v| *v != 0);
-        Self::set_stake_to_vector(netuid, key, stake_to_vector);
+        Self::set_stake_to_vector(key, stake_to_vector);
 
         // --- 8. We add the balancer to the key. If the above fails we will not credit this key.
-        Stake::<T>::mutate(netuid, module_key, |stake| {
-            *stake = stake.saturating_sub(amount)
-        });
-        TotalStake::<T>::mutate(netuid, |total_stake| {
-            *total_stake = total_stake.saturating_sub(amount)
-        });
+        Stake::<T>::mutate(module_key, |stake| *stake = stake.saturating_sub(amount));
+        TotalStake::<T>::mutate(|total_stake| *total_stake = total_stake.saturating_sub(amount));
         true
     }
 
     // Decreases the stake by the amount while decreasing other counters.
-    pub fn remove_stake_from_storage(netuid: u16, module_key: &T::AccountId) {
-        let stake_from_vector = Self::get_stake_from_vector(netuid, module_key);
+    pub fn remove_stake_from_storage(module_key: &T::AccountId) {
+        let stake_from_vector = Self::get_stake_from_vector(module_key);
         for (delegate_key, delegate_stake_amount) in stake_from_vector.iter() {
-            Self::decrease_stake(netuid, delegate_key, module_key, *delegate_stake_amount);
+            Self::decrease_stake(delegate_key, module_key, *delegate_stake_amount);
             Self::add_balance_to_account(
                 delegate_key,
                 Self::u64_to_balance(*delegate_stake_amount).unwrap(),
             );
         }
 
-        StakeFrom::<T>::remove(netuid, module_key);
-        Stake::<T>::remove(netuid, module_key);
+        StakeFrom::<T>::remove(module_key);
+        Stake::<T>::remove(module_key);
     }
 
     pub fn add_balance_to_account(key: &T::AccountId, amount: BalanceOf<T>) {

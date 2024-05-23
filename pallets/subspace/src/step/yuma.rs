@@ -216,7 +216,7 @@ impl<T: Config> YumaCalc<T> {
 
         for (module_key, server_emission, mut validator_emission) in result {
             let mut increase_stake = |account_key: &AccountKey<T>, amount: u64| {
-                Pallet::<T>::increase_stake(self.netuid, &account_key.0, &module_key.0, amount);
+                Pallet::<T>::increase_stake(&account_key.0, &module_key.0, amount);
                 *emissions
                     .entry(module_key.clone())
                     .or_default()
@@ -322,9 +322,10 @@ impl<T: Config> YumaCalc<T> {
 
     fn compute_stake(&self) -> Result<StakeVal, &'static str> {
         let mut keys_map: BTreeMap<_, _> = Uids::<T>::iter_prefix(self.netuid).collect();
-        let stake_map: BTreeMap<_, _> = Stake::<T>::iter_prefix(self.netuid)
+        let stake_map: BTreeMap<_, _> = Stake::<T>::iter()
             .filter_map(|(k, v)| Some((keys_map.remove(&k)?, I64F64::from_num(v))))
             .collect();
+
         let mut stake: Vec<_> = stake_map.into_values().collect();
 
         ensure!(

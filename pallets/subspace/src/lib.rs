@@ -554,39 +554,23 @@ pub mod pallet {
     //  Module Staking Variables
     /// ---------------------------------
 
-    #[pallet::storage] // --- DMAP ( netuid, module_key ) --> stake | Returns the stake under a module.
-    pub type Stake<T: Config> =
-        StorageDoubleMap<_, Identity, u16, Identity, T::AccountId, u64, ValueQuery>;
+    #[pallet::storage] // --- MAP ( module_key ) --> stake | Returns the stake under a module.
+    pub type Stake<T: Config> = StorageMap<_, Identity, T::AccountId, u64, ValueQuery>;
 
-    #[pallet::storage] // --- DMAP ( netuid, module_key ) --> Vec<(delegater, stake )> | Returns the list of delegates
+    #[pallet::storage] // --- DMAP ( module_key ) --> Vec<(delegater, stake )> | Returns the list of delegates
                        // and their staked amount under a module
-    pub type StakeFrom<T: Config> = StorageDoubleMap<
-        _,
-        Identity,
-        u16,
-        Identity,
-        T::AccountId,
-        BTreeMap<T::AccountId, u64>,
-        ValueQuery,
-    >;
+    pub type StakeFrom<T: Config> =
+        StorageMap<_, Identity, T::AccountId, BTreeMap<T::AccountId, u64>, ValueQuery>;
 
-    #[pallet::storage] // --- DMAP ( netuid, account_id ) --> Vec<(module_key, stake )> | Returns the list of the
-    pub type StakeTo<T: Config> = StorageDoubleMap<
-        _,
-        Identity,
-        u16,
-        Identity,
-        T::AccountId,
-        BTreeMap<T::AccountId, u64>,
-        ValueQuery,
-    >;
+    #[pallet::storage] // --- DMAP ( account_id ) --> Vec<(module_key, stake )> | Returns the list of the
+    pub type StakeTo<T: Config> =
+        StorageMap<_, Identity, T::AccountId, BTreeMap<T::AccountId, u64>, ValueQuery>;
 
     #[pallet::storage] // --- MAP( netuid ) --> lowest_subnet
     pub type SubnetGaps<T> = StorageValue<_, BTreeSet<u16>, ValueQuery>;
 
-    // TOTAL STAKE PER SUBNET
-    #[pallet::storage] // --- MAP ( netuid ) --> subnet_total_stake
-    pub type TotalStake<T> = StorageMap<_, Identity, u16, u64, ValueQuery>;
+    #[pallet::storage]
+    pub type TotalStake<T> = StorageValue<_, u64, ValueQuery>;
 
     // PROFIT SHARE VARIABLES
     #[pallet::storage] // --- DMAP ( netuid, account_id ) --> Vec<(module_key, stake )> | Returns the list of the
@@ -918,7 +902,7 @@ pub mod pallet {
 
                 for (key, stake_to) in self.stake_to[netuid as usize].iter() {
                     for (module_key, stake_amount) in stake_to {
-                        self::Pallet::<T>::increase_stake(netuid, key, module_key, *stake_amount);
+                        self::Pallet::<T>::increase_stake(key, module_key, *stake_amount);
                     }
                 }
             }
@@ -1020,22 +1004,20 @@ pub mod pallet {
         #[pallet::weight((T::WeightInfo::add_stake(), DispatchClass::Normal, Pays::No))]
         pub fn add_stake(
             origin: OriginFor<T>,
-            netuid: u16,
             module_key: T::AccountId,
             amount: u64,
         ) -> DispatchResult {
-            Self::do_add_stake(origin, netuid, module_key, amount)
+            Self::do_add_stake(origin, module_key, amount)
         }
 
         #[pallet::call_index(2)]
         #[pallet::weight((T::WeightInfo::remove_stake(), DispatchClass::Normal, Pays::No))]
         pub fn remove_stake(
             origin: OriginFor<T>,
-            netuid: u16,
             module_key: T::AccountId,
             amount: u64,
         ) -> DispatchResult {
-            Self::do_remove_stake(origin, netuid, module_key, amount)
+            Self::do_remove_stake(origin, module_key, amount)
         }
 
         // ---------------------------------
@@ -1046,22 +1028,20 @@ pub mod pallet {
         #[pallet::weight((T::WeightInfo::add_stake_multiple(), DispatchClass::Normal, Pays::No))]
         pub fn add_stake_multiple(
             origin: OriginFor<T>,
-            netuid: u16,
             module_keys: Vec<T::AccountId>,
             amounts: Vec<u64>,
         ) -> DispatchResult {
-            Self::do_add_stake_multiple(origin, netuid, module_keys, amounts)
+            Self::do_add_stake_multiple(origin, module_keys, amounts)
         }
 
         #[pallet::call_index(4)]
         #[pallet::weight((T::WeightInfo::remove_stake_multiple(), DispatchClass::Normal, Pays::No))]
         pub fn remove_stake_multiple(
             origin: OriginFor<T>,
-            netuid: u16,
             module_keys: Vec<T::AccountId>,
             amounts: Vec<u64>,
         ) -> DispatchResult {
-            Self::do_remove_stake_multiple(origin, netuid, module_keys, amounts)
+            Self::do_remove_stake_multiple(origin, module_keys, amounts)
         }
 
         // ---------------------------------
@@ -1072,12 +1052,11 @@ pub mod pallet {
         #[pallet::weight((T::WeightInfo::transfer_stake(), DispatchClass::Normal, Pays::No))]
         pub fn transfer_stake(
             origin: OriginFor<T>,         // --- The account that is calling this function.
-            netuid: u16,                  // --- The network id.
             module_key: T::AccountId,     // --- The module key.
             new_module_key: T::AccountId, // --- The new module key.
             amount: u64,                  // --- The amount of stake to transfer.
         ) -> DispatchResult {
-            Self::do_transfer_stake(origin, netuid, module_key, new_module_key, amount)
+            Self::do_transfer_stake(origin, module_key, new_module_key, amount)
         }
 
         #[pallet::call_index(6)]
@@ -1129,7 +1108,10 @@ pub mod pallet {
             metadata: Option<Vec<u8>>,
         ) -> DispatchResult {
             let key = ensure_signed(origin.clone())?;
-            ensure!(Self::is_registered(netuid, &key), Error::<T>::NotRegistered);
+            ensure!(
+                Self::is_registered(Some(netuid), &key),
+                Error::<T>::NotRegistered
+            );
 
             let params = Self::module_params(netuid, &key);
 
@@ -1421,7 +1403,7 @@ pub mod pallet {
         // --- Returns the transaction priority for setting weights.
         pub fn get_priority_stake(key: &T::AccountId, netuid: u16) -> u64 {
             if Uids::<T>::contains_key(netuid, key) {
-                return Self::get_stake(netuid, key);
+                return Self::get_stake(key);
             }
             0
         }

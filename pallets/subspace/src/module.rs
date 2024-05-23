@@ -178,7 +178,7 @@ impl<T: Config> Pallet<T> {
         N::<T>::mutate(netuid, |n| *n += 1);
 
         // increase the stake of the new key
-        Self::increase_stake(netuid, key, key, 0);
+        Self::increase_stake(key, key, 0);
 
         Ok(uid)
     }
@@ -298,7 +298,7 @@ impl<T: Config> Pallet<T> {
         DelegationFee::<T>::remove(netuid, &replace_key); // Make uid - key association.
 
         // remove stake from old key and add to new key
-        Self::remove_stake_from_storage(netuid, &module_key);
+        Self::remove_stake_from_storage(&module_key);
 
         // 3. Remove the network if it is empty.
         let module_count = N::<T>::mutate(netuid, |v| {
@@ -324,7 +324,7 @@ impl<T: Config> Pallet<T> {
             .iter()
             .filter_map(|(i, w)| if *w > 0 { Some((*i, *w)) } else { None })
             .collect();
-        let stake_from: BTreeMap<T::AccountId, u64> = StakeFrom::<T>::get(netuid, key);
+        let stake_from: BTreeMap<T::AccountId, u64> = StakeFrom::<T>::get(key);
 
         let registration_block = RegistrationBlock::<T>::get(netuid, uid);
 

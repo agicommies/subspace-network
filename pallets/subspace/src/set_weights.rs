@@ -72,7 +72,7 @@ impl<T: Config> Pallet<T> {
         ensure!(!uids.contains(&uid), Error::<T>::NoSelfWeight);
 
         // --- 10. Get the stake for the key.
-        let stake: u64 = Stake::<T>::get(netuid, &key);
+        let stake: u64 = Stake::<T>::get(&key);
 
         // --- 11. Check if the stake per weight is greater than the required minimum stake.
         let min_stake_per_weight: u64 = MinWeightStake::<T>::get();

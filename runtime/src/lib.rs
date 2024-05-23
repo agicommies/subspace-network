@@ -109,13 +109,6 @@ pub mod opaque {
 }
 
 pub type Migrations = (
-    pallet_subspace::migrations::v1::MigrateToV1<Runtime>,
-    pallet_subspace::migrations::v2::MigrateToV2<Runtime>,
-    pallet_subspace::migrations::v3::MigrateToV3<Runtime>,
-    pallet_subspace::migrations::v4::MigrateToV4<Runtime>,
-    pallet_subspace::migrations::v5::MigrateToV5<Runtime>,
-    pallet_subspace::migrations::v6::MigrateToV6<Runtime>,
-    pallet_subspace::migrations::v7::MigrateToV7<Runtime>,
     pallet_grandpa::migrations::MigrateV4ToV5<Runtime>,
     pallet_subspace::migrations::v8::MigrateToV8<Runtime>,
     pallet_governance::migrations::InitialMigration<Runtime>,
@@ -377,6 +370,11 @@ impl pallet_governance::Config for Runtime {
     type DefaultProposalCost = ConstU64<10_000_000_000_000>;
 }
 
+impl pallet_subnet_pricing::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+}
+
 pub const WEIGHT_MILLISECS_PER_BLOCK: u64 = 2000;
 pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
     WEIGHT_MILLISECS_PER_BLOCK * WEIGHT_REF_TIME_PER_MILLIS,
@@ -433,6 +431,7 @@ construct_runtime!(
         Utility: pallet_utility,
         SubspaceModule: pallet_subspace,
         GovernanceModule: pallet_governance,
+        SubnetPricingModule: pallet_subnet_pricing,
 
         // EVM Support
         BaseFee: pallet_base_fee,

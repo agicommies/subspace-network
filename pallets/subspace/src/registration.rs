@@ -157,12 +157,12 @@ impl<T: Config> Pallet<T> {
 
         // --- 9. Add the stake to the module, now that it is registered on the network.
         // allow to register with zero stake
-        Self::do_add_stake(origin, netuid, module_key.clone(), stake)?;
+        Self::do_add_stake(origin, module_key.clone(), stake)?;
 
         // constant -> current_burn logic
         if current_burn > 0 {
             // if min burn is present, decrease the stake by the min burn
-            Self::decrease_stake(netuid, &key, &module_key, current_burn);
+            Self::decrease_stake(&key, &module_key, current_burn);
         }
 
         // Make sure that the registration went through.

@@ -1,5 +1,5 @@
 [workspace]
-members = ["node", "pallets/subspace", "pallets/governance", "runtime", "xtask"]
+members = ["node", "pallets/subspace", "pallets/governance", "runtime", "xtask", "pallets/subnet_pricing"]
 resolver = "2"
 
 [profile.release]

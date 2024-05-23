@@ -203,8 +203,6 @@ impl<T: Config> Pallet<T> {
             return 0;
         }
 
-        Self::remove_netuid_stake_storage(netuid);
-
         SubnetNames::<T>::remove(netuid);
         MaxWeightAge::<T>::remove(netuid);
         Name::<T>::clear_prefix(netuid, u32::MAX, None);
@@ -359,7 +357,7 @@ impl<T: Config> Pallet<T> {
     // This is the total stake of the network without subnets that can not get emission
     // TODO: could be optimized
     pub fn adjust_total_stake(subnet_stake_threshold: Percent) -> I64F64 {
-        let total_global_stake = I64F64::from_num(Self::total_stake());
+        let total_global_stake = I64F64::from_num(TotalStake::<T>::get());
         if total_global_stake == 0 {
             return I64F64::from_num(0);
         }
@@ -441,10 +439,10 @@ impl<T: Config> Pallet<T> {
     // ---------------------------------
     // Getters
     // ---------------------------------
+
+    // TODO: fix this one
     pub fn get_least_staked_netuid() -> (u16, u64) {
-        TotalStake::<T>::iter()
-            .min_by_key(|(_, stake)| *stake)
-            .unwrap_or_else(|| (MaxAllowedSubnets::<T>::get() - 1, u64::MAX))
+        (0, 0) // FIXME: local stake problem
     }
 
     pub fn get_min_allowed_weights(netuid: u16) -> u16 {
@@ -523,8 +521,20 @@ impl<T: Config> Pallet<T> {
         Self::netuids().iter().any(|&netuid| Uids::<T>::contains_key(netuid, key))
     }
 
-    pub fn is_registered(netuid: u16, key: &T::AccountId) -> bool {
-        Uids::<T>::contains_key(netuid, key)
+    pub fn is_registered(network: Option<u16>, key: &T::AccountId) -> bool {
+        match network {
+            Some(netuid) => Uids::<T>::contains_key(netuid, key),
+            None => {
+                let mut is_registered = false;
+                for netuid in N::<T>::iter_keys() {
+                    if Uids::<T>::contains_key(netuid, key) {
+                        is_registered = true;
+                        break;
+                    }
+                }
+                is_registered
+            }
+        }
     }
 
     pub fn if_subnet_exist(netuid: u16) -> bool {
@@ -540,15 +550,5 @@ impl<T: Config> Pallet<T> {
         <N<T> as IterableStorageMap<u16, u16>>::iter()
             .map(|(netuid, _)| netuid)
             .collect()
-    }
-
-    pub fn remove_netuid_stake_storage(netuid: u16) {
-        // --- 1. Erase network stake, and remove network from list of networks.
-        Stake::<T>::iter_key_prefix(netuid)
-            .for_each(|key| Self::remove_stake_from_storage(netuid, &key));
-
-        // --- 4. Remove all stake.
-        Stake::<T>::remove_prefix(netuid, None);
-        TotalStake::<T>::remove(netuid);
     }
 }

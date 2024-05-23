@@ -60,7 +60,10 @@ impl<T: Config> Pallet<T> {
             let _ = SetWeightCallsPerEpoch::<T>::clear_prefix(netuid, u32::MAX, None);
 
             let has_enough_stake_for_yuma = || {
-                let subnet_stake = Self::get_total_subnet_stake(netuid) as u128;
+                // TODO: placeholder, i just need this to compile, this will be replaced by subnet
+                // pricing, everything that is not S0 will run yuma (and has non
+                // negative emission)
+                let subnet_stake = 0; //Self::get_total_subnet_stake(netuid) as u128;
 
                 // TODO: simplify this to just checking if there are pending emission
                 if total_stake == 0 {
@@ -122,7 +125,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         let total_stake_u64: u64 = Self::get_total_subnet_stake(netuid).max(1);
 
         let stake_u64: Vec<u64> =
-            uid_key_tuples.iter().map(|(_, key)| Stake::<T>::get(netuid, key)).collect();
+            uid_key_tuples.iter().map(|(_, key)| Stake::<T>::get(key)).collect();
 
         let stake_f64: Vec<I64F64> = stake_u64
             .iter()
@@ -264,7 +267,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                             .to_num::<u64>();
                     let to_module: u64 = delegation_fee.mul_floor(dividends_from_delegate);
                     let to_delegate: u64 = dividends_from_delegate.saturating_sub(to_module);
-                    Self::increase_stake(netuid, delegate_key, module_key, to_delegate);
+                    Self::increase_stake(delegate_key, module_key, to_delegate);
                     emitted = emitted.saturating_add(to_delegate);
                     owner_dividends_emission = owner_dividends_emission.saturating_sub(to_delegate);
                 }
@@ -277,16 +280,11 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
 
                 if !profit_share_emissions.is_empty() {
                     for (profit_share_key, profit_share_emission) in profit_share_emissions.iter() {
-                        Self::increase_stake(
-                            netuid,
-                            profit_share_key,
-                            module_key,
-                            *profit_share_emission,
-                        );
+                        Self::increase_stake(profit_share_key, module_key, *profit_share_emission);
                         emitted = emitted.saturating_add(*profit_share_emission);
                     }
                 } else {
-                    Self::increase_stake(netuid, module_key, module_key, owner_emission);
+                    Self::increase_stake(module_key, module_key, owner_emission);
                     emitted = emitted.saturating_add(owner_emission);
                 }
             }
@@ -294,7 +292,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
 
         let total_stake = Self::total_stake() as u128;
         let total_yuma_stake = total_stake - Self::get_total_subnet_stake(0) as u128;
-        let subnet_stake_threshold = SubnetStakeThreshold::<T>::get();
+        let _subnet_stake_threshold = SubnetStakeThreshold::<T>::get(); // FIXME
 
         if netuid == 0 && founder_emission > 0 {
             let mut founder_emission = founder_emission;
@@ -304,23 +302,23 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                 let to_distribute = distribution.mul_floor(founder_emission);
                 founder_emission = founder_emission.saturating_sub(to_distribute);
 
-                let stakes: BTreeMap<_, _> = TotalStake::<T>::iter()
-                    .filter(|(n, _)| *n != 0)
-                    .filter(|(_, s)| {
-                        let total_stake_percentage =
-                            Percent::from_parts(((*s as u128 * 100) / total_stake) as u8);
-                        total_stake_percentage >= subnet_stake_threshold
-                    })
-                    .collect();
-                let total_yuma_stake = stakes.values().copied().sum::<u64>() as u128;
+                // TODO:
+                // FIXME:
+                // This is old local stake logic over there, we need to replace it with the new one
+                let stakes = TotalStake::<T>::get();
+                let total_yuma_stake = stakes; // PLACEHOLDER
 
-                for (netuid, founder_key) in Founder::<T>::iter().filter(|(n, _)| *n != 0) {
-                    let Some(subnet_stake) = stakes.get(&netuid) else {
+                // FIXME
+                for (_netuid, founder_key) in Founder::<T>::iter().filter(|(n, _)| *n != 0) {
+                    let Some(subnet_stake) = Some(0) else {
+                        // Place holder
                         continue;
                     };
+
                     let yuma_stake_percentage = Percent::from_parts(
-                        ((*subnet_stake as u128 * 100) / total_yuma_stake) as u8,
+                        ((subnet_stake as u128 * 100) / (total_yuma_stake as u128)) as u8,
                     );
+
                     let founder_distribution = yuma_stake_percentage.mul_floor(to_distribute);
                     Self::add_balance_to_account(
                         &founder_key,
@@ -589,7 +587,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         netuid: u16,
         module_key: &T::AccountId,
     ) -> Vec<(T::AccountId, I64F64)> {
-        let stake_from_vector = Self::get_stake_from_vector(netuid, module_key);
+        let stake_from_vector = Self::get_stake_from_vector(module_key);
         let _uid = Self::get_uid_for_key(netuid, module_key);
         let mut total_stake_from: I64F64 = I64F64::from_num(0);
 
@@ -664,17 +662,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
     }
 
     // gets the overall stake value for a given account_id,
-    // if netuid is present only the specific subnet will be used
-    pub fn get_account_stake(account_id: &T::AccountId, netuid: Option<u16>) -> u64 {
-        match netuid {
-            Some(specific_netuid) => {
-                StakeTo::<T>::get(specific_netuid, account_id).into_values().sum()
-            }
-            None => N::<T>::iter()
-                .map(|(netuid, _)| netuid)
-                .filter_map(|netuid| StakeTo::<T>::try_get(netuid, account_id).ok())
-                .flat_map(|entries| entries.into_values())
-                .sum(),
-        }
+    pub fn get_account_stake(account_id: &T::AccountId) -> u64 {
+        StakeTo::<T>::get(account_id).into_values().sum()
     }
 }

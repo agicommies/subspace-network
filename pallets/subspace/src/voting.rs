@@ -372,11 +372,7 @@ impl<T: Config> Pallet<T> {
             Error::<T>::AlreadyVoted
         );
 
-        // Get the netuid from the proposal data
-        let netuid = proposal.data.netuid();
-
-        // Get the voter's stake
-        let voter_stake = Self::get_account_stake(&key, netuid);
+        let voter_stake = Self::get_account_stake(&key);
 
         // Check if the voter has non-zero stake
         ensure!(voter_stake > 0, Error::<T>::InsufficientStake);
@@ -430,12 +426,9 @@ impl<T: Config> Pallet<T> {
             let netuid = proposal.data.netuid();
 
             let votes_for: u64 =
-                proposal.votes_for.iter().map(|id| Self::get_account_stake(id, netuid)).sum();
-            let votes_against: u64 = proposal
-                .votes_against
-                .iter()
-                .map(|id| Self::get_account_stake(id, netuid))
-                .sum();
+                proposal.votes_for.iter().map(|id| Self::get_account_stake(id)).sum();
+            let votes_against: u64 =
+                proposal.votes_against.iter().map(|id| Self::get_account_stake(id)).sum();
 
             let total_stake = votes_for + votes_against;
             let minimal_stake_to_execute = Self::get_minimal_stake_to_execute(netuid);
@@ -528,8 +521,9 @@ impl<T: Config> Pallet<T> {
     pub fn get_minimal_stake_to_execute(netuid: Option<u16>) -> u64 {
         let threshold: Percent = ProposalParticipationThreshold::<T>::get();
 
+        // TODO:
         let stake = match netuid {
-            Some(specific_netuid) => TotalStake::<T>::get(specific_netuid),
+            Some(specific_netuid) => 0, // FIXME: local stake, problem
             None => Self::total_stake(),
         };
         (stake.saturated_into::<u128>() * threshold.deconstruct() as u128 / 100) as u64
@@ -541,8 +535,11 @@ impl<T: Config> Pallet<T> {
         netuid: Option<u16>,
     ) -> u64 {
         let stake = match netuid {
-            Some(specific_netuid) => TotalStake::<T>::get(specific_netuid),
-            None => Self::total_stake(),
+            // FIXME
+            Some(_specific_netuid) => 0, /* TODO: placeholder, decide on this when subnet
+                                           * pricing */
+            // is implemented
+            None => TotalStake::<T>::get(),
         };
 
         (stake.saturated_into::<u128>() * threshold.deconstruct() as u128 / 100) as u64

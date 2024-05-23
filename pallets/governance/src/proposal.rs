@@ -322,14 +322,10 @@ pub fn tick_proposal<T: Config>(block_number: u64, proposal: Proposal<T>) -> Dis
         return Err(Error::<T>::ProposalIsFinished.into());
     };
 
-    let votes_for: u64 = votes_for
-        .iter()
-        .map(|id| SubspacePallet::<T>::get_account_stake(id, subnet_id))
-        .sum();
-    let votes_against: u64 = votes_against
-        .iter()
-        .map(|id| SubspacePallet::<T>::get_account_stake(id, subnet_id))
-        .sum();
+    let votes_for: u64 =
+        votes_for.iter().map(|id| SubspacePallet::<T>::get_account_stake(id)).sum();
+    let votes_against: u64 =
+        votes_against.iter().map(|id| SubspacePallet::<T>::get_account_stake(id)).sum();
 
     let total_stake = votes_for + votes_against;
     let minimal_stake_to_execute =
