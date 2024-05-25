@@ -14,6 +14,7 @@ use frame_support::{
     dispatch,
     dispatch::{DispatchInfo, PostDispatchInfo},
     ensure,
+    storage::with_storage_layer,
     traits::{tokens::WithdrawReasons, Currency, ExistenceRequirement, IsSubType},
     PalletId,
 };
@@ -39,6 +40,10 @@ mod benchmarking;
 // Pallet Imports
 // ---------------------------------
 
+// This is needed so other pallets can acess
+#[allow(unused_imports)]
+pub use pallet::*;
+
 pub mod global;
 mod math;
 pub mod module;
@@ -46,13 +51,14 @@ mod profit_share;
 mod registration;
 mod set_weights;
 mod staking;
-mod step;
 pub mod subnet;
+pub mod subnet_consensus {
+    pub mod linear;
+    pub mod yuma;
+}
 pub mod voting;
 pub mod weights; // Weight benchmarks // Commune consensus weights
 
-#[cfg(debug_assertions)]
-pub use step::yuma;
 // TODO: better error handling in whole file
 
 #[frame_support::pallet]
@@ -113,25 +119,9 @@ pub mod pallet {
     pub type BurnConfig<T: Config> = StorageValue<_, BurnConfiguration<T>, ValueQuery>;
 
     #[pallet::type_value]
-    pub fn DefaultUnitEmission<T: Config>() -> u64 {
-        23148148148
-    }
-    #[pallet::storage] // --- ITEM ( unit_emission )
-    pub type UnitEmission<T> = StorageValue<_, u64, ValueQuery, DefaultUnitEmission<T>>;
-
-    #[pallet::type_value]
     pub fn DefaultAdjustmentAlpha<T: Config>() -> u64 {
         u64::MAX / 2
     }
-
-    #[pallet::type_value]
-    pub fn DefaultSubnetStakeThreshold<T: Config>() -> Percent {
-        Percent::from_percent(5)
-    }
-
-    #[pallet::storage]
-    pub type SubnetStakeThreshold<T> =
-        StorageValue<_, Percent, ValueQuery, DefaultSubnetStakeThreshold<T>>;
 
     #[pallet::type_value]
     pub fn DefaultKappa<T: Config>() -> u16 {
@@ -298,7 +288,6 @@ pub mod pallet {
         pub general_subnet_application_cost: u64,
 
         // Other
-        pub subnet_stake_threshold: Percent,
         pub burn_config: BurnConfiguration<T>,
     }
 
@@ -490,14 +479,8 @@ pub mod pallet {
     #[pallet::storage] // --- ITEM( tota_number_of_existing_networks )
     pub type TotalSubnets<T> = StorageValue<_, u16, ValueQuery>;
 
-    #[pallet::storage] // --- MAP( netuid ) --> subnet_emission
-    pub type SubnetEmission<T> = StorageMap<_, Identity, u16, u64, ValueQuery>;
-
     #[pallet::storage] // --- MAP ( netuid ) --> subnetwork_n (Number of UIDs in the network).
     pub type N<T> = StorageMap<_, Identity, u16, u16, ValueQuery>;
-
-    #[pallet::storage] // --- MAP ( netuid ) --> pending_emission
-    pub type PendingEmission<T> = StorageMap<_, Identity, u16, u64, ValueQuery>;
 
     #[pallet::storage] // --- MAP ( network_name ) --> netuid
     pub type SubnetNames<T: Config> = StorageMap<_, Identity, u16, Vec<u8>, ValueQuery>;
@@ -554,20 +537,36 @@ pub mod pallet {
     //  Module Staking Variables
     /// ---------------------------------
 
-    #[pallet::storage] // --- MAP ( module_key ) --> stake | Returns the stake under a module.
+    #[pallet::storage]
     pub type Stake<T: Config> = StorageMap<_, Identity, T::AccountId, u64, ValueQuery>;
 
-    #[pallet::storage] // --- DMAP ( module_key ) --> Vec<(delegater, stake )> | Returns the list of delegates
-                       // and their staked amount under a module
+    #[pallet::storage]
     pub type StakeFrom<T: Config> =
         StorageMap<_, Identity, T::AccountId, BTreeMap<T::AccountId, u64>, ValueQuery>;
 
-    #[pallet::storage] // --- DMAP ( account_id ) --> Vec<(module_key, stake )> | Returns the list of the
+    #[pallet::storage]
     pub type StakeTo<T: Config> =
         StorageMap<_, Identity, T::AccountId, BTreeMap<T::AccountId, u64>, ValueQuery>;
 
+    // #[pallet::storage]
+    // pub type StakeTo<T: Config> = StorageDoubleMap<
+    //     _,
+    //     Blake2_128Concat,
+    //     T::AccountId,
+    //     Blake2_128Concat,
+    //     T::AccountId,
+    //     u64,
+    //     ValueQuery,
+    // >;
+
+    // Subnets
+    // =======
+
     #[pallet::storage] // --- MAP( netuid ) --> lowest_subnet
     pub type SubnetGaps<T> = StorageValue<_, BTreeSet<u16>, ValueQuery>;
+
+    #[pallet::storage]
+    pub type SubnetEmission<T> = StorageMap<_, Identity, u16, u64, ValueQuery>;
 
     #[pallet::storage]
     pub type TotalStake<T> = StorageValue<_, u64, ValueQuery>;
@@ -581,7 +580,7 @@ pub mod pallet {
     pub fn DefaultProfitShareUnit<T: Config>() -> u16 {
         u16::MAX
     }
-    #[pallet::storage] // --- DMAP ( netuid, account_id ) --> Vec<(module_key, stake )> | Returns the list of the
+    #[pallet::storage]
     pub type ProfitShareUnit<T: Config> =
         StorageValue<_, u16, ValueQuery, DefaultProfitShareUnit<T>>;
 
@@ -612,6 +611,8 @@ pub mod pallet {
     // Event Variables
     // ---------------------------------
 
+    // TODO:
+    // emit all events that are not being emitted !
     #[pallet::event]
     #[pallet::generate_deposit(pub fn deposit_event)]
     pub enum Event<T: Config> {
@@ -644,9 +645,6 @@ pub mod pallet {
                                       * subnet. */
         ModuleUpdated(u16, T::AccountId), /* --- Event created when the module server
                                            * information is added to the network. */
-        DelegateAdded(T::AccountId, T::AccountId, u16), /* --- Event created to signal a key
-                                                         * has become a delegate. */
-        UnitEmissionSet(u64), // --- Event created when setting the unit emission
         MaxNameLengthSet(u16), // --- Event created when setting the maximum network name length
         MinNameLenghtSet(u16), // --- Event created when setting the minimum network name length
         MaxAllowedSubnetsSet(u16), // --- Event created when setting the maximum allowed subnets
@@ -676,6 +674,8 @@ pub mod pallet {
     // Error Variables
     // ---------------------------------
 
+    // TODO:
+    // comment all error variables
     // Errors inform users that something went wrong.
     #[pallet::error]
     pub enum Error<T> {
@@ -768,7 +768,6 @@ pub mod pallet {
         InvalidMaxAllowedWeights,
         InvalidMinStake,
         InvalidMinDelegationFee,
-        InvalidSubnetStakeThreshold,
         InvalidModuleMetadata,
         ModuleMetadataTooLong,
 
@@ -915,6 +914,8 @@ pub mod pallet {
 
     // Global Parameters of proposals
 
+    // TODO:
+    // move majority to the governance pallet
     #[pallet::type_value]
     pub fn DefaultProposalCost<T: Config>() -> u64 {
         10_000_000_000_000 // 10_000 $COMAI, the value is returned if the proosal passes
@@ -964,9 +965,15 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         /// ---- Called on the initialization of this pallet. (the order of on_finalize calls is
         /// determined in the runtime)
-        fn on_initialize(_block_number: BlockNumberFor<T>) -> Weight {
-            Self::block_step();
+        fn on_initialize(block_number: BlockNumberFor<T>) -> Weight {
+            let block_number: u64 =
+                block_number.try_into().ok().expect("blockchain won't pass 2 ^ 64 blocks");
 
+            // Make sure to use storage layer, so no panic in initialization hook can't happen
+            let res = with_storage_layer(|| Self::adjust_registration_parameters(block_number));
+            if let Err(e) = res {
+                log::error!("Error in on_initialize: {:?}", e);
+            }
             Weight::zero()
         }
     }
@@ -1225,11 +1232,10 @@ pub mod pallet {
                                                * interval */
             target_registrations_interval: u16, /* the number of blocks that defines the
                                                  * registration interval */
-            adjustment_alpha: u64,           // adjustment alpha
-            curator: T::AccountId,           // subnet 0 dao multisig
-            subnet_stake_threshold: Percent, // stake needed to start subnet emission
-            proposal_cost: u64,              /*amount of $COMAI to create a proposal
-                                              * returned if proposal gets accepted */
+            adjustment_alpha: u64, // adjustment alpha
+            curator: T::AccountId, // subnet 0 dao multisig
+            proposal_cost: u64,    /*amount of $COMAI to create a proposal
+                                    * returned if proposal gets accepted */
             proposal_expiration: u32, // the block number, proposal expires at
             proposal_participation_threshold: Percent, /*  minimum stake of the overall network
                                        * stake,
@@ -1247,7 +1253,6 @@ pub mod pallet {
             params.floor_founder_share = floor_founder_share;
             params.min_weight_stake = min_weight_stake;
             params.curator = curator;
-            params.subnet_stake_threshold = subnet_stake_threshold;
             params.proposal_cost = proposal_cost;
             params.proposal_expiration = proposal_expiration;
             params.proposal_participation_threshold = proposal_participation_threshold;

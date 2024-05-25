@@ -312,7 +312,6 @@ benchmarks! {
         params.burn_config.adjustment_alpha, // adjustment_alpha: adjustment alpha
         params.unit_emission, // unit_emission: emission per block
         params.curator, // curator: subnet 0 dao multisig
-        params.subnet_stake_threshold, // subnet_stake_threshold: stake needed to start subnet emission
         params.proposal_cost, // proposal_cost: amount of $COMAI to create a proposal, returned if proposal gets accepted
         params.proposal_expiration, // proposal_expiration: the block number, proposal expires at
         params.proposal_participation_threshold, // proposal_participation_threshold: minimum stake of the overall network stake, in order for proposal to get executed

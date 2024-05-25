@@ -1,114 +1,33 @@
-use super::*;
-use crate::{global::BurnConfiguration, math::*};
-use frame_support::storage::with_storage_layer;
+use crate::{
+    math::*, Config, DaoTreasuryAddress, DaoTreasuryDistribution, Dividends, Emission, Founder,
+    GlobalParams, Incentive, IncentiveRatio, LastUpdate, Pallet, Stake, SubnetParams, TotalStake,
+    Trust, TrustRatio, Vec, Weights, N,
+};
+use core::marker::PhantomData;
 use sp_arithmetic::per_things::Percent;
 use sp_std::vec;
-use substrate_fixed::types::{I110F18, I32F32, I64F64};
+use substrate_fixed::types::{I32F32, I64F64};
 
-pub mod yuma;
+pub struct LinearEpoch<T: Config> {
+    // TODO:
+    _pd: PhantomData<T>,
+}
 
-impl<T: Config> Pallet<T> {
-    pub fn block_step() {
-        let block_number: u64 = Self::get_current_block_number();
-        log::debug!("stepping block {block_number:?}");
-
-        RegistrationsPerBlock::<T>::mutate(|val: &mut u16| *val = 0);
-
-        // Execute proposals if any should be executed, this is done every 100 blocks.
-        if block_number % 100 == 0 {
-            Self::resolve_proposals(block_number);
-        }
-
-        // -- Adjust registrations parameters --
-        let BurnConfiguration {
-            adjustment_interval: target_registrations_interval,
-            expected_registrations: target_registrations_per_interval,
-            ..
-        } = BurnConfig::<T>::get();
-
-        let total_stake = Self::total_stake() as u128;
-        let subnet_stake_threshold = SubnetStakeThreshold::<T>::get();
-
-        log::debug!("ticking subnets, total stake: {total_stake}, stake threshold: {subnet_stake_threshold:?}");
-
-        for (netuid, tempo) in Tempo::<T>::iter() {
-            let registration_this_interval = RegistrationsThisInterval::<T>::get(netuid);
-
-            Self::adjust_registration(
-                netuid,
-                block_number,
-                registration_this_interval,
-                target_registrations_interval,
-                target_registrations_per_interval,
-            );
-
-            let new_queued_emission: u64 =
-                Self::calculate_network_emission(netuid, subnet_stake_threshold);
-            let emission_to_drain = PendingEmission::<T>::mutate(netuid, |queued: &mut u64| {
-                *queued += new_queued_emission;
-                *queued
-            });
-            log::trace!("subnet {netuid} total pending emission: {emission_to_drain}, increased {new_queued_emission}");
-
-            if Self::blocks_until_next_epoch(netuid, tempo, block_number) > 0 {
-                continue;
-            }
-
-            log::trace!("running epoch for subnet {netuid}");
-
-            // Clearing `set_weight` rate limiter values.
-            let _ = SetWeightCallsPerEpoch::<T>::clear_prefix(netuid, u32::MAX, None);
-
-            let has_enough_stake_for_yuma = || {
-                // TODO: placeholder, i just need this to compile, this will be replaced by subnet
-                // pricing, everything that is not S0 will run yuma (and has non
-                // negative emission)
-                let subnet_stake = 0; //Self::get_total_subnet_stake(netuid) as u128;
-
-                // TODO: simplify this to just checking if there are pending emission
-                if total_stake == 0 {
-                    false
-                } else {
-                    let subnet_stake_percent = (subnet_stake * 100) / total_stake;
-                    subnet_stake_threshold <= Percent::from_parts(subnet_stake_percent as u8)
-                }
-            };
-
-            if netuid == 0 {
-                Self::linear_epoch(netuid, emission_to_drain)
-            } else if has_enough_stake_for_yuma() {
-                let res = with_storage_layer(|| {
-                    let Err(err) = yuma::YumaCalc::<T>::new(netuid, emission_to_drain).run() else {
-                        return Ok(());
-                    };
-
-                    log::error!(
-                        "\
-failed to run yuma consensus algorithm: {err:?}, skipping this block. \
-{emission_to_drain} tokens will be emitted on the next epoch.\
-"
-                    );
-                    Err("yuma failed")
-                });
-                if res.is_err() {
-                    return;
-                }
-            }
-            PendingEmission::<T>::insert(netuid, 0);
-        }
-    }
-
+impl<T: Config> LinearEpoch<T> {
     /// This function acts as the main function of the entire blockchain reward distribution.
     /// It calculates the dividends, the incentive, the weights, the bonds,
     /// the trust and the emission for the epoch.
     pub fn linear_epoch(netuid: u16, token_emission: u64) {
+        // TODO:
+        // enclose this into a run logic
+
         // get the network parameters
-        let global_params = Self::global_params();
-        let subnet_params = Self::subnet_params(netuid);
+        let global_params = Pallet::<T>::global_params();
+        let subnet_params = Pallet::<T>::subnet_params(netuid);
 
         // get the amount of modules
         let n: u16 = N::<T>::get(netuid);
-        let current_block: u64 = Self::get_current_block_number();
+        let current_block: u64 = Pallet::<T>::get_current_block_number();
 
         // if there are no modules, then return
         if n == 0 {
@@ -118,11 +37,11 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         // FOUNDER DIVIDENDS
         let founder_key = Founder::<T>::get(netuid);
         let (token_emission, founder_emission) =
-            Self::calculate_founder_emission(netuid, token_emission);
+            Pallet::<T>::calculate_founder_emission(netuid, token_emission);
 
         // STAKE
-        let uid_key_tuples: Vec<(u16, T::AccountId)> = Self::get_uid_key_tuples(netuid);
-        let total_stake_u64: u64 = Self::get_total_subnet_stake(netuid).max(1);
+        let uid_key_tuples: Vec<(u16, T::AccountId)> = Pallet::<T>::get_uid_key_tuples(netuid);
+        let total_stake_u64: u64 = Pallet::<T>::get_total_subnet_stake(netuid).max(1);
 
         let stake_u64: Vec<u64> =
             uid_key_tuples.iter().map(|(_, key)| Stake::<T>::get(key)).collect();
@@ -236,7 +155,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
             dividends_emission_float.iter().map(|e| e.to_num::<u64>()).collect();
 
         if netuid != 0 {
-            let founder_uid = Self::get_uid_for_key(netuid, founder_key);
+            let founder_uid = Pallet::<T>::get_uid_for_key(netuid, founder_key);
             incentive_emission[founder_uid as usize] =
                 incentive_emission[founder_uid as usize].saturating_add(founder_emission);
         }
@@ -252,9 +171,9 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
 
             if owner_dividends_emission > 0 {
                 let ownership_vector: Vec<(T::AccountId, I64F64)> =
-                    Self::get_ownership_ratios(netuid, module_key);
+                    Pallet::<T>::get_ownership_ratios(netuid, module_key);
 
-                let delegation_fee = Self::get_delegation_fee(netuid, module_key);
+                let delegation_fee = Pallet::<T>::get_delegation_fee(netuid, module_key);
 
                 let total_owner_dividends_emission: u64 = owner_dividends_emission;
                 for (delegate_key, delegate_ratio) in ownership_vector.iter() {
@@ -267,7 +186,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                             .to_num::<u64>();
                     let to_module: u64 = delegation_fee.mul_floor(dividends_from_delegate);
                     let to_delegate: u64 = dividends_from_delegate.saturating_sub(to_module);
-                    Self::increase_stake(delegate_key, module_key, to_delegate);
+                    Pallet::<T>::increase_stake(delegate_key, module_key, to_delegate);
                     emitted = emitted.saturating_add(to_delegate);
                     owner_dividends_emission = owner_dividends_emission.saturating_sub(to_delegate);
                 }
@@ -276,23 +195,27 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
             let owner_emission: u64 = owner_emission_incentive + owner_dividends_emission;
             if owner_emission > 0 {
                 let profit_share_emissions: Vec<(T::AccountId, u64)> =
-                    Self::get_profit_share_emissions(module_key, owner_emission);
+                    Pallet::<T>::get_profit_share_emissions(module_key, owner_emission);
 
                 if !profit_share_emissions.is_empty() {
                     for (profit_share_key, profit_share_emission) in profit_share_emissions.iter() {
-                        Self::increase_stake(profit_share_key, module_key, *profit_share_emission);
+                        Pallet::<T>::increase_stake(
+                            profit_share_key,
+                            module_key,
+                            *profit_share_emission,
+                        );
                         emitted = emitted.saturating_add(*profit_share_emission);
                     }
                 } else {
-                    Self::increase_stake(module_key, module_key, owner_emission);
+                    Pallet::<T>::increase_stake(module_key, module_key, owner_emission);
                     emitted = emitted.saturating_add(owner_emission);
                 }
             }
         }
 
-        let total_stake = Self::total_stake() as u128;
-        let total_yuma_stake = total_stake - Self::get_total_subnet_stake(0) as u128;
-        let _subnet_stake_threshold = SubnetStakeThreshold::<T>::get(); // FIXME
+        let total_stake = Pallet::<T>::total_stake() as u128;
+        let total_yuma_stake = total_stake - Pallet::<T>::get_total_subnet_stake(0) as u128;
+        let _subnet_stake_threshold = 0; // FIXME
 
         if netuid == 0 && founder_emission > 0 {
             let mut founder_emission = founder_emission;
@@ -308,7 +231,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                 let stakes = TotalStake::<T>::get();
                 let total_yuma_stake = stakes; // PLACEHOLDER
 
-                // FIXME
+                // FIXME:
                 for (_netuid, founder_key) in Founder::<T>::iter().filter(|(n, _)| *n != 0) {
                     let Some(subnet_stake) = Some(0) else {
                         // Place holder
@@ -320,17 +243,17 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                     );
 
                     let founder_distribution = yuma_stake_percentage.mul_floor(to_distribute);
-                    Self::add_balance_to_account(
+                    Pallet::<T>::add_balance_to_account(
                         &founder_key,
-                        Self::u64_to_balance(founder_distribution).unwrap_or_default(),
+                        Pallet::<T>::u64_to_balance(founder_distribution).unwrap_or_default(),
                     );
                 }
             }
 
             // Update global treasure
-            Self::add_balance_to_account(
+            Pallet::<T>::add_balance_to_account(
                 &DaoTreasuryAddress::<T>::get(),
-                Self::u64_to_balance(founder_emission).unwrap_or_default(),
+                Pallet::<T>::u64_to_balance(founder_emission).unwrap_or_default(),
             );
         }
 
@@ -543,126 +466,5 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         inplace_row_normalize_sparse(&mut weights);
 
         weights
-    }
-
-    fn calculate_founder_emission(netuid: u16, mut token_emission: u64) -> (u64, u64) {
-        let founder_share: u16 = FounderShare::<T>::get(netuid).min(100);
-        if founder_share == 0u16 {
-            return (token_emission, 0);
-        }
-
-        let founder_emission_ratio: I64F64 =
-            I64F64::from_num(founder_share.min(100)) / I64F64::from_num(100);
-        let founder_emission =
-            (founder_emission_ratio * I64F64::from_num(token_emission)).to_num::<u64>();
-        token_emission = token_emission.saturating_sub(founder_emission);
-
-        (token_emission, founder_emission)
-    }
-
-    pub fn get_block_at_registration(netuid: u16) -> Vec<u64> {
-        let n = N::<T>::get(netuid) as usize;
-        let mut block_at_registration: Vec<u64> = vec![0; n];
-
-        for (module_uid, block) in block_at_registration.iter_mut().enumerate() {
-            let module_uid = module_uid as u16;
-
-            if Keys::<T>::contains_key(netuid, module_uid) {
-                *block = RegistrationBlock::<T>::get(netuid, module_uid);
-            }
-        }
-
-        block_at_registration
-    }
-
-    pub fn blocks_until_next_epoch(netuid: u16, tempo: u16, block_number: u64) -> u64 {
-        // in this case network never runs
-        if tempo == 0 {
-            return 1000;
-        }
-        (block_number + netuid as u64) % (tempo as u64)
-    }
-
-    pub fn get_ownership_ratios(
-        netuid: u16,
-        module_key: &T::AccountId,
-    ) -> Vec<(T::AccountId, I64F64)> {
-        let stake_from_vector = Self::get_stake_from_vector(module_key);
-        let _uid = Self::get_uid_for_key(netuid, module_key);
-        let mut total_stake_from: I64F64 = I64F64::from_num(0);
-
-        let mut ownership_vector: Vec<(T::AccountId, I64F64)> = Vec::new();
-
-        for (k, v) in stake_from_vector.clone().into_iter() {
-            let ownership = I64F64::from_num(v);
-            ownership_vector.push((k.clone(), ownership));
-            total_stake_from += ownership;
-        }
-
-        // add the module itself, if it has stake of its own
-        if total_stake_from == I64F64::from_num(0) {
-            ownership_vector.push((module_key.clone(), I64F64::from_num(0)));
-        } else {
-            ownership_vector =
-                ownership_vector.into_iter().map(|(k, v)| (k, v / total_stake_from)).collect();
-        }
-
-        ownership_vector
-    }
-
-    pub fn adjust_registration(
-        netuid: u16,
-        block_number: u64,
-        registrations_this_interval: u16,
-        target_registrations_interval: u16,
-        target_registrations_per_interval: u16,
-    ) {
-        if block_number % u64::from(target_registrations_interval) == 0 {
-            let current_burn = Burn::<T>::get(netuid);
-
-            let adjusted_burn = Self::adjust_burn(
-                current_burn,
-                registrations_this_interval,
-                target_registrations_per_interval,
-            );
-
-            Burn::<T>::insert(netuid, adjusted_burn);
-
-            // reset the registrations
-            RegistrationsThisInterval::<T>::insert(netuid, 0);
-        }
-    }
-
-    pub fn adjust_burn(
-        current_burn: u64,
-        registrations_this_interval: u16,
-        target_registrations_per_interval: u16,
-    ) -> u64 {
-        let updated_burn: I110F18 = I110F18::from_num(current_burn)
-            * I110F18::from_num(registrations_this_interval + target_registrations_per_interval)
-            / I110F18::from_num(
-                target_registrations_per_interval + target_registrations_per_interval,
-            );
-        let BurnConfiguration {
-            min_burn,
-            max_burn,
-            adjustment_alpha,
-            ..
-        } = BurnConfig::<T>::get();
-        let alpha: I110F18 = I110F18::from_num(adjustment_alpha) / I110F18::from_num(u64::MAX);
-        let next_value: I110F18 = alpha * I110F18::from_num(current_burn)
-            + (I110F18::from_num(1.0) - alpha) * updated_burn;
-        if next_value >= I110F18::from_num(max_burn) {
-            max_burn
-        } else if next_value <= I110F18::from_num(min_burn) {
-            min_burn
-        } else {
-            next_value.to_num::<u64>()
-        }
-    }
-
-    // gets the overall stake value for a given account_id,
-    pub fn get_account_stake(account_id: &T::AccountId) -> u64 {
-        StakeTo::<T>::get(account_id).into_values().sum()
     }
 }

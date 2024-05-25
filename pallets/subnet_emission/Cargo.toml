@@ -1,5 +1,5 @@
 [package]
-name = "pallet-subnet_pricing"
+name = "pallet-subnet-emission"
 version = "1.0.0"
 description = "FRAME pallet for runtime logic of Subspace Blockchain."
 authors = ["Commune Nucleus Team"]
@@ -24,6 +24,8 @@ std = [
 try-runtime = ["frame-support/try-runtime"]
 
 [dependencies]
+sp-runtime.workspace = true
+sp-arithmetic.workspace = true
 bty.workspace = true
 log.workspace = true
 

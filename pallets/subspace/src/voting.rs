@@ -415,43 +415,44 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    pub(crate) fn resolve_proposals(block_number: u64) {
-        for proposal in Proposals::<T>::iter_values() {
-            let proposal_id = proposal.id;
+    // This should be handled by the proposal tick in governance pallet
+    // pub(crate) fn resolve_proposals(block_number: u64) {
+    //     for proposal in Proposals::<T>::iter_values() {
+    //         let proposal_id = proposal.id;
 
-            if proposal.status != ProposalStatus::Pending {
-                continue;
-            }
+    //         if proposal.status != ProposalStatus::Pending {
+    //             continue;
+    //         }
 
-            let netuid = proposal.data.netuid();
+    //         let netuid = proposal.data.netuid();
 
-            let votes_for: u64 =
-                proposal.votes_for.iter().map(|id| Self::get_account_stake(id)).sum();
-            let votes_against: u64 =
-                proposal.votes_against.iter().map(|id| Self::get_account_stake(id)).sum();
+    //         let votes_for: u64 =
+    //             proposal.votes_for.iter().map(|id| Self::get_account_stake(id)).sum();
+    //         let votes_against: u64 =
+    //             proposal.votes_against.iter().map(|id| Self::get_account_stake(id)).sum();
 
-            let total_stake = votes_for + votes_against;
-            let minimal_stake_to_execute = Self::get_minimal_stake_to_execute(netuid);
+    //         let total_stake = votes_for + votes_against;
+    //         let minimal_stake_to_execute = Self::get_minimal_stake_to_execute(netuid);
 
-            let res: DispatchResult = with_storage_layer(|| {
-                if total_stake >= minimal_stake_to_execute {
-                    if votes_against > votes_for {
-                        proposal.refuse(block_number);
-                    } else {
-                        Self::execute_proposal(proposal, block_number)?;
-                    }
-                } else if block_number >= proposal.expiration_block {
-                    proposal.expire(block_number);
-                }
+    //         let res: DispatchResult = with_storage_layer(|| {
+    //             if total_stake >= minimal_stake_to_execute {
+    //                 if votes_against > votes_for {
+    //                     proposal.refuse(block_number);
+    //                 } else {
+    //                     Self::execute_proposal(proposal, block_number)?;
+    //                 }
+    //             } else if block_number >= proposal.expiration_block {
+    //                 proposal.expire(block_number);
+    //             }
 
-                Ok(())
-            });
+    //             Ok(())
+    //         });
 
-            if let Err(err) = res {
-                log::error!("failed to resolve proposal {proposal_id}: {err:?}");
-            }
-        }
-    }
+    //         if let Err(err) = res {
+    //             log::error!("failed to resolve proposal {proposal_id}: {err:?}");
+    //         }
+    //     }
+    // }
 
     pub fn execute_application(user_id: &T::AccountId) -> DispatchResult {
         // Perform actions based on the application data type

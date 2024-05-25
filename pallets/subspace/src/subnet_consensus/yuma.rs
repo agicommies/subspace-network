@@ -13,7 +13,7 @@ use sp_std::vec::Vec;
 
 pub type EmissionMap<T> = BTreeMap<ModuleKey<T>, BTreeMap<AccountKey<T>, u64>>;
 
-pub struct YumaCalc<T: Config> {
+pub struct YumaEpoch<T: Config> {
     /// The amount of modules on the subnet
     module_count: u16,
     /// The UID of the subnet
@@ -37,7 +37,7 @@ pub struct YumaCalc<T: Config> {
     _pd: PhantomData<T>,
 }
 
-impl<T: Config> YumaCalc<T> {
+impl<T: Config> YumaEpoch<T> {
     pub fn new(netuid: u16, to_be_emitted: u64) -> Self {
         let validator_permits = ValidatorPermits::<T>::get(netuid);
         let validator_forbids = validator_permits.iter().map(|&b| !b).collect();

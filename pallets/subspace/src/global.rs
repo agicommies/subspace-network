@@ -76,7 +76,6 @@ impl<T: Config> Pallet<T> {
 
             // weights
             max_allowed_weights: MaxAllowedWeightsGlobal::<T>::get(),
-            subnet_stake_threshold: SubnetStakeThreshold::<T>::get(),
             min_weight_stake: MinWeightStake::<T>::get(),
             // proposals
             proposal_cost: ProposalCost::<T>::get(), // denominated in $COMAI
@@ -102,7 +101,6 @@ impl<T: Config> Pallet<T> {
         // burn & registrations
         MaxRegistrationsPerBlock::<T>::set(params.max_registrations_per_block);
         MinWeightStake::<T>::put(params.min_weight_stake);
-        SubnetStakeThreshold::<T>::put(params.subnet_stake_threshold);
         FloorDelegationFee::<T>::put(params.floor_delegation_fee);
         Curator::<T>::put(params.curator);
         FloorFounderShare::<T>::put(params.floor_founder_share);
@@ -139,15 +137,6 @@ impl<T: Config> Pallet<T> {
                 && params.floor_delegation_fee.deconstruct()
                     >= old_params.floor_delegation_fee.deconstruct(),
             Error::<T>::InvalidMinDelegationFee
-        );
-
-        // we can not increase the stake threshold without a migration
-        // that would mean that subnets that are getting emission would have to get them erased to 0
-        ensure!(
-            params.subnet_stake_threshold.deconstruct() <= 100
-                && params.subnet_stake_threshold.deconstruct()
-                    <= old_params.subnet_stake_threshold.deconstruct(),
-            Error::<T>::InvalidSubnetStakeThreshold
         );
 
         ensure!(

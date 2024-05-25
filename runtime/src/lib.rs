@@ -111,6 +111,7 @@ pub mod opaque {
 pub type Migrations = (
     pallet_grandpa::migrations::MigrateV4ToV5<Runtime>,
     pallet_subspace::migrations::v8::MigrateToV8<Runtime>,
+    pallet_subspace::migrations::v9::MigrateToV9<Runtime>,
     pallet_governance::migrations::InitialMigration<Runtime>,
 );
 
@@ -370,9 +371,13 @@ impl pallet_governance::Config for Runtime {
     type DefaultProposalCost = ConstU64<10_000_000_000_000>;
 }
 
-impl pallet_subnet_pricing::Config for Runtime {
+// Includes emission logic for the runtime
+impl pallet_subnet_emission::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
+    type Decimals = ConstU8<9>; // The runtime has 9 token decimals
+    type HalvingInterval = ConstU64<250_000_000>;
+    type MaxSupply = ConstU64<1_000_000_000>;
 }
 
 pub const WEIGHT_MILLISECS_PER_BLOCK: u64 = 2000;
@@ -431,7 +436,7 @@ construct_runtime!(
         Utility: pallet_utility,
         SubspaceModule: pallet_subspace,
         GovernanceModule: pallet_governance,
-        SubnetPricingModule: pallet_subnet_pricing,
+        SubnetPricingModule: pallet_subnet_emission,
 
         // EVM Support
         BaseFee: pallet_base_fee,

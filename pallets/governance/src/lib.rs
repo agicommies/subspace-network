@@ -99,7 +99,6 @@ pub mod pallet {
             target_registrations_interval: u16,
             adjustment_alpha: u64,
             curator: T::AccountId,
-            subnet_stake_threshold: Percent,
             proposal_cost: u64,
             proposal_expiration: u32,
             proposal_participation_threshold: Percent,
@@ -116,7 +115,6 @@ pub mod pallet {
             params.floor_founder_share = floor_founder_share;
             params.min_weight_stake = min_weight_stake;
             params.curator = curator;
-            params.subnet_stake_threshold = subnet_stake_threshold;
             params.proposal_cost = proposal_cost;
             params.proposal_expiration = proposal_expiration;
             params.proposal_participation_threshold = proposal_participation_threshold;

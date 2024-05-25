@@ -1,13 +1,14 @@
 use crate::{module::ModuleChangeset, subnet::SubnetChangeset};
 
 use super::*;
-
+use crate::global::BurnConfiguration;
 use frame_support::{pallet_prelude::DispatchResult, LOG_TARGET};
 use frame_system::ensure_signed;
 
 use sp_core::{keccak_256, sha2_256, Get, H256, U256};
 use sp_runtime::MultiAddress;
 use sp_std::vec::Vec;
+use substrate_fixed::types::I110F18;
 use system::pallet_prelude::BlockNumberFor;
 
 impl<T: Config> Pallet<T> {
@@ -262,6 +263,12 @@ impl<T: Config> Pallet<T> {
         lowest_priority_uid
     }
 
+    // Faucet
+    // =========
+
+    // TODO:
+    // move to a seperate file
+
     pub fn do_faucet(
         origin: T::RuntimeOrigin,
         block_number: u64,
@@ -424,5 +431,99 @@ impl<T: Config> Pallet<T> {
             // it could lead to exploitation of the network.
             Self::remove_module(subnet_uid, module_uid);
         }
+    }
+
+    // This code is running under the `on_initialize` hook
+    pub fn adjust_registration_parameters(block_number: u64) -> DispatchResult {
+        RegistrationsPerBlock::<T>::mutate(|val: &mut u16| *val = 0);
+
+        // -- Adjust registrations parameters --
+        let BurnConfiguration {
+            adjustment_interval: target_registrations_interval,
+            expected_registrations: target_registrations_per_interval,
+            ..
+        } = BurnConfig::<T>::get();
+
+        for (netuid, _tempo) in Tempo::<T>::iter() {
+            let registration_this_interval = RegistrationsThisInterval::<T>::get(netuid);
+
+            Self::adjust_registration(
+                netuid,
+                block_number,
+                registration_this_interval,
+                target_registrations_interval,
+                target_registrations_per_interval,
+            );
+        }
+
+        Ok(())
+    }
+
+    fn adjust_registration(
+        netuid: u16,
+        block_number: u64,
+        registrations_this_interval: u16,
+        target_registrations_interval: u16,
+        target_registrations_per_interval: u16,
+    ) {
+        if block_number % u64::from(target_registrations_interval) == 0 {
+            let current_burn = Burn::<T>::get(netuid);
+
+            let adjusted_burn = Self::adjust_burn(
+                current_burn,
+                registrations_this_interval,
+                target_registrations_per_interval,
+            );
+
+            Burn::<T>::insert(netuid, adjusted_burn);
+
+            // reset the registrations
+            RegistrationsThisInterval::<T>::insert(netuid, 0);
+        }
+    }
+
+    pub fn adjust_burn(
+        current_burn: u64,
+        registrations_this_interval: u16,
+        target_registrations_per_interval: u16,
+    ) -> u64 {
+        let updated_burn: I110F18 = I110F18::from_num(current_burn)
+            * I110F18::from_num(registrations_this_interval + target_registrations_per_interval)
+            / I110F18::from_num(
+                target_registrations_per_interval + target_registrations_per_interval,
+            );
+        let BurnConfiguration {
+            min_burn,
+            max_burn,
+            adjustment_alpha,
+            ..
+        } = BurnConfig::<T>::get();
+        let alpha: I110F18 = I110F18::from_num(adjustment_alpha) / I110F18::from_num(u64::MAX);
+        let next_value: I110F18 = alpha * I110F18::from_num(current_burn)
+            + (I110F18::from_num(1.0) - alpha) * updated_burn;
+        if next_value >= I110F18::from_num(max_burn) {
+            max_burn
+        } else if next_value <= I110F18::from_num(min_burn) {
+            min_burn
+        } else {
+            next_value.to_num::<u64>()
+        }
+    }
+
+    // Util
+    // ====
+    pub fn get_block_at_registration(netuid: u16) -> Vec<u64> {
+        let n = N::<T>::get(netuid) as usize;
+        let mut block_at_registration: Vec<u64> = vec![0; n];
+
+        for (module_uid, block) in block_at_registration.iter_mut().enumerate() {
+            let module_uid = module_uid as u16;
+
+            if Keys::<T>::contains_key(netuid, module_uid) {
+                *block = RegistrationBlock::<T>::get(netuid, module_uid);
+            }
+        }
+
+        block_at_registration
     }
 }

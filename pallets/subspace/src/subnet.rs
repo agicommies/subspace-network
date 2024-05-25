@@ -5,7 +5,6 @@ use frame_support::{
 };
 
 use self::{global::BurnConfiguration, voting::VoteMode};
-use sp_arithmetic::per_things::Percent;
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
 use substrate_fixed::types::I64F64;
@@ -288,120 +287,25 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    // ---------------------------------
-    // Subnet Emission
-    // ---------------------------------
+    // /// Empties out all:
+    // /// emission, dividends, incentives, trust on the specific netuid.
+    // fn deactivate_subnet(netuid: u16) {
+    //     let module_count = N::<T>::get(netuid) as usize;
+    //     let zeroed = vec![0; module_count];
 
-    pub fn calculate_network_emission(netuid: u16, subnet_stake_threshold: Percent) -> u64 {
-        let subnet_stake: I64F64 = I64F64::from_num(Self::get_total_subnet_stake(netuid));
-        let total_stake: I64F64 = Self::adjust_total_stake(subnet_stake_threshold);
+    //     SubnetEmission::<T>::insert(netuid, 0);
 
-        log::trace!(
-            "calculating subnet emission {netuid} with stake {subnet_stake}, \
-        total stake {total_stake}, \
-        threshold {subnet_stake_threshold:?}"
-        );
-
-        let subnet_ratio = if total_stake > I64F64::from_num(0) {
-            subnet_stake / total_stake
-        } else {
-            I64F64::from_num(0)
-        };
-
-        // Convert subnet_stake_threshold from % to I64F64
-        let subnet_stake_threshold_i64f64 =
-            I64F64::from_num(subnet_stake_threshold.deconstruct()) / I64F64::from_num(100);
-
-        // Check if subnet_ratio meets the subnet_stake_threshold,
-        // or netuid is not the general subnet
-        if subnet_ratio < subnet_stake_threshold_i64f64 && netuid != 0 {
-            // Return early if the threshold is not met,
-            // this prevents emission gapping, of subnets that don't meet emission threshold
-            Self::deactivate_subnet(netuid);
-            log::trace!("subnet {netuid} is not eligible for yuma consensus");
-            return 0;
-        }
-
-        let total_emission_per_block: u64 = Self::get_total_emission_per_block();
-
-        let token_emission: u64 =
-            (subnet_ratio * I64F64::from_num(total_emission_per_block)).to_num::<u64>();
-
-        SubnetEmission::<T>::insert(netuid, token_emission);
-
-        token_emission
-    }
-
-    // Returns the total amount of stake in the staking table.
-    // TODO: refactor the halving logic, can be completelly optimized.
-    pub fn get_total_emission_per_block() -> u64 {
-        let total_stake: u64 = Self::total_stake();
-        let unit_emission: u64 = UnitEmission::<T>::get();
-        let mut emission_per_block: u64 = unit_emission; // assuming 8 second block times
-        let halving_total_stake_checkpoints: Vec<u64> =
-            [10_000_000, 20_000_000, 30_000_000, 40_000_000]
-                .iter()
-                .map(|x| x * unit_emission)
-                .collect();
-        for (i, having_stake) in halving_total_stake_checkpoints.iter().enumerate() {
-            let halving_factor: u64 = 2u64.pow((i) as u32);
-            if total_stake < *having_stake {
-                emission_per_block /= halving_factor;
-                break;
-            }
-        }
-
-        emission_per_block
-    }
-
-    // This is the total stake of the network without subnets that can not get emission
-    // TODO: could be optimized
-    pub fn adjust_total_stake(subnet_stake_threshold: Percent) -> I64F64 {
-        let total_global_stake = I64F64::from_num(TotalStake::<T>::get());
-        if total_global_stake == 0 {
-            return I64F64::from_num(0);
-        }
-
-        let mut total_stake = I64F64::from_num(0);
-        let subnet_stake_threshold_i64f64 =
-            I64F64::from_num(subnet_stake_threshold.deconstruct()) / I64F64::from_num(100);
-        // Iterate over all subnets
-        for netuid in N::<T>::iter_keys() {
-            let subnet_stake: I64F64 = I64F64::from_num(Self::get_total_subnet_stake(netuid));
-            if subnet_stake == 0 {
-                continue;
-            }
-            let subnet_ratio = subnet_stake / total_global_stake;
-            // Check if subnet_ratio meets the subnet_stake_threshold,
-            // or the netuid is the general subnet
-            if subnet_ratio >= subnet_stake_threshold_i64f64 || netuid == 0 {
-                // Add subnet_stake to total_stake if it meets the threshold
-                total_stake += subnet_stake;
-            }
-        }
-
-        total_stake
-    }
-
-    /// Empties out all:
-    /// emission, dividends, incentives, trust on the specific netuid.
-    fn deactivate_subnet(netuid: u16) {
-        let module_count = N::<T>::get(netuid) as usize;
-        let zeroed = vec![0; module_count];
-
-        SubnetEmission::<T>::insert(netuid, 0);
-
-        Active::<T>::insert(netuid, vec![true; module_count]);
-        Consensus::<T>::insert(netuid, &zeroed);
-        Dividends::<T>::insert(netuid, &zeroed);
-        Emission::<T>::insert(netuid, vec![0; module_count]);
-        Incentive::<T>::insert(netuid, &zeroed);
-        PruningScores::<T>::insert(netuid, &zeroed);
-        Rank::<T>::insert(netuid, &zeroed);
-        Trust::<T>::insert(netuid, &zeroed);
-        ValidatorPermits::<T>::insert(netuid, vec![false; module_count]);
-        ValidatorTrust::<T>::insert(netuid, &zeroed);
-    }
+    //     Active::<T>::insert(netuid, vec![true; module_count]);
+    //     Consensus::<T>::insert(netuid, &zeroed);
+    //     Dividends::<T>::insert(netuid, &zeroed);
+    //     Emission::<T>::insert(netuid, vec![0; module_count]);
+    //     Incentive::<T>::insert(netuid, &zeroed);
+    //     PruningScores::<T>::insert(netuid, &zeroed);
+    //     Rank::<T>::insert(netuid, &zeroed);
+    //     Trust::<T>::insert(netuid, &zeroed);
+    //     ValidatorPermits::<T>::insert(netuid, vec![false; module_count]);
+    //     ValidatorTrust::<T>::insert(netuid, &zeroed);
+    // }
 
     // ---------------------------------
     // Setters
@@ -516,6 +420,48 @@ impl<T: Config> Pallet<T> {
     // ---------------------------------
     // Utility
     // ---------------------------------
+
+    pub fn calculate_founder_emission(netuid: u16, mut token_emission: u64) -> (u64, u64) {
+        let founder_share: u16 = FounderShare::<T>::get(netuid).min(100);
+        if founder_share == 0u16 {
+            return (token_emission, 0);
+        }
+
+        let founder_emission_ratio: I64F64 =
+            I64F64::from_num(founder_share.min(100)) / I64F64::from_num(100);
+        let founder_emission =
+            (founder_emission_ratio * I64F64::from_num(token_emission)).to_num::<u64>();
+        token_emission = token_emission.saturating_sub(founder_emission);
+
+        (token_emission, founder_emission)
+    }
+
+    pub fn get_ownership_ratios(
+        netuid: u16,
+        module_key: &T::AccountId,
+    ) -> Vec<(T::AccountId, I64F64)> {
+        let stake_from_vector = Self::get_stake_from_vector(module_key);
+        let _uid = Self::get_uid_for_key(netuid, module_key);
+        let mut total_stake_from: I64F64 = I64F64::from_num(0);
+
+        let mut ownership_vector: Vec<(T::AccountId, I64F64)> = Vec::new();
+
+        for (k, v) in stake_from_vector.clone().into_iter() {
+            let ownership = I64F64::from_num(v);
+            ownership_vector.push((k.clone(), ownership));
+            total_stake_from += ownership;
+        }
+
+        // add the module itself, if it has stake of its own
+        if total_stake_from == I64F64::from_num(0) {
+            ownership_vector.push((module_key.clone(), I64F64::from_num(0)));
+        } else {
+            ownership_vector =
+                ownership_vector.into_iter().map(|(k, v)| (k, v / total_stake_from)).collect();
+        }
+
+        ownership_vector
+    }
 
     pub fn is_key_registered_on_any_network(key: &T::AccountId) -> bool {
         Self::netuids().iter().any(|&netuid| Uids::<T>::contains_key(netuid, key))

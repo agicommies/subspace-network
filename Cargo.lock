@@ -4871,7 +4871,7 @@ dependencies = [
  "pallet-grandpa",
  "pallet-insecure-randomness-collective-flip",
  "pallet-multisig",
- "pallet-subnet_pricing",
+ "pallet-subnet-emission",
  "pallet-subspace",
  "pallet-sudo",
  "pallet-timestamp",
@@ -5249,7 +5249,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-subnet_pricing"
+name = "pallet-subnet-emission"
 version = "1.0.0"
 dependencies = [
  "bty",
@@ -5259,6 +5259,8 @@ dependencies = [
  "pallet-subspace",
  "parity-scale-codec",
  "scale-info",
+ "sp-arithmetic",
+ "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.10.1)",
 ]
 
@@ -9094,6 +9096,10 @@ dependencies = [
  "rustversion",
  "syn 2.0.61",
 ]
+
+[[package]]
+name = "subnet_consensus"
+version = "0.1.0"
 
 [[package]]
 name = "subspace-rpc"

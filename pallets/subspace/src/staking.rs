@@ -459,6 +459,11 @@ impl<T: Config> Pallet<T> {
         }
     }
 
+    // gets the overall stake value for a given account_id,
+    pub fn get_account_stake(account_id: &T::AccountId) -> u64 {
+        StakeTo::<T>::get(account_id).into_values().sum()
+    }
+
     pub fn remove_balance_from_account(
         key: &T::AccountId,
         amount: BalanceOf<T>,
