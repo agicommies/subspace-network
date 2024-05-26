@@ -184,8 +184,8 @@ pub fn delegate_stake(netuid: u16, key: U256, module_key: U256, stake: u64) {
 }
 
 #[allow(dead_code)]
-pub fn decrease_stake(netuid: u16, key: U256, stake: u64) {
-    SubspaceModule::decrease_stake(netuid, &key, &key, stake);
+pub fn decrease_stake(key: U256, stake: u64) {
+    SubspaceModule::decrease_stake(&key, &key, stake);
 }
 
 pub fn get_origin(key: U256) -> RuntimeOrigin {
@@ -274,7 +274,7 @@ pub fn get_stake_for_uid(netuid: u16, module_uid: u16) -> u64 {
     let Some(key) = SubspaceModule::get_key_for_uid(netuid, module_uid) else {
         return 0;
     };
-    Stake::<Test>::get(netuid, key)
+    Stake::<Test>::get(key)
 }
 
 #[allow(dead_code)]

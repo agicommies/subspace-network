@@ -1,5 +1,50 @@
-// TODO: 
-// - migrate emission related values here
-// - migrate unit emission
-// - migrate pending emission
-// - migrate subnet emission
+use super::*;
+use core::marker::PhantomData;
+
+use frame_support::{
+    pallet_prelude::{ValueQuery, Weight},
+    traits::{OnRuntimeUpgrade, StorageVersion},
+    Identity,
+};
+
+#[derive(Default)]
+pub struct InitialMigration<T>(PhantomData<T>);
+
+pub mod old_storage {
+    use super::*;
+    use frame_support::storage_alias;
+
+    #[storage_alias]
+    pub type UnitEmission = StorageValue<Prefix, u64, ValueQuery>;
+
+    #[storage_alias]
+    pub type PendingEmission = StorageMap<Prefix, Identity, u16, u64, ValueQuery>;
+}
+
+impl<T: Config + pallet_subspace::Config> OnRuntimeUpgrade for InitialMigration<T> {
+    fn on_runtime_upgrade() -> frame_support::weights::Weight {
+        if StorageVersion::get::<Pallet<T>>() != 0 {
+            return frame_support::weights::Weight::zero();
+        }
+        log::info!("Initializing subnet pricing pallet, importing proposals...");
+
+        let old_unit_emission = crate::UnitEmission::<T>::get();
+        crate::UnitEmission::<T>::put(old_unit_emission);
+        log::info!(
+            "Migrated UnitEmission: {:?}",
+            crate::UnitEmission::<T>::get()
+        );
+
+        let old_pending_emission = crate::PendingEmission::<T>::iter().collect::<Vec<_>>();
+        for (subnet_id, emission) in old_pending_emission {
+            crate::PendingEmission::<T>::insert(subnet_id, emission);
+        }
+
+        log::info!(
+            "Migrated PendingEmission: {:?}",
+            crate::PendingEmission::<T>::iter().collect::<Vec<_>>()
+        );
+
+        Weight::zero()
+    }
+}

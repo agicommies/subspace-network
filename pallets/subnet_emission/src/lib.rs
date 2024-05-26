@@ -7,6 +7,7 @@ use sp_std::collections::btree_map::BTreeMap;
 // Pallet Imports
 // ==============
 
+pub mod migrations;
 mod step;
 pub mod subnet_pricing {
     pub mod demo;
@@ -120,20 +121,25 @@ pub mod pallet {
         // Halving occurs every 250 million minted tokens, until reaching a maximum supply of 1
         // billion tokens.
         #[must_use]
-        fn get_total_emission_per_block() -> u64 {
-            // This assumes 9 token decimals
+        pub fn get_total_emission_per_block() -> u64 {
             let total_issuance = Self::get_total_issuence_as_u64();
             let unit_emission = UnitEmission::<T>::get();
-            let halving_interval =
-                T::HalvingInterval::get() * 10_u64.pow(T::Decimals::get() as u32);
-            let max_supply = T::MaxSupply::get() * 10_u64.pow(T::Decimals::get() as u32);
+            let halving_interval = T::HalvingInterval::get();
+            let max_supply = T::MaxSupply::get();
+            let decimals = T::Decimals::get() as u32;
+
+            let halving_interval = halving_interval
+                .checked_mul(10_u64.pow(decimals))
+                .expect("halving_interval overflow");
+            
+            let max_supply =
+                max_supply.checked_mul(10_u64.pow(decimals)).expect("max_supply overflow");
 
             if total_issuance >= max_supply {
                 0
             } else {
-                // Determine the number of halvings based on the total issuance.
                 let halving_count = total_issuance / halving_interval;
-                unit_emission / 2_u64.pow(halving_count as u32)
+                unit_emission >> halving_count
             }
         }
 

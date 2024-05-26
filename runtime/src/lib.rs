@@ -113,6 +113,7 @@ pub type Migrations = (
     pallet_subspace::migrations::v8::MigrateToV8<Runtime>,
     pallet_subspace::migrations::v9::MigrateToV9<Runtime>,
     pallet_governance::migrations::InitialMigration<Runtime>,
+    pallet_subnet_emission::migrations::InitialMigration<Runtime>,
 );
 
 // To learn more about runtime versioning, see:

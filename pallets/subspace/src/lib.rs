@@ -43,7 +43,6 @@ mod benchmarking;
 // This is needed so other pallets can acess
 #[allow(unused_imports)]
 pub use pallet::*;
-
 pub mod global;
 mod math;
 pub mod module;
@@ -52,6 +51,7 @@ mod registration;
 mod set_weights;
 mod staking;
 pub mod subnet;
+
 pub mod subnet_consensus {
     pub mod linear;
     pub mod yuma;
