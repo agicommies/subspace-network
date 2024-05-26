@@ -3,9 +3,8 @@ use crate::{
     Percent, Proposals, SubnetGovernanceConfig, SubnetId, UnrewardedProposals,
 };
 use frame_support::{
-    dispatch::DispatchResult, ensure, sp_runtime::traits::IntegerSquareRoot,
-    storage::with_storage_layer, traits::ConstU32, BoundedBTreeMap, BoundedBTreeSet, BoundedVec,
-    DebugNoBound,
+    dispatch::DispatchResult, ensure, sp_runtime::DispatchError, storage::with_storage_layer,
+    traits::ConstU32, BoundedBTreeMap, BoundedBTreeSet, BoundedVec, DebugNoBound,
 };
 use frame_system::ensure_signed;
 use pallet_subspace::{
@@ -216,7 +215,7 @@ impl<T: Config> Pallet<T> {
         } = GovernanceConfig::<T>::get();
 
         ensure!(
-            PalletSubspace::<T>::has_enough_balance(&key, proposal_cost),
+            pallet_subspace::Pallet::<T>::has_enough_balance(&key, proposal_cost),
             Error::<T>::NotEnoughBalanceToPropose
         );
 
@@ -293,7 +292,10 @@ impl<T: Config> Pallet<T> {
         ensure!(!data.is_empty(), Error::<T>::ProposalDataTooSmall);
         ensure!(data.len() <= 256, Error::<T>::ProposalDataTooLarge);
         ensure!(
-            PalletSubspace::<T>::has_enough_balance(&DaoTreasuryAddress::<T>::get(), value),
+            pallet_subspace::Pallet::<T>::has_enough_balance(
+                &DaoTreasuryAddress::<T>::get(),
+                value
+            ),
             Error::<T>::InsufficientDaoTreasuryFunds
         );
         sp_std::str::from_utf8(&data).map_err(|_| Error::<T>::InvalidProposalData)?;
@@ -314,7 +316,7 @@ impl<T: Config> Pallet<T> {
 
         ensure!(!data.is_empty(), Error::<T>::ProposalDataTooSmall);
         ensure!(data.len() <= 256, Error::<T>::ProposalDataTooLarge);
-        PalletSubspace::check_global_params(&params)?;
+        pallet_subspace::Pallet::check_global_params(&params)?;
 
         let proposal_data = ProposalData::GlobalParams(params);
         Self::add_proposal(key, BoundedVec::truncate_from(data), proposal_data)
@@ -525,7 +527,14 @@ pub fn execute_proposal_rewards<T: crate::Config>(
     subnet_id: Option<u16>,
     governance_config: GovernanceConfiguration<T>,
 ) {
+    if block_number % governance_config.proposal_reward_interval != 0 {
+        return;
+    }
+
     let mut n: u16 = 0;
+    let mut account_stakes: BoundedBTreeMap<T::AccountId, u64, ConstU32<{ u32::MAX }>> =
+        BoundedBTreeMap::new();
+    let mut total_allocation: I92F36 = I92F36::from_num(0);
     for (proposal_id, unrewarded_proposal) in UnrewardedProposals::<T>::iter() {
         if subnet_id != unrewarded_proposal.subnet_id {
             continue;
@@ -535,21 +544,41 @@ pub fn execute_proposal_rewards<T: crate::Config>(
             continue;
         }
 
-        execute_proposal_reward(proposal_id, unrewarded_proposal, &governance_config, n);
+        for (acc_id, stake) in unrewarded_proposal
+            .votes_for
+            .into_iter()
+            .chain(unrewarded_proposal.votes_against.into_iter())
+        {
+            let curr_stake = *account_stakes.get(&acc_id).unwrap_or(&0u64);
+            account_stakes.try_insert(acc_id, curr_stake + stake).expect("infallible");
+        }
+
+        match get_reward_allocation(&governance_config, n) {
+            Ok(allocation) => {
+                total_allocation += allocation;
+            }
+            Err(err) => {
+                log::error!("could not get reward allocation for proposal {proposal_id}: {err:?}");
+                continue;
+            }
+        }
+
         UnrewardedProposals::<T>::remove(proposal_id);
         n += 1;
     }
+
+    distribute_proposal_rewards::<T>(account_stakes, total_allocation);
 }
 
-fn execute_proposal_reward<T: crate::Config>(
-    proposal_id: ProposalId,
-    unrewarded_proposal: UnrewardedProposal<T>,
+fn get_reward_allocation<T: crate::Config>(
     governance_config: &GovernanceConfiguration<T>,
     n: u16,
-) {
+) -> Result<I92F36, DispatchError> {
     let treasury_address = DaoTreasuryAddress::<T>::get();
-    let treasury_balance = PalletSubspace::<T>::get_balance(&treasury_address);
-    let treasury_balance = I92F36::from_num(PalletSubspace::<T>::balance_to_u64(treasury_balance));
+    let treasury_balance = pallet_subspace::Pallet::<T>::get_balance(&treasury_address);
+    let treasury_balance = I92F36::from_num(pallet_subspace::Pallet::<T>::balance_to_u64(
+        treasury_balance,
+    ));
 
     let allocation_percentage = governance_config.proposal_reward_treasury_allocation;
     let max_allocation =
@@ -572,47 +601,41 @@ fn execute_proposal_reward<T: crate::Config>(
         allocation /= result;
     }
 
-    let mut accs_with_stake: Vec<(T::AccountId, u64)> = Vec::new();
-    for (acc_id, stake) in unrewarded_proposal.votes_for {
-        accs_with_stake.push((acc_id, stake));
-    }
-    for (acc_id, stake) in unrewarded_proposal.votes_against {
-        accs_with_stake.push((acc_id, stake));
-    }
+    pallet_subspace::Pallet::<T>::remove_balance_from_account(
+        &treasury_address,
+        pallet_subspace::Pallet::<T>::u64_to_balance(allocation.to_num())
+            .ok_or(Error::<T>::InsufficientDaoTreasuryFunds)?,
+    )?;
 
-    let reward_by_account = distribute_rewards::<T>(accs_with_stake, allocation);
-
-    for (acc_id, reward) in reward_by_account {
-        if let Err(err) =
-            PalletSubspace::<T>::transfer_balance_to_account(&treasury_address, &acc_id, reward)
-        {
-            log::error!(
-                "could not transfer #{}'s voting reward of {} tokens for account {:?}: {err:#?}",
-                proposal_id,
-                reward,
-                acc_id
-            );
-        }
-    }
+    Ok(allocation)
 }
 
-fn distribute_rewards<T: crate::Config>(
-    accs_with_stake: Vec<(T::AccountId, u64)>,
-    allocation: I92F36,
-) -> Vec<(T::AccountId, u64)> {
-    let accs_with_sqrt_stake: Vec<_> = accs_with_stake
+fn distribute_proposal_rewards<T: crate::Config>(
+    account_stakes: BoundedBTreeMap<T::AccountId, u64, ConstU32<{ u32::MAX }>>,
+    total_allocation: I92F36,
+) {
+    use frame_support::sp_runtime::traits::IntegerSquareRoot;
+
+    let account_sqrt_stakes: Vec<_> = account_stakes
         .into_iter()
         .map(|(acc_id, stake)| (acc_id, stake.integer_sqrt()))
         .collect();
 
-    let total_stake =
-        I92F36::from_num(accs_with_sqrt_stake.iter().map(|(_, stake)| stake).sum::<u64>());
+    let total_stake: u64 = account_sqrt_stakes.iter().map(|(_, stake)| *stake).sum();
+    let total_stake = I92F36::from_num(total_stake);
 
-    accs_with_sqrt_stake
-        .into_iter()
-        .map(|(acc_id, stake)| {
-            let percentage = I92F36::from_num(stake) / total_stake;
-            (acc_id, (allocation * percentage).to_num())
-        })
-        .collect()
+    for (acc_id, stake) in account_sqrt_stakes.into_iter() {
+        let percentage = I92F36::from_num(stake) / total_stake;
+
+        let reward: u64 = (total_allocation * percentage).to_num();
+        let reward = match pallet_subspace::Pallet::<T>::u64_to_balance(reward) {
+            Some(balance) => balance,
+            None => {
+                log::error!("could not transform {reward} into T::Balance");
+                continue;
+            }
+        };
+
+        pallet_subspace::Pallet::<T>::add_balance_to_account(&acc_id, reward);
+    }
 }
