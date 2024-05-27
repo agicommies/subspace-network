@@ -247,7 +247,7 @@ fn test_min_weight_stake() {
             Error::<Test>::NotEnoughStakePerWeight
         );
 
-        increase_stake(netuid, U256::from(voter_idx), to_nano(400));
+        increase_stake(U256::from(voter_idx), to_nano(400));
 
         assert_ok!(SubspaceModule::set_weights(
             get_origin(U256::from(voter_idx)),
@@ -296,17 +296,13 @@ fn test_weight_age() {
             weights.clone(),
         ));
 
-        let passive_stake_before =
-            SubspaceModule::get_total_stake_to(NETUID, &U256::from(PASSIVE_VOTER));
-        let active_stake_before =
-            SubspaceModule::get_total_stake_to(NETUID, &U256::from(ACTIVE_VOTER));
+        let passive_stake_before = SubspaceModule::get_total_stake_to(&U256::from(PASSIVE_VOTER));
+        let active_stake_before = SubspaceModule::get_total_stake_to(&U256::from(ACTIVE_VOTER));
 
         step_block((TEMPO as u16) * 2);
 
-        let passive_stake_after =
-            SubspaceModule::get_total_stake_to(NETUID, &U256::from(PASSIVE_VOTER));
-        let active_stake_after =
-            SubspaceModule::get_total_stake_to(NETUID, &U256::from(ACTIVE_VOTER));
+        let passive_stake_after = SubspaceModule::get_total_stake_to(&U256::from(PASSIVE_VOTER));
+        let active_stake_after = SubspaceModule::get_total_stake_to(&U256::from(ACTIVE_VOTER));
 
         assert!(
             passive_stake_before < passive_stake_after || active_stake_before < active_stake_after,
@@ -323,10 +319,8 @@ fn test_weight_age() {
 
         step_block((TEMPO as u16) * 2);
 
-        let passive_stake_after_v2 =
-            SubspaceModule::get_total_stake_to(NETUID, &U256::from(PASSIVE_VOTER));
-        let active_stake_after_v2 =
-            SubspaceModule::get_total_stake_to(NETUID, &U256::from(ACTIVE_VOTER));
+        let passive_stake_after_v2 = SubspaceModule::get_total_stake_to(&U256::from(PASSIVE_VOTER));
+        let active_stake_after_v2 = SubspaceModule::get_total_stake_to(&U256::from(ACTIVE_VOTER));
 
         assert_eq!(
             passive_stake_after, passive_stake_after_v2,

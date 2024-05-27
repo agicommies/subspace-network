@@ -32,6 +32,7 @@ pub mod pallet {
 
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
+    #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
 
     #[pallet::config(with_default)]
@@ -67,6 +68,7 @@ pub mod pallet {
     type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
+    // Output of every subnet pricing mechanism
     pub type PricedSubnets = BTreeMap<u16, u64>;
 
     // Emission Allocation per Block step
@@ -131,7 +133,7 @@ pub mod pallet {
             let halving_interval = halving_interval
                 .checked_mul(10_u64.pow(decimals))
                 .expect("halving_interval overflow");
-            
+
             let max_supply =
                 max_supply.checked_mul(10_u64.pow(decimals)).expect("max_supply overflow");
 

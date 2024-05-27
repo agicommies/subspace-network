@@ -37,7 +37,7 @@ fn test_halving() {
         set_total_issuance(750_000_000 * multiplier);
         assert_eq!(
             SubnetEmission::get_total_emission_per_block(),
-            initial_unit_emission / 8 
+            initial_unit_emission / 8
         );
 
         set_total_issuance(1_000_000_000 * multiplier);

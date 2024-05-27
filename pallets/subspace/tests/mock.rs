@@ -174,13 +174,13 @@ pub fn add_balance(key: U256, balance: u64) {
 }
 
 #[allow(dead_code)]
-pub fn increase_stake(netuid: u16, key: U256, stake: u64) {
-    SubspaceModule::increase_stake(netuid, &key, &key, stake);
+pub fn increase_stake(key: U256, stake: u64) {
+    SubspaceModule::increase_stake(&key, &key, stake);
 }
 
 #[allow(dead_code)]
-pub fn delegate_stake(netuid: u16, key: U256, module_key: U256, stake: u64) {
-    SubspaceModule::increase_stake(netuid, &key, &module_key, stake);
+pub fn delegate_stake(key: U256, module_key: U256, stake: u64) {
+    SubspaceModule::increase_stake(&key, &module_key, stake);
 }
 
 #[allow(dead_code)]
@@ -284,14 +284,6 @@ pub fn get_emission_for_key(netuid: u16, key: &AccountId) -> u64 {
 }
 
 #[allow(dead_code)]
-pub fn get_stakes(netuid: u16) -> Vec<u64> {
-    SubspaceModule::get_uid_key_tuples(netuid)
-        .into_iter()
-        .map(|(_, key)| SubspaceModule::get_stake(netuid, &key))
-        .collect()
-}
-
-#[allow(dead_code)]
 pub fn get_total_subnet_balance(netuid: u16) -> u64 {
     let keys = SubspaceModule::get_keys(netuid);
     keys.iter().map(SubspaceModule::get_balance_u64).sum()
@@ -357,17 +349,17 @@ pub fn register(netuid: u16, key: U256, stake: u64) {
 }
 
 #[allow(dead_code)]
-pub fn remove_stake(netuid: u16, key: U256, amount: u64) {
+pub fn remove_stake(key: U256, amount: u64) {
     let origin = get_origin(key);
-    let result = SubspaceModule::remove_stake(origin, netuid, key, amount);
+    let result = SubspaceModule::remove_stake(origin, key, amount);
 
     assert_ok!(result);
 }
 
 #[allow(dead_code)]
-pub fn add_stake(netuid: u16, key: U256, amount: u64) {
+pub fn add_stake(key: U256, amount: u64) {
     let origin = get_origin(key);
-    let result = SubspaceModule::add_stake(origin, netuid, key, amount);
+    let result = SubspaceModule::add_stake(origin, key, amount);
 
     assert_ok!(result);
 }

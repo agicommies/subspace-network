@@ -120,16 +120,42 @@ pub mod v9 {
 
     pub struct MigrateToV9<T>(sp_std::marker::PhantomData<T>);
 
+    pub mod old_storage {
+        use super::*;
+        use frame_support::{pallet_prelude::ValueQuery, storage_alias, Identity};
+
+        type AccountId<T> = <T as frame_system::Config>::AccountId;
+
+        #[storage_alias]
+        pub type Stake<T: Config> =
+            StorageDoubleMap<Pallet<T>, Identity, u16, Identity, AccountId<T>, u64, ValueQuery>;
+    }
+
     impl<T: Config> OnRuntimeUpgrade for MigrateToV9<T> {
         fn on_runtime_upgrade() -> Weight {
             let on_chain_version = StorageVersion::get::<Pallet<T>>();
 
             if on_chain_version != 8 {
-                log::info!("Storage v7 already updated");
+                log::info!("Storage v9 already updated");
                 return Weight::zero();
             }
 
+            let mut migrated_stakes = BTreeMap::new();
+
+            for (_netuid, account_id, stake) in old_storage::Stake::<T>::iter() {
+                if let Some(existing_stake) = migrated_stakes.get_mut(&account_id) {
+                    *existing_stake += stake;
+                } else {
+                    migrated_stakes.insert(account_id, stake);
+                }
+            }
+
+            for (account_id, total_stake) in migrated_stakes {
+                Stake::<T>::insert(account_id, total_stake);
+            }
+
             // TODO:
+            // Luiz do this for `StakeTo` and `StakeFrom` if you convert to `DMAPS`
 
             StorageVersion::new(9).put::<Pallet<T>>();
             T::DbWeight::get().writes(1)

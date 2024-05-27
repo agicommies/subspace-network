@@ -372,7 +372,7 @@ impl<T: Config> Pallet<T> {
             Error::<T>::AlreadyVoted
         );
 
-        let voter_stake = Self::get_account_stake(&key);
+        let voter_stake = Self::get_stake(&key);
 
         // Check if the voter has non-zero stake
         ensure!(voter_stake > 0, Error::<T>::InsufficientStake);
@@ -427,9 +427,9 @@ impl<T: Config> Pallet<T> {
     //         let netuid = proposal.data.netuid();
 
     //         let votes_for: u64 =
-    //             proposal.votes_for.iter().map(|id| Self::get_account_stake(id)).sum();
+    //             proposal.votes_for.iter().map(|id| Self::get_stake(id)).sum();
     //         let votes_against: u64 =
-    //             proposal.votes_against.iter().map(|id| Self::get_account_stake(id)).sum();
+    //             proposal.votes_against.iter().map(|id| Self::get_stake(id)).sum();
 
     //         let total_stake = votes_for + votes_against;
     //         let minimal_stake_to_execute = Self::get_minimal_stake_to_execute(netuid);

@@ -75,7 +75,7 @@ fn test_max_registration() {
             assert_ok!(register_module(netuid, U256::from(i), to_nano(100)));
             let registrations_this_block = RegistrationsPerBlock::<Test>::get();
             assert_eq!(registrations_this_block, i);
-            assert!(SubspaceModule::is_registered(netuid, &key));
+            assert!(SubspaceModule::is_registered(None, &key));
         }
         step_block(1);
         assert_eq!(RegistrationsPerBlock::<Test>::get(), 0);
@@ -98,9 +98,9 @@ fn test_delegate_register() {
             delegate_register_module(netuid, key, module_key, stake_amount)
                 .expect("delegate register module failed");
             let key_balance = SubspaceModule::get_balance_u64(&key);
-            let stake_to_module = SubspaceModule::get_stake_to_module(netuid, &key, &module_key);
+            let stake_to_module = SubspaceModule::get_stake_to_module(&key, &module_key);
             info!("key_balance: {key_balance:?}");
-            let stake_to_vector = SubspaceModule::get_stake_to_vector(netuid, &key);
+            let stake_to_vector = SubspaceModule::get_stake_to_vector(&key);
             info!("stake_to_vector: {stake_to_vector:?}");
             assert_eq!(stake_to_module, stake_amount);
         }
@@ -170,7 +170,7 @@ fn test_registration_with_stake() {
             let key = U256::from(uid);
             info!("key: {key:?}");
             info!("stake: {stake_value:?}");
-            let stake_before: u64 = SubspaceModule::get_stake(netuid, &key);
+            let stake_before: u64 = SubspaceModule::get_stake(&key);
             info!("stake_before: {stake_before:?}");
             register_module(netuid, key, stake_value).unwrap_or_else(|_| {
                 panic!("Failed to register module with key: {key:?} and stake: {stake_value:?}",)
@@ -364,16 +364,16 @@ fn deregister_within_subnet_when_limit_is_reached() {
         assert_ok!(register_module(0, 0.into(), to_nano(10_000)));
         assert_ok!(register_module(1, 1.into(), to_nano(5_000)));
 
-        assert_eq!(Stake::<Test>::get(0, U256::from(0)), to_nano(9_996));
-        assert_eq!(Stake::<Test>::get(1, U256::from(1)), to_nano(4_996));
+        assert_eq!(Stake::<Test>::get(U256::from(0)), to_nano(9_996));
+        assert_eq!(Stake::<Test>::get(U256::from(1)), to_nano(4_996));
 
         MaxAllowedUids::<Test>::set(0, 1);
         MaxAllowedUids::<Test>::set(1, 1);
 
         assert_ok!(register_module(0, 2.into(), to_nano(15_000)));
 
-        assert_eq!(Stake::<Test>::get(0, U256::from(2)), to_nano(14_996));
-        assert_eq!(Stake::<Test>::get(1, U256::from(1)), to_nano(4_996));
+        assert_eq!(Stake::<Test>::get(U256::from(2)), to_nano(14_996));
+        assert_eq!(Stake::<Test>::get(U256::from(1)), to_nano(4_996));
 
         assert_eq!(Emission::<Test>::get(0).len(), 1);
         assert_eq!(Emission::<Test>::get(1).len(), 1);
@@ -388,17 +388,17 @@ fn deregister_globally_when_global_limit_is_reached() {
         assert_ok!(register_module(0, 0.into(), to_nano(10_000)));
         assert_ok!(register_module(1, 1.into(), to_nano(5_000)));
 
-        assert_eq!(Stake::<Test>::get(0, U256::from(0)), to_nano(9_996));
-        assert_eq!(Stake::<Test>::get(1, U256::from(1)), to_nano(4_996));
+        assert_eq!(Stake::<Test>::get(U256::from(0)), to_nano(9_996));
+        assert_eq!(Stake::<Test>::get(U256::from(1)), to_nano(4_996));
 
         MaxAllowedUids::<Test>::set(0, 2);
         MaxAllowedUids::<Test>::set(1, 1);
 
         assert_ok!(register_module(0, 2.into(), to_nano(15_000)));
 
-        assert_eq!(Stake::<Test>::get(0, U256::from(0)), to_nano(9_996));
-        assert_eq!(Stake::<Test>::get(0, U256::from(2)), to_nano(14_996));
-        assert_eq!(Stake::<Test>::get(1, U256::from(1)), 0);
+        assert_eq!(Stake::<Test>::get(U256::from(0)), to_nano(9_996));
+        assert_eq!(Stake::<Test>::get(U256::from(2)), to_nano(14_996));
+        assert_eq!(Stake::<Test>::get(U256::from(1)), 0);
 
         assert_eq!(Emission::<Test>::get(0).len(), 2);
         assert_eq!(Emission::<Test>::get(1).len(), 0);
@@ -727,14 +727,14 @@ fn new_subnets_on_removed_uids_register_modules_to_the_correct_netuids() {
         assert_subnets(&[(0, "test0"), (1, "test4"), (2, "test3")]);
 
         add_balance(0.into(), to_nano(50));
-        add_stake(0, 0.into(), to_nano(10));
+        add_stake(0.into(), to_nano(10));
 
         assert_ok!(register_module(5, 5.into(), to_nano(17)));
         assert_subnets(&[(0, "test0"), (1, "test4"), (2, "test5")]);
 
-        assert_eq!(Stake::<Test>::iter_key_prefix(0).count(), 1);
-        assert_eq!(Stake::<Test>::iter_key_prefix(1).count(), 1);
-        assert_eq!(Stake::<Test>::iter_key_prefix(2).count(), 1);
+        //assert_eq!(Stake::<Test>::iter_key_prefix(0).count(), 1);
+        //assert_eq!(Stake::<Test>::iter_key_prefix(1).count(), 1);
+        //assert_eq!(Stake::<Test>::iter_key_prefix(2).count(), 1);
 
         assert_eq!(N::<Test>::get(0), 1);
         assert_eq!(N::<Test>::get(1), 1);

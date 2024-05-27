@@ -96,8 +96,7 @@ fn test_emission_ratio() {
             let netuid = netuids[i];
             register_n_modules(netuid, 1, stake_per_module);
             let threshold = SubnetStakeThreshold::<Test>::get();
-            let subnet_emission: u64 =
-                SubspaceModule::calculate_network_emission(netuid, threshold);
+            let subnet_emission: u64 = SubspaceModule::calculate_network_emission(threshold);
             emissions_per_subnet.push(subnet_emission);
             let _expected_emission_factor: f64 = 1.0 / (netuids.len() as f64);
             let emission_per_block = SubspaceModule::get_total_emission_per_block();

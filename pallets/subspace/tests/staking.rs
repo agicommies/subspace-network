@@ -32,43 +32,41 @@ fn test_stake() {
                 info!(
                     " KEY {} KEY STAKE {} STAKING AMOUNT {} ",
                     key,
-                    SubspaceModule::get_stake(netuid, key),
+                    SubspaceModule::get_stake(key),
                     amount_staked
                 );
 
                 assert_ok!(register_module(netuid, *key, amount_staked));
                 info!(
                     " KEY STAKE {} STAKING AMOUNT {} ",
-                    SubspaceModule::get_stake(netuid, key),
+                    SubspaceModule::get_stake(key),
                     amount_staked
                 );
 
                 // SubspaceModule::add_stake(get_origin(*key), netuid, amount_staked);
-                assert_eq!(SubspaceModule::get_stake(netuid, key), amount_staked);
+                assert_eq!(SubspaceModule::get_stake(key), amount_staked);
                 assert_eq!(SubspaceModule::get_balance(key), 1);
 
                 // REMOVE STAKE
                 assert_ok!(SubspaceModule::remove_stake(
                     get_origin(*key),
-                    netuid,
                     *key,
                     amount_staked
                 ));
                 assert_eq!(SubspaceModule::get_balance(key), amount_staked + 1);
-                assert_eq!(SubspaceModule::get_stake(netuid, key), 0);
+                assert_eq!(SubspaceModule::get_stake(key), 0);
 
                 // ADD STAKE AGAIN LOL
                 assert_ok!(SubspaceModule::add_stake(
                     get_origin(*key),
-                    netuid,
                     *key,
                     amount_staked
                 ));
-                assert_eq!(SubspaceModule::get_stake(netuid, key), amount_staked);
+                assert_eq!(SubspaceModule::get_stake(key), amount_staked);
                 assert_eq!(SubspaceModule::get_balance(key), 1);
 
                 // AT THE END WE SHOULD HAVE THE SAME TOTAL STAKE
-                subnet_stake += SubspaceModule::get_stake(netuid, key);
+                subnet_stake += SubspaceModule::get_stake(key);
             }
             assert_eq!(SubspaceModule::get_total_subnet_stake(netuid), subnet_stake);
             total_stake += subnet_stake;
@@ -110,20 +108,19 @@ fn test_multiple_stake() {
 
         info!("STAKE AMOUNTS: {stake_amounts:?}");
         let total_actual_stake: u64 =
-            keys.clone().into_iter().map(|k| SubspaceModule::get_stake(netuid, &k)).sum();
+            keys.clone().into_iter().map(|k| SubspaceModule::get_stake(&k)).sum();
         let staker_balance = SubspaceModule::get_balance(&controler_key);
         info!("TOTAL ACTUAL STAKE: {total_actual_stake}");
         info!("TOTAL STAKE: {total_stake}");
         info!("STAKER BALANCE: {staker_balance}");
         assert_ok!(SubspaceModule::add_stake_multiple(
             get_origin(controler_key),
-            netuid,
             keys.clone(),
             stake_amounts.clone(),
         ));
 
         let total_actual_stake: u64 =
-            keys.clone().into_iter().map(|k| SubspaceModule::get_stake(netuid, &k)).sum();
+            keys.clone().into_iter().map(|k| SubspaceModule::get_stake(&k)).sum();
         let staker_balance = SubspaceModule::get_balance(&controler_key);
 
         assert_eq!(
@@ -140,13 +137,12 @@ fn test_multiple_stake() {
         // unstake from all modules
         assert_ok!(SubspaceModule::remove_stake_multiple(
             get_origin(controler_key),
-            netuid,
             keys.clone(),
             stake_amounts.clone(),
         ));
 
         let total_actual_stake: u64 =
-            keys.clone().into_iter().map(|k| SubspaceModule::get_stake(netuid, &k)).sum();
+            keys.clone().into_iter().map(|k| SubspaceModule::get_stake(&k)).sum();
         let staker_balance = SubspaceModule::get_balance(&controler_key);
         assert_eq!(
             total_actual_stake,
@@ -174,27 +170,25 @@ fn test_transfer_stake() {
 
         assert_ok!(SubspaceModule::transfer_stake(
             get_origin(keys[0]),
-            netuid,
             keys[0],
             keys[1],
             stake_amount
         ));
 
-        let key0_stake = SubspaceModule::get_stake(netuid, &keys[0]);
-        let key1_stake = SubspaceModule::get_stake(netuid, &keys[1]);
+        let key0_stake = SubspaceModule::get_stake(&keys[0]);
+        let key1_stake = SubspaceModule::get_stake(&keys[1]);
         assert_eq!(key0_stake, 0);
         assert_eq!(key1_stake, stake_amount * 2);
 
         assert_ok!(SubspaceModule::transfer_stake(
             get_origin(keys[0]),
-            netuid,
             keys[1],
             keys[0],
             stake_amount
         ));
 
-        let key0_stake = SubspaceModule::get_stake(netuid, &keys[0]);
-        let key1_stake = SubspaceModule::get_stake(netuid, &keys[1]);
+        let key0_stake = SubspaceModule::get_stake(&keys[0]);
+        let key1_stake = SubspaceModule::get_stake(&keys[1]);
         assert_eq!(key0_stake, stake_amount);
         assert_eq!(key1_stake, stake_amount);
     });
@@ -224,7 +218,7 @@ fn test_delegate_stake() {
                 info!(
                     " KEY {} KEY STAKE {} STAKING AMOUNT {} ",
                     key,
-                    SubspaceModule::get_stake(netuid, key),
+                    SubspaceModule::get_stake(key),
                     amount_staked
                 );
 
@@ -234,13 +228,12 @@ fn test_delegate_stake() {
                 assert_ok!(register_module(netuid, *key, 10));
                 info!(
                     " DELEGATE KEY STAKE {} STAKING AMOUNT {} ",
-                    SubspaceModule::get_stake(netuid, &delegate_key),
+                    SubspaceModule::get_stake(&delegate_key),
                     amount_staked
                 );
 
                 assert_ok!(SubspaceModule::add_stake(
                     get_origin(delegate_key),
-                    netuid,
                     *key,
                     amount_staked
                 ));
@@ -248,14 +241,10 @@ fn test_delegate_stake() {
                 // SubspaceModule::add_stake(get_origin(*key), netuid, amount_staked);
                 assert_eq!(get_stake_for_uid(netuid, uid), amount_staked + 10);
                 assert_eq!(SubspaceModule::get_balance(&delegate_key), 1);
-                assert_eq!(
-                    SubspaceModule::get_stake_to_vector(netuid, &delegate_key).len(),
-                    1
-                );
+                assert_eq!(SubspaceModule::get_stake_to_vector(&delegate_key).len(), 1);
                 // REMOVE STAKE
                 assert_ok!(SubspaceModule::remove_stake(
                     get_origin(delegate_key),
-                    netuid,
                     *key,
                     amount_staked
                 ));
@@ -264,24 +253,17 @@ fn test_delegate_stake() {
                     amount_staked + 1
                 );
                 assert_eq!(get_stake_for_uid(netuid, uid), 10);
-                assert_eq!(
-                    SubspaceModule::get_stake_to_vector(netuid, &delegate_key).len(),
-                    0
-                );
+                assert_eq!(SubspaceModule::get_stake_to_vector(&delegate_key).len(), 0);
 
                 // ADD STAKE AGAIN
                 assert_ok!(SubspaceModule::add_stake(
                     get_origin(delegate_key),
-                    netuid,
                     *key,
                     amount_staked
                 ));
                 assert_eq!(get_stake_for_uid(netuid, uid), amount_staked + 10);
                 assert_eq!(SubspaceModule::get_balance(&delegate_key), 1);
-                assert_eq!(
-                    SubspaceModule::get_stake_to_vector(netuid, &delegate_key).len(),
-                    1
-                );
+                assert_eq!(SubspaceModule::get_stake_to_vector(&delegate_key).len(), 1);
 
                 // AT THE END WE SHOULD HAVE THE SAME TOTAL STAKE
                 subnet_stake += get_stake_for_uid(netuid, uid);
@@ -319,7 +301,7 @@ fn test_ownership_ratio() {
                 add_balance(*d, stake_per_module + 1);
             }
 
-            let pre_delegate_stake_from_vector = SubspaceModule::get_stake_from_vector(netuid, k);
+            let pre_delegate_stake_from_vector = SubspaceModule::get_stake_from_vector(k);
             assert_eq!(pre_delegate_stake_from_vector.len(), 1); // +1 for the module itself, +1 for the delegate key on
 
             info!("KEY: {}", k);
@@ -327,11 +309,10 @@ fn test_ownership_ratio() {
                 info!("DELEGATE KEY: {d}");
                 assert_ok!(SubspaceModule::add_stake(
                     get_origin(*d),
-                    netuid,
                     *k,
                     stake_per_module
                 ));
-                let stake_from_vector = SubspaceModule::get_stake_from_vector(netuid, k);
+                let stake_from_vector = SubspaceModule::get_stake_from_vector(k);
                 assert_eq!(
                     stake_from_vector.len(),
                     pre_delegate_stake_from_vector.len() + i + 1
@@ -345,8 +326,8 @@ fn test_ownership_ratio() {
 
             step_epoch(netuid);
 
-            let stake_from_vector = SubspaceModule::get_stake_from_vector(netuid, k);
-            let stake: u64 = SubspaceModule::get_stake(netuid, k);
+            let stake_from_vector = SubspaceModule::get_stake_from_vector(k);
+            let stake: u64 = SubspaceModule::get_stake(k);
             let sumed_stake: u64 = stake_from_vector.iter().fold(0, |acc, (_a, x)| acc + x);
             let total_stake: u64 = SubspaceModule::get_total_subnet_stake(netuid);
 
@@ -380,7 +361,6 @@ fn test_min_stake() {
 
         assert_ok!(SubspaceModule::remove_stake(
             get_origin(keys[0]),
-            netuid,
             keys[0],
             10_000_000_000
         ));
@@ -404,7 +384,7 @@ fn test_stake_zero() {
         let key_two = U256::from(1);
 
         assert_noop!(
-            SubspaceModule::do_add_stake(get_origin(key_two), netuid, key, 0),
+            SubspaceModule::do_add_stake(get_origin(key_two), key, 0),
             Error::<Test>::NotEnoughBalanceToStake
         );
     });
@@ -427,7 +407,7 @@ fn test_unstake_zero() {
         let key_two = U256::from(1);
 
         assert_noop!(
-            SubspaceModule::do_remove_stake(get_origin(key_two), netuid, key, 0),
+            SubspaceModule::do_remove_stake(get_origin(key_two), key, 0),
             Error::<Test>::NotEnoughStakeToWithdraw
         );
     });

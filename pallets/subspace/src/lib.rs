@@ -48,6 +48,7 @@ mod math;
 pub mod module;
 mod profit_share;
 mod registration;
+pub mod rpc;
 mod set_weights;
 mod staking;
 pub mod subnet;
@@ -533,13 +534,13 @@ pub mod pallet {
     pub type RegistrationBlock<T: Config> =
         StorageDoubleMap<_, Identity, u16, Identity, u16, u64, ValueQuery>;
 
-    // ---------------------------------
     //  Module Staking Variables
-    /// ---------------------------------
+    /// ========================
 
     #[pallet::storage]
     pub type Stake<T: Config> = StorageMap<_, Identity, T::AccountId, u64, ValueQuery>;
 
+    // TODO: luiz, conver this to double maps
     #[pallet::storage]
     pub type StakeFrom<T: Config> =
         StorageMap<_, Identity, T::AccountId, BTreeMap<T::AccountId, u64>, ValueQuery>;
@@ -551,9 +552,9 @@ pub mod pallet {
     // #[pallet::storage]
     // pub type StakeTo<T: Config> = StorageDoubleMap<
     //     _,
-    //     Blake2_128Concat,
+    //     Identity,
     //     T::AccountId,
-    //     Blake2_128Concat,
+    //     Identity,
     //     T::AccountId,
     //     u64,
     //     ValueQuery,

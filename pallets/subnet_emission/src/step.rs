@@ -15,8 +15,6 @@ impl<T: Config> Pallet<T> {
         let subnets_emission_distribution = Self::get_subnet_pricing(emission_per_block);
 
         for (netuid, tempo) in Tempo::<T>::iter() {
-            // TODO: this will probably be known beforehand
-            // This utilizes subnet_pricing logic to calculate subnet emission
             let new_queued_emission = subnets_emission_distribution.get(&netuid).unwrap_or(&0);
 
             let emission_to_drain = PendingEmission::<T>::mutate(netuid, |queued: &mut u64| {
