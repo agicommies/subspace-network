@@ -286,10 +286,16 @@ impl<T: Config> Pallet<T> {
         TotalStake::<T>::get()
     }
 
-    pub fn get_total_subnet_stake(_netuid: u16) -> u64 {
-        0 // TODO: placeholder, replace with subnet pricing
-    }
+    pub fn get_total_subnet_stake(netuid: u16) -> u64 {
+        let mut total_stake = 0;
 
+        for (_, account_id) in Keys::<T>::iter_prefix(netuid) {
+            let stake = Stake::<T>::get(account_id);
+            total_stake += stake;
+        }
+
+        total_stake
+    }
     /// Returns the stake under the cold - hot pairing in the staking table.
     pub fn get_stake(key: &T::AccountId) -> u64 {
         Stake::<T>::get(key)

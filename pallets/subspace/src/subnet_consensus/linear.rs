@@ -1,7 +1,7 @@
 use crate::{
-    math::*, Config, DaoTreasuryAddress, DaoTreasuryDistribution, Dividends, Emission, Founder,
-    GlobalParams, Incentive, IncentiveRatio, LastUpdate, Pallet, Stake, SubnetParams, TotalStake,
-    Trust, TrustRatio, Vec, Weights, N,
+    math::*, Config, DaoTreasuryAddress, Dividends, Emission, Founder, GlobalParams, Incentive,
+    IncentiveRatio, LastUpdate, Pallet, Stake, SubnetParams, TotalStake, Trust, TrustRatio, Vec,
+    Weights, N,
 };
 use core::marker::PhantomData;
 use sp_arithmetic::per_things::Percent;
@@ -213,50 +213,13 @@ impl<T: Config> LinearEpoch<T> {
             }
         }
 
-        let total_stake = Pallet::<T>::total_stake() as u128;
-        let total_yuma_stake = total_stake - Pallet::<T>::get_total_subnet_stake(0) as u128;
-        let _subnet_stake_threshold = 0; // FIXME
-
         if netuid == 0 && founder_emission > 0 {
-            let mut founder_emission = founder_emission;
-
-            let distribution = DaoTreasuryDistribution::<T>::get();
-            if !distribution.is_zero() && total_yuma_stake > 0 {
-                let to_distribute = distribution.mul_floor(founder_emission);
-                founder_emission = founder_emission.saturating_sub(to_distribute);
-
-                // TODO:
-                // FIXME:
-                // This is old local stake logic over there, we need to replace it with the new one
-                let stakes = TotalStake::<T>::get();
-                let total_yuma_stake = stakes; // PLACEHOLDER
-
-                // FIXME:
-                for (_netuid, founder_key) in Founder::<T>::iter().filter(|(n, _)| *n != 0) {
-                    let Some(subnet_stake) = Some(0) else {
-                        // Place holder
-                        continue;
-                    };
-
-                    let yuma_stake_percentage = Percent::from_parts(
-                        ((subnet_stake as u128 * 100) / (total_yuma_stake as u128)) as u8,
-                    );
-
-                    let founder_distribution = yuma_stake_percentage.mul_floor(to_distribute);
-                    Pallet::<T>::add_balance_to_account(
-                        &founder_key,
-                        Pallet::<T>::u64_to_balance(founder_distribution).unwrap_or_default(),
-                    );
-                }
-            }
-
             // Update global treasure
             Pallet::<T>::add_balance_to_account(
                 &DaoTreasuryAddress::<T>::get(),
                 Pallet::<T>::u64_to_balance(founder_emission).unwrap_or_default(),
             );
         }
-
         emission
     }
 

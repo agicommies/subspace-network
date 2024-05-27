@@ -8,15 +8,16 @@ use pallet_subspace::subnet_consensus::{linear, yuma};
 
 // TODO: make sure that the proposals are ticked correctly
 impl<T: Config> Pallet<T> {
-    pub fn block_step(block_number: u64, emission_per_block: u64) {
+    pub fn process_emission_distribution(block_number: u64, emission_per_block: u64) {
         log::debug!("stepping block {block_number:?}");
 
         // Calculate subnet emission
         let subnets_emission_distribution = Self::get_subnet_pricing(emission_per_block);
+        // dbg!(subnets_emission_distribution.clone());
 
         for (netuid, tempo) in Tempo::<T>::iter() {
             let new_queued_emission = subnets_emission_distribution.get(&netuid).unwrap_or(&0);
-
+            // dbg!(new_queued_emission);
             let emission_to_drain = PendingEmission::<T>::mutate(netuid, |queued: &mut u64| {
                 *queued += new_queued_emission;
                 *queued
@@ -37,9 +38,11 @@ impl<T: Config> Pallet<T> {
                     if netuid == 0 {
                         // TODO.
                         // return result here, copy the layout of yuma consensus
+                        // dbg!("running linear");
                         linear::LinearEpoch::<T>::linear_epoch(netuid, emission_to_drain);
                         Ok(())
                     } else {
+                        // dbg!("running yuma");
                         match yuma::YumaEpoch::<T>::new(netuid, emission_to_drain).run() {
                             Ok(_) => Ok(()),
                             Err(err) => {
@@ -55,6 +58,7 @@ impl<T: Config> Pallet<T> {
 
                 match res {
                     Ok(()) => {
+                        // dbg!("clearing pending emission, for subnet", netuid);
                         PendingEmission::<T>::insert(netuid, 0);
                         Self::deposit_event(Event::<T>::EpochFinished(netuid));
                     }

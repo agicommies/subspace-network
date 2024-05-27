@@ -1,3 +1,4 @@
-convert stake related data types to DMAPS
-
+convert stakeTO, stakeFrom related data types to DMAPS (luiz)
 add registratoin burn for subnets
+fix deregistration mechanism for subnets
+move registraiton parameters to subnet owner hands

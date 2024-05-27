@@ -3,7 +3,7 @@ use core::marker::PhantomData;
 
 use frame_support::{
     pallet_prelude::{ValueQuery, Weight},
-    traits::{OnRuntimeUpgrade, StorageInstance, StorageVersion},
+    traits::{OnRuntimeUpgrade, StorageVersion},
     Identity,
 };
 use pallet_subspace::Vec;
@@ -13,7 +13,7 @@ pub struct InitialMigration<T>(PhantomData<T>);
 
 pub mod old_storage {
     use super::*;
-    use frame_support::{storage_alias, StorageValue};
+    use frame_support::storage_alias;
 
     #[storage_alias]
     pub type UnitEmission<T: Config> = StorageValue<Pallet<T>, u64, ValueQuery>;

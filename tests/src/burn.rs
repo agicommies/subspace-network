@@ -1,7 +1,7 @@
-mod mock;
-use frame_support::assert_ok;
+#[allow(unused_imports)]
 
-use mock::*;
+use crate::mock::*;
+use frame_support::assert_ok;
 use pallet_subspace::{global::BurnConfiguration, Burn, MaxRegistrationsPerBlock};
 use sp_core::U256;
 

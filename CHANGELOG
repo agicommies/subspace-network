@@ -2,6 +2,39 @@
 
 [Unreleased]
 
+Spec version: `115`
+
+- Switching stake to global
+- Removing the netuid from all stake based related operations and storages
+- Changing subnet registration / deregistration logic out of stake based (TODO)
+
+This whole local stake support gambiarra is getting deleted for grater good:
+```rs
+       let stakes = TotalStake::<T>::get();
+                let total_yuma_stake = stakes; // PLACEHOLDER
+
+                // FIXME:
+                for (_netuid, founder_key) in Founder::<T>::iter().filter(|(n, _)| *n != 0) {
+                    let Some(subnet_stake) = Some(0) else {
+                        // Place holder
+                        continue;
+                    };
+
+                    let yuma_stake_percentage = Percent::from_parts(
+                        ((subnet_stake as u128 * 100) / (total_yuma_stake as u128)) as u8,
+                    );
+
+                    let founder_distribution = yuma_stake_percentage.mul_floor(to_distribute);
+                    Pallet::<T>::add_balance_to_account(
+                        &founder_key,
+                        Pallet::<T>::u64_to_balance(founder_distribution).unwrap_or_default(),
+                    );
+                }
+            }
+```
+
+
+[Unreleased]
 Spec version: `114`
 
 - Moving Dao Treasury to a normal chain account

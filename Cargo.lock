@@ -9102,10 +9102,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "subnet_consensus"
-version = "0.1.0"
-
-[[package]]
 name = "subspace-rpc"
 version = "1.0.0"
 dependencies = [
@@ -9326,6 +9322,27 @@ name = "termtree"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
+
+[[package]]
+name = "tests"
+version = "1.0.0"
+dependencies = [
+ "bty",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "pallet-subnet-emission",
+ "pallet-subspace",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.10.1)",
+ "sp-tracing 16.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.10.1)",
+]
 
 [[package]]
 name = "thiserror"

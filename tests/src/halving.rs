@@ -1,8 +1,9 @@
-mod mock;
-use mock::*;
+#[allow(unused_imports)]
 
+use crate::mock::*;
 use pallet_subnet_emission::UnitEmission;
 
+// Tests halving logic of the blockchain
 #[test]
 fn test_halving() {
     new_test_ext().execute_with(|| {

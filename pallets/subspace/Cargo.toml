@@ -47,6 +47,7 @@ substrate-fixed.workspace = true
 pallet-transaction-payment.workspace = true
 ndarray.workspace = true
 
+
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
 sp-io.workspace = true

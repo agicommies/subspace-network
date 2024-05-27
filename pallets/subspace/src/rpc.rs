@@ -1,5 +1,6 @@
 use super::*;
 
+// ! Get read structures in a fast way from the blockchain
 #[derive(Decode, Encode, PartialEq, Eq, Clone, Debug)]
 pub struct ModuleStats<T: Config> {
     pub last_update: u64,

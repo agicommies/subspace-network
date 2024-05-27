@@ -7,8 +7,8 @@ use sp_std::collections::btree_map::BTreeMap;
 // Pallet Imports
 // ==============
 
+mod distribute_emission;
 pub mod migrations;
-mod step;
 pub mod subnet_pricing {
     pub mod demo;
 }
@@ -83,8 +83,12 @@ pub mod pallet {
             let emission_per_block = Self::get_total_emission_per_block();
             // Make sure to use storage layer,
             // so runtime can never panic in initialization hook
-            let res: Result<(), DispatchError> =
-                with_storage_layer(|| Ok(Self::block_step(block_number, emission_per_block)));
+            let res: Result<(), DispatchError> = with_storage_layer(|| {
+                Ok(Self::process_emission_distribution(
+                    block_number,
+                    emission_per_block,
+                ))
+            });
             if let Err(err) = res {
                 log::error!("Error in on_initialize emission: {err:?}, skipping...");
             }
@@ -134,6 +138,7 @@ pub mod pallet {
                 .checked_mul(10_u64.pow(decimals))
                 .expect("halving_interval overflow");
 
+            // dbg!(max_supply, total_issuance, halving_interval, unit_emission, decimals);
             let max_supply =
                 max_supply.checked_mul(10_u64.pow(decimals)).expect("max_supply overflow");
 

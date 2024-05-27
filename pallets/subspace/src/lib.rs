@@ -452,15 +452,6 @@ pub mod pallet {
         StorageValue<_, T::AccountId, ValueQuery, DefaultDaoTreasuryAddress<T>>;
 
     #[pallet::type_value]
-    pub fn DefaultDaoTreasuryDistribution<T: Config>() -> Percent {
-        Percent::from_percent(5u8)
-    }
-
-    #[pallet::storage]
-    pub type DaoTreasuryDistribution<T: Config> =
-        StorageValue<_, Percent, ValueQuery, DefaultDaoTreasuryDistribution<T>>;
-
-    #[pallet::type_value]
     pub fn DefaultFloorFounderShare<T: Config>() -> u8 {
         8
     }
