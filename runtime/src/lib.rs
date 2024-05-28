@@ -110,10 +110,9 @@ pub mod opaque {
 
 pub type Migrations = (
     pallet_grandpa::migrations::MigrateV4ToV5<Runtime>,
-    pallet_subspace::migrations::v10::MigrateToV10<Runtime>,
+    pallet_subspace::migrations::v11::MigrateToV11<Runtime>,
     pallet_governance::migrations::InitialMigration<Runtime>,
 );
-
 // To learn more about runtime versioning, see:
 // https://docs.substrate.io/main-docs/build/upgrade#runtime-versioning
 #[sp_version::runtime_version]
@@ -126,7 +125,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     //   `spec_version`, and `authoring_version` are the same between Wasm and native.
     // This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
     //   the compatible custom types.
-    spec_version: 117,
+    spec_version: 118,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,

@@ -76,7 +76,7 @@ pub mod pallet {
     use sp_arithmetic::per_things::Percent;
     pub use sp_std::{vec, vec::Vec};
 
-    const STORAGE_VERSION: StorageVersion = StorageVersion::new(10);
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(11);
 
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
@@ -286,8 +286,6 @@ pub mod pallet {
         pub floor_delegation_fee: Percent, // min delegation fee
         pub floor_founder_share: u8,       // min founder share
         pub min_weight_stake: u64,         // min weight stake required
-
-        // proposals
         pub proposal_cost: u64,
         pub proposal_expiration: u32,
         pub proposal_participation_threshold: Percent,
@@ -409,6 +407,7 @@ pub mod pallet {
     pub fn DefaultTargetRegistrationsInterval<T: Config>() -> u16 {
         DefaultTempo::<T>::get() * 2 // 2 times the epoch
     }
+
     #[pallet::storage] // --- MAP ( netuid ) --> trarget_registrations_interval
     pub type TargetRegistrationsInterval<T> =
         StorageMap<_, Identity, u16, u16, ValueQuery, DefaultTargetRegistrationsInterval<T>>;
@@ -417,7 +416,6 @@ pub mod pallet {
     pub fn DefaultMaxRegistrationsPerInterval<T: Config>() -> u16 {
         42
     }
-
     #[pallet::storage] // --- MAP ( netuid ) --> trarget_registrations_interval
     pub type MaxRegistrationsPerInterval<T> =
         StorageMap<_, Identity, u16, u16, ValueQuery, DefaultMaxRegistrationsPerInterval<T>>;

@@ -24,7 +24,7 @@ pub fn ss58_to_account_id<T: Config>(
     Ok(T::AccountId::decode(&mut &account_id_vec[..]).unwrap())
 }
 
-pub mod v10 {
+pub mod v11 {
     use self::{
         global::BurnConfiguration,
         old_storage::{GlobalDaoTreasury, MaxBurn, MinBurn},
@@ -48,14 +48,14 @@ pub mod v10 {
         pub type GlobalDaoTreasury<T: Config> = StorageValue<Pallet<T>, u64, ValueQuery>;
     }
 
-    pub struct MigrateToV10<T>(sp_std::marker::PhantomData<T>);
+    pub struct MigrateToV11<T>(sp_std::marker::PhantomData<T>);
 
-    impl<T: Config> OnRuntimeUpgrade for MigrateToV10<T> {
+    impl<T: Config> OnRuntimeUpgrade for MigrateToV11<T> {
         fn on_runtime_upgrade() -> Weight {
             let on_chain_version = StorageVersion::get::<Pallet<T>>();
 
-            if on_chain_version != 9 {
-                log::info!("Storage v10 already updated");
+            if on_chain_version != 10 {
+                log::info!("Storage v11 already updated");
                 return Weight::zero();
             }
 
@@ -99,11 +99,7 @@ pub mod v10 {
             );
             GlobalDaoTreasury::<T>::set(0);
 
-            let account_balance = Pallet::<T>::get_balance_u64(&treasury_account);
-            log::info!("Treasury transferred, treasury account now has {account_balance}");
-            log::info!("Treasury account: {treasury_account:?}");
-
-            StorageVersion::new(10).put::<Pallet<T>>();
+            StorageVersion::new(11).put::<Pallet<T>>();
             T::DbWeight::get().writes(1)
         }
     }

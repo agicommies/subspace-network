@@ -5,8 +5,8 @@ use log::info;
 use mock::*;
 use pallet_subspace::{
     Dividends, Error, FounderShare, MaxAllowedModules, MaxAllowedSubnets, MaxAllowedUids,
-    MaxRegistrationsPerBlock, MaximumSetWeightCallsPerEpoch, SubnetNames, SubnetStakeThreshold,
-    Tempo, TotalSubnets, UnitEmission, N,
+    MaxRegistrationsPerBlock, MaxRegistrationsPerInterval, MaximumSetWeightCallsPerEpoch,
+    SubnetNames, SubnetStakeThreshold, Tempo, TotalSubnets, UnitEmission, N,
 };
 use sp_core::U256;
 use sp_runtime::Percent;
@@ -185,6 +185,7 @@ fn test_set_max_allowed_uids_shrinking() {
         let max_uids: u16 = 100;
         let extra_uids: u16 = 20;
 
+        MaxRegistrationsPerInterval::<Test>::insert(netuid, 9999);
         // make sure that the results won´t get affected by burn
         zero_min_burn();
 
