@@ -234,6 +234,10 @@ fn test_set_max_allowed_uids_shrinking() {
             params.maximum_set_weight_calls_per_epoch,
             params.vote_mode,
             params.bonds_ma,
+            params.target_registrations_interval,
+            params.target_registrations_per_interval,
+            params.max_registrations_per_interval,
+            params.adjustment_alpha,
         );
         let global_params = SubspaceModule::global_params();
         info!("global params {:?}", global_params);
@@ -276,8 +280,6 @@ fn test_set_max_allowed_modules() {
         zero_min_burn();
         MaxRegistrationsPerBlock::<Test>::set(1000);
         MaxAllowedModules::<Test>::put(max_allowed_modules);
-        // set max_total modules
-
         for i in 1..(2 * max_allowed_modules) {
             assert_ok!(register_module(netuid, U256::from(i), stake));
             let n = N::<Test>::get(netuid);
@@ -578,7 +580,6 @@ fn test_parasite_subnet_registrations() {
         let expected_module_amount: u16 = 5;
         MaxAllowedModules::<Test>::put(expected_module_amount);
         MaxRegistrationsPerBlock::<Test>::set(1000);
-
         let main_subnet_netuid: u16 = 0;
         let main_subnet_stake = to_nano(500_000);
         let main_subnet_key = U256::from(0);
@@ -811,6 +812,10 @@ fn test_update_same_name() {
             params.maximum_set_weight_calls_per_epoch,
             params.vote_mode,
             params.bonds_ma,
+            params.target_registrations_interval,
+            params.target_registrations_per_interval,
+            params.max_registrations_per_interval,
+            params.adjustment_alpha,
         );
 
         dbg!(SubnetNames::<Test>::get(netuid));

@@ -66,9 +66,7 @@ fn test_max_registration() {
         let max_registrations_per_block = 100;
         // make sure that the results won´t get affected by burn
         zero_min_burn();
-
         assert_eq!(RegistrationsPerBlock::<Test>::get(), 0);
-
         MaxRegistrationsPerBlock::<Test>::set(1000);
         for i in 1..(max_registrations_per_block * rounds) {
             let key = U256::from(i);
@@ -360,7 +358,6 @@ fn validates_module_on_update() {
 fn deregister_within_subnet_when_limit_is_reached() {
     new_test_ext().execute_with(|| {
         MaxAllowedModules::<Test>::set(3);
-
         assert_ok!(register_module(0, 0.into(), to_nano(10_000)));
         assert_ok!(register_module(1, 1.into(), to_nano(5_000)));
 

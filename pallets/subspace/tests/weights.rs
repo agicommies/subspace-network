@@ -1,6 +1,5 @@
 mod mock;
 use frame_support::{assert_err, assert_ok};
-
 use pallet_subspace::{Error, FloorFounderShare, MaxRegistrationsPerBlock, N};
 use sp_core::U256;
 use sp_runtime::DispatchError;
@@ -268,7 +267,6 @@ fn test_weight_age() {
         const ACTIVE_VOTER: u16 = 1;
         MaxRegistrationsPerBlock::<Test>::set(1000);
         FloorFounderShare::<Test>::put(0);
-
         // Register modules
         (0..MODULE_COUNT).for_each(|i| {
             assert_ok!(register_module(NETUID, U256::from(i), to_nano(10)));
