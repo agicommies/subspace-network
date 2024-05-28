@@ -2,7 +2,7 @@
 
 [Unreleased]
 
-Spec version: `114`
+Spec version: `118` ?
 
 - Moving Dao Treasury to a normal chain account
   - The `GlobalDaoTreasury` will get deleted in the next release,
