@@ -259,7 +259,6 @@ fn test_pruning() {
         let stake_per_module: u64 = 10_000;
         let tempo: u16 = 100;
 
-        MaxRegistrationsPerInterval::<Test>::insert(netuid, 1000);
         // make sure that the results won´t get affected by burn
         zero_min_burn();
         MaxRegistrationsPerBlock::<Test>::set(1000);
@@ -698,7 +697,6 @@ fn test_dynamic_burn() {
         // Create the subnet
         let subnet_key = U256::from(2050);
         assert_ok!(register_module(netuid, subnet_key, initial_stake));
-        MaxRegistrationsPerInterval::<Test>::set(netuid, 1000);
         // Using the default GlobalParameters:
         // - registration target interval = 2 * tempo (200 blocks)
         // - registration target for interval = registration_target_interval / 2

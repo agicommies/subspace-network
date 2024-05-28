@@ -48,6 +48,16 @@ impl<T: Config> SubnetChangeset<T> {
         IncentiveRatio::<T>::insert(netuid, self.params.incentive_ratio);
         VoteModeSubnet::<T>::insert(netuid, self.params.vote_mode);
         AdjustmentAlpha::<T>::insert(netuid, self.params.adjustment_alpha);
+        BondsMovingAverage::<T>::insert(netuid, self.params.bonds_ma);
+        TargetRegistrationsInterval::<T>::insert(netuid, self.params.target_registrations_interval);
+        TargetRegistrationsPerInterval::<T>::insert(
+            netuid,
+            self.params.target_registrations_per_interval,
+        );
+        MaxRegistrationsPerInterval::<T>::insert(
+            netuid,
+            self.params.max_registrations_per_interval,
+        );
         if self.params.maximum_set_weight_calls_per_epoch == 0 {
             MaximumSetWeightCallsPerEpoch::<T>::remove(netuid);
         } else {
