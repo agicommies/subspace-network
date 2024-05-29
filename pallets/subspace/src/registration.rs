@@ -116,7 +116,8 @@ impl<T: Config> Pallet<T> {
                     ..DefaultSubnetParams::<T>::get()
                 };
                 let changeset = SubnetChangeset::new(params)?;
-                Self::add_subnet_from_registration(stake, changeset)?
+                // TODO: implement a burn mechanism for the subnet creation
+                Self::add_subnet_from_registration(changeset)?
             }
         };
 
@@ -148,7 +149,8 @@ impl<T: Config> Pallet<T> {
 
         // --- 7. Check if we are exceeding the max allowed modules per network.
         // If we do deregister slot.
-        Self::reserve_module_slot(netuid);
+        let reserved_slot = Self::reserve_module_slot(netuid);
+        ensure!(reserved_slot.is_some(), Error::<T>::NoSlotAvailable);
 
         let fee = DefaultDelegationFee::<T>::get();
         // --- 8. Register the module and changeset.
@@ -388,7 +390,6 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn add_subnet_from_registration(
-        stake: u64,
         changeset: SubnetChangeset<T>,
     ) -> Result<u16, sp_runtime::DispatchError> {
         let num_subnets: u16 = TotalSubnets::<T>::get();
@@ -396,11 +397,15 @@ impl<T: Config> Pallet<T> {
 
         // if we have not reached the max number of subnets, then we can start a new one
         let target_subnet = if num_subnets >= max_subnets {
-            let (min_stake_netuid, min_stake) = Self::get_least_staked_netuid();
+            let lowest_emission_netuid = Self::get_lowest_emission_netuid();
+            // Ensure the netuid is some otherwise return an error
+            let netuid = lowest_emission_netuid.ok_or(sp_runtime::DispatchError::Other(
+                "No valid netuid to deregister",
+            ))?;
+
             // if the stake is greater than the least staked network, then we can start a new one
-            ensure!(stake > min_stake, Error::<T>::NotEnoughStakeToStartNetwork);
-            Self::remove_subnet(min_stake_netuid);
-            Some(min_stake_netuid)
+            Self::remove_subnet(netuid);
+            Some(netuid)
         } else {
             None
         };
@@ -415,21 +420,31 @@ impl<T: Config> Pallet<T> {
     /// This function checks whether there are still available module slots on the network. If the
     /// subnet is filled, deregister the least staked module on it, or if the max allowed modules on
     /// the network is reached, deregisters the least staked module on the least staked netuid.
-    pub fn reserve_module_slot(netuid: u16) {
+    pub fn reserve_module_slot(netuid: u16) -> Option<()> {
         if N::<T>::get(netuid) >= MaxAllowedUids::<T>::get(netuid) {
             // If we reach the max allowed modules for this subnet,
             // then we replace the lowest priority node in the current subnet
             Self::remove_module(netuid, Self::get_lowest_uid(netuid, false));
+            Some(())
         } else if Self::global_n_modules() >= MaxAllowedModules::<T>::get() {
             // Get the least staked network (subnet) and its least staked module.
-            let (subnet_uid, _) = Self::get_least_staked_netuid();
-            let module_uid = Self::get_lowest_uid(subnet_uid, true);
+            let lowest_emission_netuid = Self::get_lowest_emission_netuid();
 
-            // Deregister the lowest priority node in the least staked network
-            // in this case we should ignore the immunity period,
-            // Because if the lowest subnet has unreasonably high immunity period,
-            // it could lead to exploitation of the network.
-            Self::remove_module(subnet_uid, module_uid);
+            // Ensure the netuid is some otherwise return an error
+            if let Some(subnet_id) = lowest_emission_netuid {
+                let module_uid = Self::get_lowest_uid(subnet_id, true);
+
+                // Deregister the lowest priority node in the least staked network
+                // in this case we should ignore the immunity period,
+                // Because if the lowest subnet has unreasonably high immunity period,
+                // it could lead to exploitation of the network.
+                Self::remove_module(subnet_id, module_uid);
+                Some(())
+            } else {
+                None
+            }
+        } else {
+            Some(())
         }
     }
 

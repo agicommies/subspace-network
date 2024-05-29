@@ -25,6 +25,7 @@ std = [
 try-runtime = ["frame-support/try-runtime"]
 
 [dependencies]
+substrate-fixed.workspace = true
 pallet-balances.workspace = true
 sp-tracing.workspace = true
 sp-io.workspace = true

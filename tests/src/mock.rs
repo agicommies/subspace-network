@@ -24,8 +24,8 @@ frame_support::construct_runtime!(
     pub enum Test {
         System: frame_system,
         Balances: pallet_balances,
-        SubnetEmission: pallet_subnet_emission,
-        Subspace: pallet_subspace,
+        SubnetEmissionMod: pallet_subnet_emission,
+        SubspaceMod: pallet_subspace,
     }
 );
 
@@ -201,7 +201,7 @@ pub fn set_total_issuance(total_issuance: u64) {
     // Reset the issuance (completelly nuke the key's balance)
     <Test as pallet_subspace::Config>::Currency::make_free_balance_be(&key, 0u32.into());
     // Add the total_issuance to the key's balance
-    Subspace::add_balance_to_account(&key, total_issuance);
+    SubspaceMod::add_balance_to_account(&key, total_issuance);
 }
 
 #[allow(dead_code)]
@@ -216,14 +216,32 @@ pub fn get_origin(key: U256) -> RuntimeOrigin {
 }
 
 #[allow(dead_code)]
+pub fn get_total_subnet_balance(netuid: u16) -> u64 {
+    let keys = SubspaceMod::get_keys(netuid);
+    keys.iter().map(SubspaceMod::get_balance_u64).sum()
+}
+
+#[allow(dead_code)]
 pub(crate) fn step_block(n: u16) {
     for _ in 0..n {
-        Subspace::on_finalize(System::block_number());
+        SubspaceMod::on_finalize(System::block_number());
         System::on_finalize(System::block_number());
         System::set_block_number(System::block_number() + 1);
         System::on_initialize(System::block_number());
-        Subspace::on_initialize(System::block_number());
-        SubnetEmission::on_initialize(System::block_number());
+        SubspaceMod::on_initialize(System::block_number());
+        SubnetEmissionMod::on_initialize(System::block_number());
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) fn run_to_block(n: u64) {
+    while System::block_number() < n {
+        SubspaceMod::on_finalize(System::block_number());
+        System::on_finalize(System::block_number());
+        System::set_block_number(System::block_number() + 1);
+        System::on_initialize(System::block_number());
+        SubspaceMod::on_initialize(System::block_number());
+        SubnetEmissionMod::on_initialize(System::block_number());
     }
 }
 
@@ -235,12 +253,12 @@ pub(crate) fn step_epoch(netuid: u16) {
 
 #[allow(dead_code)]
 pub fn set_weights(netuid: u16, key: U256, uids: Vec<u16>, values: Vec<u16>) {
-    Subspace::set_weights(get_origin(key), netuid, uids.clone(), values.clone()).unwrap();
+    SubspaceMod::set_weights(get_origin(key), netuid, uids.clone(), values.clone()).unwrap();
 }
 
 #[allow(dead_code)]
 pub fn get_stake_for_uid(netuid: u16, module_uid: u16) -> u64 {
-    let Some(key) = Subspace::get_key_for_uid(netuid, module_uid) else {
+    let Some(key) = SubspaceMod::get_key_for_uid(netuid, module_uid) else {
         return 0;
     };
     Stake::<Test>::get(key)
@@ -248,8 +266,8 @@ pub fn get_stake_for_uid(netuid: u16, module_uid: u16) -> u64 {
 
 #[allow(dead_code)]
 pub fn get_emission_for_key(netuid: u16, key: &AccountId) -> u64 {
-    let uid = Subspace::get_uid_for_key(netuid, key);
-    Subspace::get_emission_for_uid(netuid, uid)
+    let uid = SubspaceMod::get_uid_for_key(netuid, key);
+    SubspaceMod::get_emission_for_uid(netuid, uid)
 }
 
 #[allow(dead_code)]
@@ -270,18 +288,18 @@ pub fn delegate_register_module(
     let address: Vec<u8> = "0.0.0.0:30333".as_bytes().to_vec();
 
     let origin = get_origin(key);
-    let is_new_subnet: bool = !Subspace::if_subnet_exist(netuid);
+    let is_new_subnet: bool = !SubspaceMod::if_subnet_exist(netuid);
     if is_new_subnet {
         MaxRegistrationsPerBlock::<Test>::set(1000)
     }
 
-    let balance = Subspace::get_balance(&key);
+    let balance = SubspaceMod::get_balance(&key);
 
     if stake >= balance {
-        Subspace::add_balance_to_account(&key, stake + 1);
+        SubspaceMod::add_balance_to_account(&key, stake + 1);
     }
 
-    let result = Subspace::register(
+    let result = SubspaceMod::register(
         origin,
         network,
         name.clone(),
@@ -299,10 +317,10 @@ pub fn delegate_register_module(
 #[allow(dead_code)]
 pub fn check_subnet_storage(netuid: u16) -> bool {
     let n = N::<Test>::get(netuid);
-    let uids = Subspace::get_uids(netuid);
-    let keys = Subspace::get_keys(netuid);
-    let names = Subspace::get_names(netuid);
-    let addresses = Subspace::get_addresses(netuid);
+    let uids = SubspaceMod::get_uids(netuid);
+    let keys = SubspaceMod::get_keys(netuid);
+    let names = SubspaceMod::get_names(netuid);
+    let addresses = SubspaceMod::get_addresses(netuid);
     let emissions = Emission::<Test>::get(netuid);
     let incentives = Incentive::<Test>::get(netuid);
     let dividends = Dividends::<Test>::get(netuid);
@@ -369,9 +387,9 @@ pub fn register_module(netuid: u16, key: U256, stake: u64) -> DispatchResult {
 
     let origin = get_origin(key);
 
-    Subspace::add_balance_to_account(&key, stake + 1);
+    SubspaceMod::add_balance_to_account(&key, stake + 1);
 
-    Subspace::register(origin, network, name, address, stake, key, None)
+    SubspaceMod::register(origin, network, name, address, stake, key, None)
 }
 
 #[allow(dead_code)]
@@ -396,7 +414,7 @@ macro_rules! update_params {
     ($netuid:expr => {$($f:ident:$v:expr),+}) => {{
         let params = ::pallet_subspace::SubnetParams {
             $($f: $v),+,
-            ..SubspaceModule::subnet_params($netuid)
+            ..SubspaceMod::subnet_params($netuid)
         };
         ::pallet_subspace::subnet::SubnetChangeset::<Test>::update($netuid, params).unwrap().apply($netuid).unwrap();
     }};

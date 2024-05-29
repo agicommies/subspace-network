@@ -344,9 +344,12 @@ impl<T: Config> Pallet<T> {
     // Getters
     // ---------------------------------
 
-    // TODO: fix this one
-    pub fn get_least_staked_netuid() -> (u16, u64) {
-        (0, 0) // FIXME: local stake problem
+    // Gets the subnet with the lowest emisison value, uf there is one.
+    // Used in the deregistraiton logic, lowest emission subnets get deregistered first.
+    pub fn get_lowest_emission_netuid() -> Option<u16> {
+        SubnetEmission::<T>::iter()
+            .min_by_key(|(_, emission)| *emission)
+            .map(|(netuid, _)| netuid)
     }
 
     pub fn get_min_allowed_weights(netuid: u16) -> u16 {

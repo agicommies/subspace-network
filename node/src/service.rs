@@ -277,7 +277,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
         };
 
         let grandpa_config = sc_consensus_grandpa::Config {
-            // FIXME #1578 make this available through chainspec
+            // FIXME: #1578 make this available through chainspec
             gossip_duration: Duration::from_millis(333),
             justification_generation_period: 512,
             name: Some(name),

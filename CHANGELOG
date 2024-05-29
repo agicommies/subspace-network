@@ -13,7 +13,6 @@ This whole local stake support gambiarra is getting deleted for grater good:
        let stakes = TotalStake::<T>::get();
                 let total_yuma_stake = stakes; // PLACEHOLDER
 
-                // FIXME:
                 for (_netuid, founder_key) in Founder::<T>::iter().filter(|(n, _)| *n != 0) {
                     let Some(subnet_stake) = Some(0) else {
                         // Place holder

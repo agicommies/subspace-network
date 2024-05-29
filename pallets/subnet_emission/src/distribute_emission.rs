@@ -70,7 +70,7 @@ impl<T: Config> Pallet<T> {
         }
     }
 
-    fn blocks_until_next_epoch(netuid: u16, tempo: u16, block_number: u64) -> u64 {
+    pub fn blocks_until_next_epoch(netuid: u16, tempo: u16, block_number: u64) -> u64 {
         // in this case network never runs
         if tempo == 0 {
             return 1000;

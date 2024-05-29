@@ -7,7 +7,7 @@ use sp_std::collections::btree_map::BTreeMap;
 // Pallet Imports
 // ==============
 
-mod distribute_emission;
+pub mod distribute_emission;
 pub mod migrations;
 pub mod subnet_pricing {
     pub mod demo;

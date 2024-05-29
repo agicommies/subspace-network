@@ -372,7 +372,7 @@ impl<T: Config> Pallet<T> {
             Error::<T>::AlreadyVoted
         );
 
-        let voter_stake = Self::get_stake(&key);
+        let voter_stake = Stake::<T>::get(&key);
 
         // Check if the voter has non-zero stake
         ensure!(voter_stake > 0, Error::<T>::InsufficientStake);

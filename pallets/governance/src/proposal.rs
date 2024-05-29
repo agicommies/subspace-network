@@ -9,7 +9,7 @@ use frame_support::{
 use frame_system::ensure_signed;
 use pallet_subspace::{
     subnet::SubnetChangeset, voting::VoteMode, DaoTreasuryAddress, GlobalParams,
-    Pallet as PalletSubspace, SubnetParams, VoteModeSubnet,
+    Pallet as PalletSubspace, Stake, SubnetParams, VoteModeSubnet,
 };
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
@@ -322,9 +322,8 @@ pub fn tick_proposal<T: Config>(block_number: u64, proposal: Proposal<T>) -> Dis
         return Err(Error::<T>::ProposalIsFinished.into());
     };
 
-    let votes_for: u64 = votes_for.iter().map(|id| SubspacePallet::<T>::get_stake(id)).sum();
-    let votes_against: u64 =
-        votes_against.iter().map(|id| SubspacePallet::<T>::get_stake(id)).sum();
+    let votes_for: u64 = votes_for.iter().map(|id| Stake::<T>::get(id)).sum();
+    let votes_against: u64 = votes_against.iter().map(|id| Stake::<T>::get(id)).sum();
 
     let total_stake = votes_for + votes_against;
     let minimal_stake_to_execute =

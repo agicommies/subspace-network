@@ -672,6 +672,7 @@ pub mod pallet {
     #[pallet::error]
     pub enum Error<T> {
         NetworkDoesNotExist, // --- Thrown when the network does not exist.
+        NoSlotAvailable,     // --- Thrown when subnet is full.
         TooFewVotesForNewProposal,
         NetworkExist, // --- Thrown when the network already exist.
         InvalidIpType, /* ---- Thrown when the user tries to serve an module which
@@ -1400,7 +1401,7 @@ pub mod pallet {
         // --- Returns the transaction priority for setting weights.
         pub fn get_priority_stake(key: &T::AccountId, netuid: u16) -> u64 {
             if Uids::<T>::contains_key(netuid, key) {
-                return Self::get_stake(key);
+                return Stake::<T>::get(key);
             }
             0
         }

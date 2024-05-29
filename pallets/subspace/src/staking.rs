@@ -296,10 +296,6 @@ impl<T: Config> Pallet<T> {
 
         total_stake
     }
-    /// Returns the stake under the cold - hot pairing in the staking table.
-    pub fn get_stake(key: &T::AccountId) -> u64 {
-        Stake::<T>::get(key)
-    }
 
     // Returns the delegation fee of a module
     pub fn get_delegation_fee(netuid: u16, module_key: &T::AccountId) -> Percent {
