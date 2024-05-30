@@ -33,6 +33,7 @@ impl<T: Config> SubnetChangeset<T> {
     pub fn apply(self, netuid: u16) -> Result<(), sp_runtime::DispatchError> {
         Self::validate_params(Some(netuid), &self.params)?;
 
+        // TODO: add a check, to see all values of `SubnetParams` are actually being inserted.
         SubnetNames::<T>::insert(netuid, self.params.name.into_inner());
         Founder::<T>::insert(netuid, &self.params.founder);
         FounderShare::<T>::insert(netuid, self.params.founder_share);
@@ -46,7 +47,7 @@ impl<T: Config> SubnetChangeset<T> {
         TrustRatio::<T>::insert(netuid, self.params.trust_ratio);
         IncentiveRatio::<T>::insert(netuid, self.params.incentive_ratio);
         VoteModeSubnet::<T>::insert(netuid, self.params.vote_mode);
-
+        AdjustmentAlpha::<T>::insert(netuid, self.params.adjustment_alpha);
         if self.params.maximum_set_weight_calls_per_epoch == 0 {
             MaximumSetWeightCallsPerEpoch::<T>::remove(netuid);
         } else {
@@ -91,11 +92,6 @@ impl<T: Config> SubnetChangeset<T> {
 
         // ensure the trust_ratio is between 0 and 100
         ensure!(params.trust_ratio <= 100, Error::<T>::InvalidTrustRatio);
-
-        ensure!(
-            params.immunity_period > 0,
-            Error::<T>::InvalidImmunityPeriod
-        );
 
         ensure!(
             params.max_allowed_uids > 0,
@@ -155,6 +151,10 @@ impl<T: Config> Pallet<T> {
             maximum_set_weight_calls_per_epoch: MaximumSetWeightCallsPerEpoch::<T>::get(netuid),
             vote_mode: VoteModeSubnet::<T>::get(netuid),
             bonds_ma: BondsMovingAverage::<T>::get(netuid),
+            target_registrations_interval: TargetRegistrationsInterval::<T>::get(netuid),
+            target_registrations_per_interval: TargetRegistrationsPerInterval::<T>::get(netuid),
+            max_registrations_per_interval: MaxRegistrationsPerInterval::<T>::get(netuid),
+            adjustment_alpha: AdjustmentAlpha::<T>::get(netuid),
         }
     }
 
@@ -190,23 +190,27 @@ impl<T: Config> Pallet<T> {
         Ok(netuid)
     }
 
-    // ---------------------------------
     // Removing subnets
     // ---------------------------------
-
+    // TODO: improve safety, to check if all storages are,
+    // actually being deleted, from subnet_params struct,
+    // and other storage items, in consensus vectors etc..
     pub fn remove_subnet(netuid: u16) -> u16 {
         // TODO: handle errors
+        // TODO: add check all subnet params are actually being deleted
         #![allow(unused_must_use)]
 
-        // --- 2. Ensure the network to be removed exists.
+        // --- 0. Ensure the network to be removed exists.
         if !Self::if_subnet_exist(netuid) {
             return 0;
         }
 
         Self::remove_netuid_stake_storage(netuid);
 
+        // --- 1. Erase all subnet module data.
+        // ====================================
+
         SubnetNames::<T>::remove(netuid);
-        MaxWeightAge::<T>::remove(netuid);
         Name::<T>::clear_prefix(netuid, u32::MAX, None);
         Address::<T>::clear_prefix(netuid, u32::MAX, None);
         Metadata::<T>::clear_prefix(netuid, u32::MAX, None);
@@ -214,9 +218,10 @@ impl<T: Config> Pallet<T> {
         Keys::<T>::clear_prefix(netuid, u32::MAX, None);
         DelegationFee::<T>::clear_prefix(netuid, u32::MAX, None);
 
-        // Remove consnesus vectors
-        Weights::<T>::clear_prefix(netuid, u32::MAX, None);
+        // --- 2. Remove consnesus vectors
+        // ===============================
 
+        Weights::<T>::clear_prefix(netuid, u32::MAX, None);
         Active::<T>::remove(netuid);
         Consensus::<T>::remove(netuid);
         Dividends::<T>::remove(netuid);
@@ -228,30 +233,41 @@ impl<T: Config> Pallet<T> {
         Trust::<T>::remove(netuid);
         ValidatorPermits::<T>::remove(netuid);
         ValidatorTrust::<T>::remove(netuid);
-
         RegistrationBlock::<T>::clear_prefix(netuid, u32::MAX, None);
+        SubnetEmission::<T>::remove(netuid);
 
-        // --- 2. Erase subnet parameters.
+        // --- 3. Erase subnet parameters.
+        // ===============================
+
         Founder::<T>::remove(netuid);
         FounderShare::<T>::remove(netuid);
+        Tempo::<T>::remove(netuid);
         ImmunityPeriod::<T>::remove(netuid);
-        IncentiveRatio::<T>::remove(netuid);
-        MaxAllowedUids::<T>::remove(netuid);
         MaxAllowedWeights::<T>::remove(netuid);
+        MaxAllowedUids::<T>::remove(netuid);
+        MaxWeightAge::<T>::remove(netuid);
         MinAllowedWeights::<T>::remove(netuid);
         MinStake::<T>::remove(netuid);
-        SelfVote::<T>::remove(netuid);
-        SubnetEmission::<T>::remove(netuid);
-        Tempo::<T>::remove(netuid);
         TrustRatio::<T>::remove(netuid);
+        IncentiveRatio::<T>::remove(netuid);
+        MaximumSetWeightCallsPerEpoch::<T>::remove(netuid);
         VoteModeSubnet::<T>::remove(netuid);
+        BondsMovingAverage::<T>::remove(netuid);
+        TargetRegistrationsInterval::<T>::remove(netuid);
+        TargetRegistrationsPerInterval::<T>::remove(netuid);
+        MaxRegistrationsPerInterval::<T>::remove(netuid);
+        AdjustmentAlpha::<T>::remove(netuid);
 
-        // Adjust the total number of subnets. and remove the subnet from the list of subnets.
+        // --- 4 Adjust the total number of subnets. and remove the subnet from the list of subnets.
+        // =========================================================================================
+
         N::<T>::remove(netuid);
         TotalSubnets::<T>::mutate(|val| *val -= 1);
         SubnetGaps::<T>::mutate(|subnets| subnets.insert(netuid));
 
-        // --- 4. Emit the event.
+        // --- 5. Emit the event.
+        // ======================
+
         Self::deposit_event(Event::NetworkRemoved(netuid));
 
         netuid

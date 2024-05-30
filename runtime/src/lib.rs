@@ -109,15 +109,8 @@ pub mod opaque {
 }
 
 pub type Migrations = (
-    pallet_subspace::migrations::v1::MigrateToV1<Runtime>,
-    pallet_subspace::migrations::v2::MigrateToV2<Runtime>,
-    pallet_subspace::migrations::v3::MigrateToV3<Runtime>,
-    pallet_subspace::migrations::v4::MigrateToV4<Runtime>,
-    pallet_subspace::migrations::v5::MigrateToV5<Runtime>,
-    pallet_subspace::migrations::v6::MigrateToV6<Runtime>,
-    pallet_subspace::migrations::v7::MigrateToV7<Runtime>,
     pallet_grandpa::migrations::MigrateV4ToV5<Runtime>,
-    pallet_subspace::migrations::v8::MigrateToV8<Runtime>,
+    pallet_subspace::migrations::v10::MigrateToV10<Runtime>,
     pallet_governance::migrations::InitialMigration<Runtime>,
 );
 
@@ -133,7 +126,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     //   `spec_version`, and `authoring_version` are the same between Wasm and native.
     // This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
     //   the compatible custom types.
-    spec_version: 114,
+    spec_version: 116,
     impl_version: 1,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,

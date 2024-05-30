@@ -89,6 +89,7 @@ impl<T: Config> Pallet<T> {
     ) -> DispatchResult {
         // --- 1. Check that the caller has signed the transaction.
         let key = ensure_signed(origin.clone())?;
+
         // --- 2. Ensure, that we are not exceeding the max allowed
         // registrations per block.
         ensure!(
@@ -119,6 +120,14 @@ impl<T: Config> Pallet<T> {
             }
         };
 
+        // 4.1 Ensure, that we are not exceeding the max allowed
+        // registrations per interval.
+        ensure!(
+            RegistrationsThisInterval::<T>::get(netuid)
+                <= MaxRegistrationsPerInterval::<T>::get(netuid),
+            Error::<T>::TooManyRegistrationsPerInterval
+        );
+
         // TODO: later, once legit whitelist has been filled up, turn on the code below.
         // We also have to declear a migration, of modules on netuid 0 that are not whitelisted.
 
@@ -147,7 +156,8 @@ impl<T: Config> Pallet<T> {
 
         // --- 7. Check if we are exceeding the max allowed modules per network.
         // If we do deregister slot.
-        Self::reserve_module_slot(netuid);
+        let reserved_slot = Self::reserve_module_slot(netuid);
+        ensure!(reserved_slot.is_some(), Error::<T>::NetworkIsImmuned);
 
         let fee = DefaultDelegationFee::<T>::get();
         // --- 8. Register the module and changeset.
@@ -176,7 +186,6 @@ impl<T: Config> Pallet<T> {
         RegistrationsThisInterval::<T>::mutate(netuid, |registrations| {
             *registrations = registrations.saturating_add(1);
         });
-
         // --- Deposit successful event.
         Self::deposit_event(Event::ModuleRegistered(netuid, uid, module_key));
 
@@ -218,19 +227,18 @@ impl<T: Config> Pallet<T> {
     }
 
     // Determine which peer to prune from the network by finding the element with the lowest pruning
-    // score out of immunity period. If all modules are in immunity period, return node with lowest
-    // prunning score. This function will always return an element to prune.
-
-    pub fn get_pruning_score_for_uid(netuid: u16, uid: u16) -> u64 {
-        let vec: Vec<u64> = Emission::<T>::get(netuid);
-        *vec.get(uid as usize).unwrap_or(&0)
-    }
-
-    pub fn get_lowest_uid(netuid: u16, ignore_immunity: bool) -> u16 {
-        // immunity ignoring is used if the deregistration is forced by global (network) module
-        // limit immunity period is considered if the deregistration is forced by subnet
+    // score out of immunity period. If all modules are in immunity period return None.
+    //
+    // In case the this lowest uid check is called by the global deregistration call
+    // we ignore the immunity period and deregister the lowest uid (No matter the immunity period)
+    pub fn get_lowest_uid(netuid: u16, ignore_immunity: bool) -> Option<u16> {
+        // Immunity ignoring -> used if the deregistration is forced by global module overflow.
+        // Immunity consideration -> used if the deregistration is forced by subnet module overflow.
         let mut min_score: u64 = u64::MAX;
-        let mut lowest_priority_uid: u16 = 0;
+
+        // This will stay `None` if every module is in immunity period.
+        let mut lowest_priority_uid: Option<u16> = None;
+
         let current_block = Self::get_current_block_number();
         let immunity_period: u64 = ImmunityPeriod::<T>::get(netuid) as u64;
 
@@ -238,10 +246,12 @@ impl<T: Config> Pallet<T> {
         let mut uids: Vec<_> = RegistrationBlock::<T>::iter_prefix(netuid).collect();
 
         // Sort the UIDs based on their registration block in ascending order
+        // This will make sure we evaluate old miners first.
         uids.sort_by_key(|a| a.1);
 
+        let emission_vec: Vec<u64> = Emission::<T>::get(netuid);
         for (module_uid_i, block_at_registration) in uids {
-            let pruning_score: u64 = Self::get_pruning_score_for_uid(netuid, module_uid_i);
+            let pruning_score: u64 = *emission_vec.get(module_uid_i as usize).unwrap_or(&0);
 
             // Find min pruning score.
             if min_score > pruning_score {
@@ -249,8 +259,8 @@ impl<T: Config> Pallet<T> {
 
                 // Only allow modules that have greater than immunity period
                 // or if we are ignoring immunity period
-                if module_age > immunity_period || ignore_immunity {
-                    lowest_priority_uid = module_uid_i;
+                if module_age >= immunity_period || ignore_immunity {
+                    lowest_priority_uid = Some(module_uid_i);
                     min_score = pruning_score;
                     if min_score == 0 {
                         break;
@@ -258,7 +268,6 @@ impl<T: Config> Pallet<T> {
                 }
             }
         }
-
         lowest_priority_uid
     }
 
@@ -408,21 +417,30 @@ impl<T: Config> Pallet<T> {
     /// This function checks whether there are still available module slots on the network. If the
     /// subnet is filled, deregister the least staked module on it, or if the max allowed modules on
     /// the network is reached, deregisters the least staked module on the least staked netuid.
-    pub fn reserve_module_slot(netuid: u16) {
+    pub fn reserve_module_slot(netuid: u16) -> Option<()> {
         if N::<T>::get(netuid) >= MaxAllowedUids::<T>::get(netuid) {
             // If we reach the max allowed modules for this subnet,
             // then we replace the lowest priority node in the current subnet
-            Self::remove_module(netuid, Self::get_lowest_uid(netuid, false));
+            let lowest_uid = Self::get_lowest_uid(netuid, false);
+            if let Some(uid) = lowest_uid {
+                Self::remove_module(netuid, uid);
+                Some(())
+            } else {
+                None
+            }
         } else if Self::global_n_modules() >= MaxAllowedModules::<T>::get() {
             // Get the least staked network (subnet) and its least staked module.
             let (subnet_uid, _) = Self::get_least_staked_netuid();
-            let module_uid = Self::get_lowest_uid(subnet_uid, true);
+            let module_uid = Self::get_lowest_uid(subnet_uid, true).unwrap_or(0);
 
             // Deregister the lowest priority node in the least staked network
             // in this case we should ignore the immunity period,
             // Because if the lowest subnet has unreasonably high immunity period,
             // it could lead to exploitation of the network.
             Self::remove_module(subnet_uid, module_uid);
+            Some(())
+        } else {
+            Some(())
         }
     }
 }
