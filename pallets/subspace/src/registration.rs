@@ -187,6 +187,8 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
+    // TODO: 
+    // Find out if this still unstakes you correctly, and subnet deregistration as well.
     pub fn do_deregister(origin: T::RuntimeOrigin, netuid: u16) -> DispatchResult {
         // --- 1. Check that the caller has signed the transaction.
         let key = ensure_signed(origin)?;

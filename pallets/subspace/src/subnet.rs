@@ -202,6 +202,9 @@ impl<T: Config> Pallet<T> {
             return 0;
         }
 
+        // TODO:
+        // unstake ?
+
         SubnetNames::<T>::remove(netuid);
         MaxWeightAge::<T>::remove(netuid);
         Name::<T>::clear_prefix(netuid, u32::MAX, None);
