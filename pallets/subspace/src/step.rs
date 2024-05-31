@@ -86,7 +86,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                     Err("yuma failed")
                 });
                 if res.is_err() {
-                    return;
+                    continue;
                 }
             }
             PendingEmission::<T>::insert(netuid, 0);
