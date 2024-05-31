@@ -105,10 +105,11 @@ fn test_ownership_ratio() {
         let delegate_keys: Vec<U256> =
             (0..num_modules).map(|i| U256::from(i + num_modules + 1)).collect();
         for d in delegate_keys.iter() {
-            SubspaceMod::add_balance_to_account(&d, stake_per_module + 1);
+            SubspaceMod::add_balance_to_account(d, stake_per_module + 1);
         }
 
-        let pre_delegate_stake_from_vector = StakeFrom::<Test>::get(&voter_key);
+        let pre_delegate_stake_from_vector =
+            StakeFrom::<Test>::iter_prefix(voter_key).collect::<BTreeMap<_, _>>();
         assert_eq!(pre_delegate_stake_from_vector.len(), 1); // +1 for the module itself, +1 for the delegate key on
 
         for (i, d) in delegate_keys.iter().enumerate() {
@@ -118,7 +119,8 @@ fn test_ownership_ratio() {
                 voter_key,
                 stake_per_module
             ));
-            let stake_from_vector = StakeFrom::<Test>::get(&voter_key);
+            let stake_from_vector =
+                StakeFrom::<Test>::iter_prefix(&voter_key).collect::<BTreeMap<_, _>>();
             assert_eq!(
                 stake_from_vector.len(),
                 pre_delegate_stake_from_vector.len() + i + 1
@@ -259,8 +261,9 @@ fn test_ownership_ratio() {
         info!("total_new_tokens: {total_new_tokens:?}");
         assert_eq!(total_new_tokens, total_emissions);
 
-        let stake_from_vector = StakeFrom::<Test>::get(&voter_key);
-        let _stake: u64 = Stake::<Test>::get(&voter_key);
+        let stake_from_vector =
+            StakeFrom::<Test>::iter_prefix(voter_key).collect::<BTreeMap<_, _>>();
+        let _stake: u64 = Stake::<Test>::get(voter_key);
         let _sumed_stake: u64 = stake_from_vector.iter().fold(0, |acc, (_a, x)| acc + x);
         let _total_stake: u64 = SubspaceMod::get_total_subnet_stake(netuid);
         info!("stake_from_vector: {stake_from_vector:?}");
@@ -338,8 +341,9 @@ fn test_add_profit_share() {
         // check the profit sharers
         let mut profit_share_balances: Vec<u64> = Vec::new();
         for profit_sharer_key in profit_sharer_keys.iter() {
-            let profit_share_balance = StakeTo::<Test>::get(profit_sharer_key).into_values().sum();
-            let stake_to_vector = StakeTo::<Test>::get(profit_sharer_key);
+            let profit_share_balance = StakeTo::<Test>::iter_prefix_values(profit_sharer_key).sum();
+            let stake_to_vector =
+                StakeTo::<Test>::iter_prefix(profit_sharer_key).collect::<Vec<_>>();
             info!("profit share balance: {stake_to_vector:?}");
             info!("profit share balance: {profit_share_balance:?}");
             profit_share_balances.push(profit_share_balance);
@@ -442,7 +446,7 @@ fn test_delegate_register() {
             let key_balance = SubspaceMod::get_balance_u64(&key);
             let stake_to_module = SubspaceMod::get_stake_to_module(&key, &module_key);
             info!("key_balance: {key_balance:?}");
-            let stake_to_vector = Stake::<Test>::get(&key);
+            let stake_to_vector = Stake::<Test>::get(key);
             info!("stake_to_vector: {stake_to_vector:?}");
             assert_eq!(stake_to_module, stake_amount);
         }
@@ -512,7 +516,7 @@ fn test_registration_with_stake() {
             let key = U256::from(uid);
             info!("key: {key:?}");
             info!("stake: {stake_value:?}");
-            let stake_before: u64 = Stake::<Test>::get(&key);
+            let stake_before: u64 = Stake::<Test>::get(key);
             info!("stake_before: {stake_before:?}");
             register_module(netuid, key, stake_value).unwrap_or_else(|_| {
                 panic!("Failed to register module with key: {key:?} and stake: {stake_value:?}",)
@@ -1333,7 +1337,7 @@ fn test_delegate_stake() {
                 // SubspaceMod::add_stake(get_origin(*key), netuid, amount_staked);
                 assert_eq!(get_stake_for_uid(netuid, uid), amount_staked + 10);
                 assert_eq!(SubspaceMod::get_balance(&delegate_key), 1);
-                assert_eq!(StakeTo::<Test>::get(&delegate_key).len(), 1);
+                assert_eq!(StakeTo::<Test>::iter_prefix(&delegate_key).count(), 1);
                 // REMOVE STAKE
                 assert_ok!(SubspaceMod::remove_stake(
                     get_origin(delegate_key),
@@ -1342,7 +1346,7 @@ fn test_delegate_stake() {
                 ));
                 assert_eq!(SubspaceMod::get_balance(&delegate_key), amount_staked + 1);
                 assert_eq!(get_stake_for_uid(netuid, uid), 10);
-                assert_eq!(StakeTo::<Test>::get(&delegate_key).len(), 0);
+                assert_eq!(StakeTo::<Test>::iter_prefix(&delegate_key).count(), 0);
 
                 // ADD STAKE AGAIN
                 assert_ok!(SubspaceMod::add_stake(
@@ -1352,7 +1356,7 @@ fn test_delegate_stake() {
                 ));
                 assert_eq!(get_stake_for_uid(netuid, uid), amount_staked + 10);
                 assert_eq!(SubspaceMod::get_balance(&delegate_key), 1);
-                assert_eq!(StakeTo::<Test>::get(&delegate_key).len(), 1);
+                assert_eq!(StakeTo::<Test>::iter_prefix(&delegate_key).count(), 1);
 
                 // AT THE END WE SHOULD HAVE THE SAME TOTAL STAKE
                 subnet_stake += get_stake_for_uid(netuid, uid);
@@ -1390,14 +1394,16 @@ fn test_ownership_ratio_v2() {
                 SubspaceMod::add_balance_to_account(&d, stake_per_module + 1);
             }
 
-            let pre_delegate_stake_from_vector = StakeFrom::<Test>::get(k);
+            let pre_delegate_stake_from_vector =
+                StakeFrom::<Test>::iter_prefix(k).collect::<BTreeMap<_, _>>();
             assert_eq!(pre_delegate_stake_from_vector.len(), 1); // +1 for the module itself, +1 for the delegate key on
 
             info!("KEY: {}", k);
             for (i, d) in delegate_keys.iter().enumerate() {
                 info!("DELEGATE KEY: {d}");
                 assert_ok!(SubspaceMod::add_stake(get_origin(*d), *k, stake_per_module));
-                let stake_from_vector = StakeFrom::<Test>::get(k);
+                let stake_from_vector =
+                    StakeFrom::<Test>::iter_prefix(k).collect::<BTreeMap<_, _>>();
                 assert_eq!(
                     stake_from_vector.len(),
                     pre_delegate_stake_from_vector.len() + i + 1
@@ -1411,7 +1417,7 @@ fn test_ownership_ratio_v2() {
 
             step_epoch(netuid);
 
-            let stake_from_vector = StakeFrom::<Test>::get(k);
+            let stake_from_vector = StakeFrom::<Test>::iter_prefix(k).collect::<BTreeMap<_, _>>();
             let stake: u64 = Stake::<Test>::get(k);
             let sumed_stake: u64 = stake_from_vector.iter().fold(0, |acc, (_a, x)| acc + x);
             let total_stake: u64 = SubspaceMod::get_total_subnet_stake(netuid);

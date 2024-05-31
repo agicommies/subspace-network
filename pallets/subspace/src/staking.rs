@@ -318,14 +318,16 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn get_stake_to_vector(key: &T::AccountId) -> BTreeMap<T::AccountId, u64> {
-        StakeTo::<T>::get(key)
+        StakeTo::<T>::iter_prefix(key).collect()
     }
 
     pub fn set_stake_to_vector(key: &T::AccountId, stake_to_vector: BTreeMap<T::AccountId, u64>) {
         if stake_to_vector.is_empty() {
-            StakeTo::<T>::remove(key);
+            StakeTo::<T>::remove_prefix(key, None);
         } else {
-            StakeTo::<T>::insert(key, stake_to_vector);
+            for (k, v) in stake_to_vector.iter() {
+                StakeTo::<T>::insert(key, k, v);
+            }
         }
     }
 
@@ -333,11 +335,17 @@ impl<T: Config> Pallet<T> {
         module_key: &T::AccountId,
         stake_from_vector: BTreeMap<T::AccountId, u64>,
     ) {
-        StakeFrom::<T>::insert(module_key, stake_from_vector);
+        if stake_from_vector.is_empty() {
+            StakeFrom::<T>::remove_prefix(module_key, None);
+        } else {
+            for (k, v) in stake_from_vector.iter() {
+                StakeFrom::<T>::insert(module_key, k, v);
+            }
+        }
     }
 
     pub fn get_stake_from_vector(module_key: &T::AccountId) -> BTreeMap<T::AccountId, u64> {
-        StakeFrom::<T>::get(module_key).into_iter().collect::<BTreeMap<_, _>>()
+        StakeFrom::<T>::iter_prefix(module_key).collect::<BTreeMap<_, _>>()
     }
 
     pub fn get_total_stake_to(key: &T::AccountId) -> u64 {
@@ -413,7 +421,7 @@ impl<T: Config> Pallet<T> {
             );
         }
 
-        StakeFrom::<T>::remove(module_key);
+        StakeFrom::<T>::remove_prefix(module_key, None);
         Stake::<T>::remove(module_key);
     }
 
@@ -463,7 +471,7 @@ impl<T: Config> Pallet<T> {
 
     // gets the overall stake value for a given account_id,
     pub fn get_account_stake(account_id: &T::AccountId) -> u64 {
-        StakeTo::<T>::get(account_id).into_values().sum()
+        StakeTo::<T>::iter_prefix_values(account_id).sum()
     }
 
     pub fn remove_balance_from_account(

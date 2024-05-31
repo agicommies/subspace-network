@@ -26,7 +26,7 @@ impl<T: Config> Pallet<T> {
             .iter()
             .filter_map(|(i, w)| if *w > 0 { Some((*i, *w)) } else { None })
             .collect();
-        let stake_from: BTreeMap<T::AccountId, u64> = StakeFrom::<T>::get(key);
+        let stake_from: BTreeMap<T::AccountId, u64> = StakeFrom::<T>::iter_prefix(key).collect();
 
         let registration_block = RegistrationBlock::<T>::get(netuid, uid);
 
