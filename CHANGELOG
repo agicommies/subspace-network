@@ -21,6 +21,10 @@ can adjust this value at runtime.
 
 Fixing migration
 
+- Deleted, or moved useless code and values of:
+  - Burn rate
+  - Min Stake
+
 ## Version 1.7.4
 
 Spec version `114`
