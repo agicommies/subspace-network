@@ -531,9 +531,25 @@ pub mod pallet {
     #[pallet::storage]
     pub type Stake<T: Config> = StorageMap<_, Identity, T::AccountId, u64, ValueQuery>;
 
+    // TODO: luiz, conver this to double maps
+    #[pallet::storage]
+    pub type StakeFrom<T: Config> =
+        StorageMap<_, Identity, T::AccountId, BTreeMap<T::AccountId, u64>, ValueQuery>;
+
     #[pallet::storage]
     pub type StakeTo<T: Config> =
-        StorageDoubleMap<_, Identity, T::AccountId, Identity, T::AccountId, u64, ValueQuery>;
+        StorageMap<_, Identity, T::AccountId, BTreeMap<T::AccountId, u64>, ValueQuery>;
+
+    // #[pallet::storage]
+    // pub type StakeTo<T: Config> = StorageDoubleMap<
+    //     _,
+    //     Identity,
+    //     T::AccountId,
+    //     Identity,
+    //     T::AccountId,
+    //     u64,
+    //     ValueQuery,
+    // >;
 
     // Subnets
     // =======

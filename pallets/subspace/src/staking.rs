@@ -1,6 +1,5 @@
 use super::*;
 
-use frame_support::{IterableStorageDoubleMap, StoragePrefixedMap};
 use sp_arithmetic::per_things::Percent;
 use sp_runtime::DispatchError;
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
@@ -319,24 +318,14 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn get_stake_to_vector(key: &T::AccountId) -> BTreeMap<T::AccountId, u64> {
-        StakeTo::<T>::iter()
-            .filter_map(|(to, from, value)| {
-                if &from == key {
-                    Some((to, value))
-                } else {
-                    None
-                }
-            })
-            .collect()
+        StakeTo::<T>::get(key)
     }
 
     pub fn set_stake_to_vector(key: &T::AccountId, stake_to_vector: BTreeMap<T::AccountId, u64>) {
         if stake_to_vector.is_empty() {
-            StakeTo::<T>::remove_prefix(key, None);
+            StakeTo::<T>::remove(key);
         } else {
-            for (to, v) in stake_to_vector.into_iter() {
-                StakeTo::<T>::insert(to, key, v);
-            }
+            StakeTo::<T>::insert(key, stake_to_vector);
         }
     }
 
@@ -344,13 +333,11 @@ impl<T: Config> Pallet<T> {
         module_key: &T::AccountId,
         stake_from_vector: BTreeMap<T::AccountId, u64>,
     ) {
-        for (from, value) in stake_from_vector.iter() {
-            StakeTo::<T>::insert(module_key, from, *value);
-        }
+        StakeFrom::<T>::insert(module_key, stake_from_vector);
     }
 
     pub fn get_stake_from_vector(module_key: &T::AccountId) -> BTreeMap<T::AccountId, u64> {
-        StakeTo::<T>::iter_prefix(module_key).collect::<BTreeMap<_, _>>()
+        StakeFrom::<T>::get(module_key).into_iter().collect::<BTreeMap<_, _>>()
     }
 
     pub fn get_total_stake_to(key: &T::AccountId) -> u64 {
@@ -426,7 +413,7 @@ impl<T: Config> Pallet<T> {
             );
         }
 
-        StakeTo::<T>::remove_prefix(module_key, None);
+        StakeFrom::<T>::remove(module_key);
         Stake::<T>::remove(module_key);
     }
 
@@ -476,7 +463,7 @@ impl<T: Config> Pallet<T> {
 
     // gets the overall stake value for a given account_id,
     pub fn get_account_stake(account_id: &T::AccountId) -> u64 {
-        StakeTo::<T>::iter_prefix_values(account_id).sum()
+        StakeTo::<T>::get(account_id).into_values().sum()
     }
 
     pub fn remove_balance_from_account(
