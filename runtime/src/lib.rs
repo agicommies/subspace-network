@@ -467,6 +467,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
+    Migrations,
 >;
 
 impl fp_self_contained::SelfContainedCall for RuntimeCall {

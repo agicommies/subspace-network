@@ -339,15 +339,13 @@ pub mod pallet {
     pub struct SubnetParams<T: Config> {
         // --- parameters
         pub founder: T::AccountId,
-        pub founder_share: u16,   // out of 100
-        pub immunity_period: u16, // immunity period
-        pub incentive_ratio: u16, // out of 100
-        pub max_allowed_uids: u16, /* max number of weights allowed to be registered in this
-                                   * pub max_allowed_uids: u16, // max number of uids
-                                   * allowed to be registered in this subne */
+        pub founder_share: u16,    // out of 100
+        pub immunity_period: u16,  // immunity period
+        pub incentive_ratio: u16,  // out of 100
+        pub max_allowed_uids: u16, // Max allowed modules on a subnet
         pub max_allowed_weights: u16, /* max number of weights allowed to be registered in this
-                                       * pub max_allowed_uids: u16, // max number of uids
-                                       * allowed to be registered in this subnet */
+                                    * pub max_allowed_uids: u16, // max number of uids
+                                    * allowed to be registered in this subnet */
         pub min_allowed_weights: u16, // min number of weights allowed to be registered in this
         pub max_weight_age: u64,      // max age of a weight
         pub min_stake: u64,           // min stake required
