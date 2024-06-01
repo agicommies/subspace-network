@@ -672,7 +672,7 @@ impl<T: Config> Pallet<T> {
     }
 
     fn get_weights_sparse(netuid: u16) -> Option<Vec<Vec<(u16, I32F32)>>> {
-        let n = Self::get_subnet_n(netuid) as usize;
+        let n = N::<T>::get(netuid) as usize;
         let mut weights: Vec<Vec<(u16, I32F32)>> = vec![vec![]; n];
         for (uid_i, weights_i) in
             Weights::<T>::iter_prefix(netuid).filter(|(uid, _)| *uid < n as u16)
@@ -685,7 +685,7 @@ impl<T: Config> Pallet<T> {
     }
 
     fn get_bonds_sparse(netuid: u16) -> Option<Vec<Vec<(u16, I32F32)>>> {
-        let n: usize = Self::get_subnet_n(netuid) as usize;
+        let n: usize = N::<T>::get(netuid) as usize;
         let mut bonds: Vec<Vec<(u16, I32F32)>> = vec![vec![]; n];
         for (uid_i, bonds_i) in Bonds::<T>::iter_prefix(netuid).filter(|(uid, _)| *uid < n as u16) {
             for (uid_j, bonds_ij) in bonds_i.into_iter().filter(|(uid, _)| *uid < n as u16) {
