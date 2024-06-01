@@ -310,11 +310,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn get_stake_to_module(key: &T::AccountId, module_key: &T::AccountId) -> u64 {
-        Self::get_stake_to_vector(key)
-            .into_iter()
-            .find(|(k, _)| k == module_key)
-            .map(|(_, v)| v)
-            .unwrap_or(0)
+        StakeTo::<T>::iter_prefix_values(key).sum()
     }
 
     pub fn get_stake_to_vector(key: &T::AccountId) -> BTreeMap<T::AccountId, u64> {
@@ -322,12 +318,9 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn set_stake_to_vector(key: &T::AccountId, stake_to_vector: BTreeMap<T::AccountId, u64>) {
-        if stake_to_vector.is_empty() {
-            StakeTo::<T>::remove_prefix(key, None);
-        } else {
-            for (k, v) in stake_to_vector.iter() {
-                StakeTo::<T>::insert(key, k, v);
-            }
+        StakeTo::<T>::remove_prefix(key, None);
+        for (k, v) in stake_to_vector.iter() {
+            StakeTo::<T>::insert(key, k, v);
         }
     }
 
@@ -335,12 +328,9 @@ impl<T: Config> Pallet<T> {
         module_key: &T::AccountId,
         stake_from_vector: BTreeMap<T::AccountId, u64>,
     ) {
-        if stake_from_vector.is_empty() {
-            StakeFrom::<T>::remove_prefix(module_key, None);
-        } else {
-            for (k, v) in stake_from_vector.iter() {
-                StakeFrom::<T>::insert(module_key, k, v);
-            }
+        StakeFrom::<T>::remove_prefix(module_key, None);
+        for (k, v) in stake_from_vector.iter() {
+            StakeFrom::<T>::insert(module_key, k, v);
         }
     }
 
