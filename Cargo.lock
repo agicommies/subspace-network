@@ -4801,7 +4801,7 @@ checksum = "b93853da6d84c2e3c7d730d6473e8817692dd89be387eb01b94d7f108ecb5b8c"
 
 [[package]]
 name = "node-subspace"
-version = "1.7.5"
+version = "1.7.7"
 dependencies = [
  "clap",
  "frame-benchmarking",
@@ -4849,7 +4849,7 @@ dependencies = [
 
 [[package]]
 name = "node-subspace-runtime"
-version = "1.7.5"
+version = "1.7.7"
 dependencies = [
  "fp-account",
  "fp-rpc",
@@ -5256,7 +5256,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-subspace"
-version = "1.7.6"
+version = "1.7.7"
 dependencies = [
  "bty",
  "frame-benchmarking",
