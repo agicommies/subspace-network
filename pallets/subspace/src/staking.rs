@@ -310,7 +310,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn get_stake_to_module(key: &T::AccountId, module_key: &T::AccountId) -> u64 {
-        StakeTo::<T>::iter_prefix_values(key).sum()
+        StakeTo::<T>::get(key, module_key)
     }
 
     pub fn get_stake_to_vector(key: &T::AccountId) -> BTreeMap<T::AccountId, u64> {
