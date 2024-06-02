@@ -54,9 +54,9 @@ parity-scale-codec = { version = "3.6.5", features = [
 fp-account = { git = "https://github.com/paritytech/frontier", default-features = false, features = [
     "serde",
 ] }
-fp-evm = { git = "https://github.com/paritytech/frontier", default-features = false, features = [
-    "serde",
-] }
+# fp-evm = { git = "https://github.com/paritytech/frontier", default-features = false, features = [
+#     "serde",
+# ] }
 fp-rpc = { git = "https://github.com/paritytech/frontier", default-features = false }
 fp-self-contained = { git = "https://github.com/paritytech/frontier", default-features = false, features = [
     "serde",

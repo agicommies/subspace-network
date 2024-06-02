@@ -456,10 +456,4 @@ benchmarks! {
         let keys = vec![bob, cecilia];
     }: add_profit_shares(RawOrigin::Signed(caller), keys, shares)
 
-    // ---------------------------------
-    // Testnet
-    // ---------------------------------
-
-    // 23
-    // TODO: Add testnet benchmarks later
 }

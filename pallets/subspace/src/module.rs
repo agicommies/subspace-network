@@ -284,8 +284,8 @@ impl<T: Config> Pallet<T> {
         ); // Make uid - key association.
         DelegationFee::<T>::remove(netuid, &replace_key); // Make uid - key association.
 
-        // remove stake from old key and add to new key
-        Self::remove_stake_from_storage(&module_key);
+        // remove stake from old key
+        Self::decrease_stake(None, &module_key, None, true);
 
         // 3. Remove the network if it is empty.
         let module_count = N::<T>::mutate(netuid, |v| {
@@ -297,5 +297,12 @@ impl<T: Config> Pallet<T> {
         if module_count == 0 {
             Self::remove_subnet(netuid);
         }
+    }
+
+    // Returns the delegation fee of a module
+    pub fn get_delegation_fee(netuid: u16, module_key: &T::AccountId) -> Percent {
+        let min_deleg_fee_global = FloorDelegationFee::<T>::get();
+        let delegation_fee = DelegationFee::<T>::get(netuid, module_key);
+        delegation_fee.max(min_deleg_fee_global)
     }
 }

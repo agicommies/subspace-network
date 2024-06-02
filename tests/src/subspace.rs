@@ -12,7 +12,7 @@ use pallet_subspace::{
     MaxAllowedWeights, MaxNameLength, MaxRegistrationsPerBlock, MaximumSetWeightCallsPerEpoch,
     MinAllowedWeights, MinNameLength, MinStake, ProfitShares, ProposalCost, ProposalExpiration,
     Proposals, RegistrationsPerBlock, Stake, StakeFrom, StakeTo, SubnetEmission, SubnetGaps,
-    SubnetNames, SubnetParams, Tempo, TotalSubnets, Trust, VoteModeSubnet, N,
+    SubnetNames, SubnetParams, Tempo, TotalStake, TotalSubnets, Trust, VoteModeSubnet, N,
 };
 use sp_core::U256;
 use sp_runtime::{DispatchResult, Percent};
@@ -1162,7 +1162,7 @@ fn test_stake() {
             }
             assert_eq!(SubspaceMod::get_total_subnet_stake(netuid), subnet_stake);
             total_stake += subnet_stake;
-            assert_eq!(SubspaceMod::total_stake(), total_stake);
+            assert_eq!(TotalStake::<Test>::get(), total_stake);
             subnet_stake = 0;
             info!("TOTAL STAKE: {}", total_stake);
             info!(
@@ -1173,80 +1173,81 @@ fn test_stake() {
     });
 }
 
-#[test]
-fn test_multiple_stake() {
-    new_test_ext().execute_with(|| {
-        let n: u16 = 10;
-        let stake_amount: u64 = 10_000_000_000;
-        let _total_stake: u64 = 0;
-        let netuid: u16 = 0;
-        let _subnet_stake: u64 = 0;
-        let _uid: u16 = 0;
-        let num_staked_modules: u16 = 10;
-        let total_stake: u64 = stake_amount * num_staked_modules as u64;
-        // make sure that the results won´t get affected by burn
-        zero_min_burn();
+// Stake multiple no longer exists.
+// #[test]
+// fn test_multiple_stake() {
+//     new_test_ext().execute_with(|| {
+//         let n: u16 = 10;
+//         let stake_amount: u64 = 10_000_000_000;
+//         let _total_stake: u64 = 0;
+//         let netuid: u16 = 0;
+//         let _subnet_stake: u64 = 0;
+//         let _uid: u16 = 0;
+//         let num_staked_modules: u16 = 10;
+//         let total_stake: u64 = stake_amount * num_staked_modules as u64;
+//         // make sure that the results won´t get affected by burn
+//         zero_min_burn();
 
-        register_n_modules(netuid, n, 10);
-        let controler_key = U256::from(n + 1);
-        let og_staker_balance: u64 = total_stake + 1;
-        SubspaceMod::add_balance_to_account(&controler_key, og_staker_balance);
+//         register_n_modules(netuid, n, 10);
+//         let controler_key = U256::from(n + 1);
+//         let og_staker_balance: u64 = total_stake + 1;
+//         SubspaceMod::add_balance_to_account(&controler_key, og_staker_balance);
 
-        let keys: Vec<U256> = SubspaceMod::get_keys(netuid);
+//         let keys: Vec<U256> = SubspaceMod::get_keys(netuid);
 
-        // stake to all modules
+//         // stake to all modules
 
-        let stake_amounts: Vec<u64> = vec![stake_amount; num_staked_modules as usize];
+//         let stake_amounts: Vec<u64> = vec![stake_amount; num_staked_modules as usize];
 
-        info!("STAKE AMOUNTS: {stake_amounts:?}");
-        let total_actual_stake: u64 =
-            keys.clone().into_iter().map(|k| Stake::<Test>::get(&k)).sum();
-        let staker_balance = SubspaceMod::get_balance(&controler_key);
-        info!("TOTAL ACTUAL STAKE: {total_actual_stake}");
-        info!("TOTAL STAKE: {total_stake}");
-        info!("STAKER BALANCE: {staker_balance}");
-        assert_ok!(SubspaceMod::add_stake_multiple(
-            get_origin(controler_key),
-            keys.clone(),
-            stake_amounts.clone(),
-        ));
+//         info!("STAKE AMOUNTS: {stake_amounts:?}");
+//         let total_actual_stake: u64 =
+//             keys.clone().into_iter().map(|k| Stake::<Test>::get(&k)).sum();
+//         let staker_balance = SubspaceMod::get_balance(&controler_key);
+//         info!("TOTAL ACTUAL STAKE: {total_actual_stake}");
+//         info!("TOTAL STAKE: {total_stake}");
+//         info!("STAKER BALANCE: {staker_balance}");
+//         assert_ok!(SubspaceMod::add_stake_multiple(
+//             get_origin(controler_key),
+//             keys.clone(),
+//             stake_amounts.clone(),
+//         ));
 
-        let total_actual_stake: u64 =
-            keys.clone().into_iter().map(|k| Stake::<Test>::get(&k)).sum();
-        let staker_balance = SubspaceMod::get_balance(&controler_key);
+//         let total_actual_stake: u64 =
+//             keys.clone().into_iter().map(|k| Stake::<Test>::get(&k)).sum();
+//         let staker_balance = SubspaceMod::get_balance(&controler_key);
 
-        assert_eq!(
-            total_actual_stake,
-            total_stake + (n as u64 * 10),
-            "total stake should be equal to the sum of all stakes"
-        );
-        assert_eq!(
-            staker_balance,
-            og_staker_balance - total_stake,
-            "staker balance should be 0"
-        );
+//         assert_eq!(
+//             total_actual_stake,
+//             total_stake + (n as u64 * 10),
+//             "total stake should be equal to the sum of all stakes"
+//         );
+//         assert_eq!(
+//             staker_balance,
+//             og_staker_balance - total_stake,
+//             "staker balance should be 0"
+//         );
 
-        // unstake from all modules
-        assert_ok!(SubspaceMod::remove_stake_multiple(
-            get_origin(controler_key),
-            keys.clone(),
-            stake_amounts.clone(),
-        ));
+//         // unstake from all modules
+//         assert_ok!(SubspaceMod::remove_stake_multiple(
+//             get_origin(controler_key),
+//             keys.clone(),
+//             stake_amounts.clone(),
+//         ));
 
-        let total_actual_stake: u64 =
-            keys.clone().into_iter().map(|k| Stake::<Test>::get(&k)).sum();
-        let staker_balance = SubspaceMod::get_balance(&controler_key);
-        assert_eq!(
-            total_actual_stake,
-            n as u64 * 10,
-            "total stake should be equal to the sum of all stakes"
-        );
-        assert_eq!(
-            staker_balance, og_staker_balance,
-            "staker balance should be 0"
-        );
-    });
-}
+//         let total_actual_stake: u64 =
+//             keys.clone().into_iter().map(|k| Stake::<Test>::get(&k)).sum();
+//         let staker_balance = SubspaceMod::get_balance(&controler_key);
+//         assert_eq!(
+//             total_actual_stake,
+//             n as u64 * 10,
+//             "total stake should be equal to the sum of all stakes"
+//         );
+//         assert_eq!(
+//             staker_balance, og_staker_balance,
+//             "staker balance should be 0"
+//         );
+//     });
+// }
 
 #[test]
 fn test_transfer_stake() {
@@ -1359,7 +1360,7 @@ fn test_delegate_stake() {
             }
             assert_eq!(SubspaceMod::get_total_subnet_stake(netuid), subnet_stake);
             total_stake += subnet_stake;
-            assert_eq!(SubspaceMod::total_stake(), total_stake);
+            assert_eq!(TotalStake::<Test>::get(), total_stake);
             subnet_stake = 0;
             info!("TOTAL STAKE: {}", total_stake);
             info!(
@@ -2823,7 +2824,7 @@ fn test_set_max_allowed_uids_shrinking() {
 
         expected_stake = (max_uids) as u64 * stake;
         let _subnet_stake = SubspaceMod::get_total_subnet_stake(netuid);
-        total_stake = SubspaceMod::total_stake();
+        total_stake = TotalStake::<Test>::get();
 
         assert_eq!(total_stake, expected_stake);
     });
@@ -4193,3 +4194,25 @@ fn test_weight_age() {
         );
     });
 }
+
+// #[test]
+// pub fn test_deregister_return_stake() {
+//     new_test_ext().execute_with(|| {
+//         let netuid_zero: u16 = 0;
+//         let initial_key = U256::from(0);
+//         let netuid_one: u16 = 1;
+//         let key_increment = U256::from(1);
+//         let key_increment_two = U256::from(2);
+
+//         // Make sure registrations price is not affected.
+//         zero_min_burn();
+//         // Register initial and increment on netuid 0.
+//         assert_ok!(register_module(netuid_zero, initial_key, to_nano(10)));
+//         assert_ok!(register_module(netuid_zero, key_increment, to_nano(10)));
+
+//         // Now on netuid 1, we register only the increment keys.
+//         assert_ok!(register_module(netuid_one, key_increment, to_nano(10)));
+//         assert_ok!(register_module(netuid_one, key_increment_two, to_nano(10)));
+//         // This should outpuot only key_increment_two.
+//         dbg!(SubspaceMod::filter_for_keys_only_on_netuid(netuid_one));
+//     });
