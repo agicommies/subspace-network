@@ -5,7 +5,7 @@ use pallet_subspace::Pallet as PalletSubspace;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
-#[derive(Clone, Default, Debug, TypeInfo, Decode, Encode, MaxEncodedLen)]
+#[derive(Clone, Default, TypeInfo, Decode, Encode, MaxEncodedLen, frame_support::DebugNoBound)]
 #[scale_info(skip_type_params(T))]
 pub struct CuratorApplication<T: Config> {
     pub id: u64,

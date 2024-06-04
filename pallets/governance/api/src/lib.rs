@@ -82,4 +82,8 @@ pub trait GovernanceApi<AccountId> {
     fn curator_application_exists(module_key: &AccountId) -> bool;
 
     fn get_curator() -> AccountId;
+
+    fn set_curator(key: &AccountId);
+
+    fn set_general_subnet_application_cost(amount: u64);
 }

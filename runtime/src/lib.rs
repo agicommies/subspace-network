@@ -855,6 +855,14 @@ impl pallet_governance_api::GovernanceApi<<Runtime as frame_system::Config>::Acc
     fn get_curator() -> AccountId {
         Curator::<Runtime>::get()
     }
+
+    fn set_curator(curator: &AccountId) {
+        Curator::<Runtime>::put(curator)
+    }
+
+    fn set_general_subnet_application_cost(amount: u64) {
+        GeneralSubnetApplicationCost::<Runtime>::put(amount)
+    }
 }
 
 #[cfg(test)]

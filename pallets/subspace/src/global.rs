@@ -81,7 +81,7 @@ impl<T: Config> Pallet<T> {
         FloorDelegationFee::<T>::put(params.floor_delegation_fee);
 
         // TODO: update curator
-        // Curator::<T>::put(params.curator);
+        T::set_curator(&params.curator);
 
         FloorFounderShare::<T>::put(params.floor_founder_share);
 
@@ -96,6 +96,7 @@ impl<T: Config> Pallet<T> {
         params.burn_config.apply().expect("invalid burn configuration");
 
         // Update the general subnet application cost
+        T::set_general_subnet_application_cost(params.general_subnet_application_cost);
     }
 
     pub fn check_global_params(params: &GlobalParams<T>) -> DispatchResult {
