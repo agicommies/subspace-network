@@ -58,7 +58,7 @@ impl<T: Config> Pallet<T> {
             min_weight_stake: MinWeightStake::<T>::get(),
 
             // s0 config
-            general_subnet_application_cost: GeneralSubnetApplicationCost::<T>::get(),
+            general_subnet_application_cost: T::get_general_subnet_application_cost(),
 
             governance_config: T::get_global_governance_configuration(),
         }
@@ -91,6 +91,8 @@ impl<T: Config> Pallet<T> {
 
         // burn
         params.burn_config.apply().expect("invalid burn configuration");
+
+        // Update the general subnet application cost
     }
 
     pub fn check_global_params(params: &GlobalParams<T>) -> DispatchResult {

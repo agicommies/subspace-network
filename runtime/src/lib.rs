@@ -838,6 +838,10 @@ impl pallet_governance_api::GovernanceApi<<Runtime as frame_system::Config>::Acc
     fn handle_subnet_removal(subnet_id: u16) {
         GovernanceModule::handle_subnet_removal(subnet_id);
     }
+
+    fn execute_application(user_id: &AccountId) -> DispatchResult {
+        GovernanceModule::execute_application(user_id)
+    }
 }
 
 #[cfg(test)]

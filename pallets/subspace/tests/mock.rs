@@ -156,6 +156,10 @@ impl GovernanceApi<<Test as frame_system::Config>::AccountId> for Test {
     }
 
     fn handle_subnet_removal(_subnet_id: u16) {}
+
+    fn execute_application(_user_id: &AccountId) -> DispatchResult {
+        Ok(())
+    }
 }
 
 #[allow(dead_code)]

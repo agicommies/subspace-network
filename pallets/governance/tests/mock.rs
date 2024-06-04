@@ -145,6 +145,18 @@ impl GovernanceApi<<Test as frame_system::Config>::AccountId> for Test {
     }
 
     fn handle_subnet_removal(_subnet_id: u16) {}
+
+    fn execute_application(user_id: &AccountId) -> DispatchResult {
+        Governance::execute_application(user_id)
+    }
+
+    fn get_general_subnet_application_cost() -> u64 {
+        Default::default()
+    }
+
+    fn curator_application_exists(module_key: &AccountId) -> bool {
+        false
+    }
 }
 
 // Build genesis storage according to the mock runtime.

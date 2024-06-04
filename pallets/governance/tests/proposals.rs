@@ -896,3 +896,23 @@ fn creates_treasury_transfer_proposal_and_transfers() {
         assert_eq!(get_balance(0), to_nano(7));
     });
 }
+
+/// This test, observes the distribution of governance reward logic over time.
+#[test]
+fn rewards_wont_exceed_treasury() {
+    new_test_ext().execute_with(|| {
+        zero_min_burn();
+        // Fill the governance address with 1 mil so we are not limited by the max allocation
+        let amount = to_nano(1_000_000_000);
+        let key = DaoTreasuryAddress::<Test>::get();
+        add_balance(key, amount);
+
+        let governance_config: GovernanceConfiguration = GlobalGovernanceConfig::<Test>::get();
+        let n = 0;
+        let allocation = get_reward_allocation::<Test>(&governance_config, n).unwrap();
+        assert_eq!(
+            FixedI128::<U32>::saturating_from_num(allocation),
+            governance_config.max_proposal_reward_treasury_allocation
+        );
+    });
+}

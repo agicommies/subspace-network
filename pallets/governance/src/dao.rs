@@ -1,5 +1,6 @@
-use super::*;
+use crate::*;
 use frame_support::pallet_prelude::DispatchResult;
+use pallet_subspace::Pallet as PalletSubspace;
 
 #[derive(Clone, Debug, TypeInfo, Decode, Encode)]
 #[scale_info(skip_type_params(T))]
@@ -38,11 +39,11 @@ impl<T: Config> Pallet<T> {
         let application_cost = GeneralSubnetApplicationCost::<T>::get();
 
         ensure!(
-            Self::has_enough_balance(&key, application_cost),
+            PalletSubspace::<T>::has_enough_balance(&key, application_cost),
             Error::<T>::NotEnoughtBalnceToApply
         );
 
-        let removed_balance_as_currency = Self::u64_to_balance(application_cost);
+        let removed_balance_as_currency = PalletSubspace::<T>::u64_to_balance(application_cost);
         ensure!(
             removed_balance_as_currency.is_some(),
             Error::<T>::CouldNotConvertToBalance
@@ -60,11 +61,14 @@ impl<T: Config> Pallet<T> {
         };
 
         // Burn the application cost from the proposer's balance
-        Self::remove_balance_from_account(&key, removed_balance_as_currency.unwrap())?;
+        PalletSubspace::<T>::remove_balance_from_account(
+            &key,
+            removed_balance_as_currency.unwrap(),
+        )?;
 
         CuratorApplications::<T>::insert(application_id, application);
 
-        Self::deposit_event(Event::<T>::ApplicationCreated(application_id));
+        Self::deposit_event(Event::ApplicationCreated(application_id));
         Ok(())
     }
 
@@ -115,14 +119,91 @@ impl<T: Config> Pallet<T> {
             .ok_or(Error::<T>::ApplicationNotFound)?;
 
         // Give the proposer back his tokens, if the application passed
-        Self::add_balance_to_account(
+        PalletSubspace::<T>::add_balance_to_account(
             &application.paying_for,
-            Self::u64_to_balance(application.application_cost).unwrap(),
+            PalletSubspace::<T>::u64_to_balance(application.application_cost).unwrap(),
         );
         application.status = ApplicationStatus::Accepted;
 
         CuratorApplications::<T>::insert(application.id, application);
 
         Ok(())
+    }
+
+    pub fn do_add_to_whitelist(
+        origin: T::RuntimeOrigin,
+        module_key: T::AccountId,
+        recommended_weight: u8,
+    ) -> DispatchResult {
+        // --- 1. Check that the caller has signed the transaction.
+        let key = ensure_signed(origin)?;
+
+        // --- 2. Ensure that the key is the curator multisig.
+        ensure!(Curator::<T>::get() == key, Error::<T>::NotCurator);
+
+        // --- 2.1 Make sure the key application was submitted
+        let application_exists = T::curator_application_exists(&module_key);
+        ensure!(application_exists, Error::<T>::ApplicationNotFound);
+
+        // --- 3. Ensure that the module_key is not already in the whitelist.
+        ensure!(
+            !Self::is_in_legit_whitelist(&module_key),
+            Error::<T>::AlreadyWhitelisted
+        );
+
+        ensure!(
+            recommended_weight <= 100 && recommended_weight > 0,
+            Error::<T>::InvalidRecommendedWeight
+        );
+
+        // --- 4. Insert the module_key into the whitelist.
+        LegitWhitelist::<T>::insert(module_key.clone(), recommended_weight);
+
+        // execute the application
+        T::execute_application(&module_key).unwrap();
+
+        // -- deposit event
+        Self::deposit_event(Event::WhitelistModuleAdded(module_key));
+
+        // --- 5. Ok and done.
+        Ok(())
+    }
+
+    pub fn do_remove_from_whitelist(
+        origin: T::RuntimeOrigin,
+        module_key: T::AccountId,
+    ) -> DispatchResult {
+        // --- 1. Check that the caller has signed the transaction.
+        let key = ensure_signed(origin)?;
+
+        // --- 2. Ensure that the key is the curator multisig.
+        ensure!(Curator::<T>::get() == key, Error::<T>::NotCurator);
+
+        // --- 3. Ensure that the module_key is in the whitelist.
+        ensure!(
+            Self::is_in_legit_whitelist(&module_key),
+            Error::<T>::NotWhitelisted
+        );
+
+        // --- 4. Remove the module_key from the whitelist.
+        LegitWhitelist::<T>::remove(&module_key);
+
+        // -- deposit event
+        Self::deposit_event(Event::WhitelistModuleRemoved(module_key));
+
+        // --- 5. Ok and done.
+        Ok(())
+    }
+
+    // Util
+    // ====
+
+    pub fn curator_application_exists(module_key: &T::AccountId) -> bool {
+        CuratorApplications::<T>::iter().any(|(_, application)| application.user_id == *module_key)
+    }
+
+    // Whitelist management
+    pub fn is_in_legit_whitelist(account_id: &T::AccountId) -> bool {
+        LegitWhitelist::<T>::contains_key(account_id)
     }
 }
