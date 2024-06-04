@@ -1,3 +1,4 @@
+use dao::ApplicationStatus;
 use mock::*;
 use pallet_subspace::{subnet::SubnetChangeset, GlobalParams, SubnetParams};
 
@@ -914,5 +915,59 @@ fn rewards_wont_exceed_treasury() {
             FixedI128::<U32>::saturating_from_num(allocation),
             governance_config.max_proposal_reward_treasury_allocation
         );
+    });
+}
+
+#[test]
+fn test_whitelist() {
+    new_test_ext().execute_with(|| {
+        let key = U256::from(0);
+        let adding_key = U256::from(1);
+        let mut params = Subspace::global_params();
+        params.curator = key;
+        Subspace::set_global_params(params);
+
+        let proposal_cost = GeneralSubnetApplicationCost::<Test>::get();
+        let data = "test".as_bytes().to_vec();
+
+        add_balance(key, proposal_cost + 1);
+        // first submit an application
+        let balance_before = Subspace::get_balance_u64(&key);
+
+        assert_ok!(SubspaceModule::add_dao_application(
+            get_origin(key),
+            adding_key,
+            data.clone(),
+        ));
+
+        let balance_after = SubspaceModule::get_balance_u64(&key);
+        assert_eq!(balance_after, balance_before - proposal_cost);
+
+        // Assert that the proposal is initially in the Pending status
+        for (_, value) in CuratorApplications::<Test>::iter() {
+            assert_eq!(value.status, ApplicationStatus::Pending);
+            assert_eq!(value.user_id, adding_key);
+            assert_eq!(value.data, data);
+        }
+
+        // add key to whitelist
+        assert_ok!(SubspaceModule::add_to_whitelist(
+            get_origin(key),
+            adding_key,
+            1,
+        ));
+
+        let balance_after_accept = Subspace::get_balance_u64(&key);
+
+        assert_eq!(balance_after_accept, balance_before);
+
+        // Assert that the proposal is now in the Accepted status
+        for (_, value) in CuratorApplications::<Test>::iter() {
+            assert_eq!(value.status, ApplicationStatus::Accepted);
+            assert_eq!(value.user_id, adding_key);
+            assert_eq!(value.data, data);
+        }
+
+        assert!(SubspaceModule::is_in_legit_whitelist(&adding_key));
     });
 }

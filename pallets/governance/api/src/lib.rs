@@ -80,4 +80,6 @@ pub trait GovernanceApi<AccountId> {
 
     /// Returns bool indicating whether the application on SN0 exists.
     fn curator_application_exists(module_key: &AccountId) -> bool;
+
+    fn get_curator() -> AccountId;
 }

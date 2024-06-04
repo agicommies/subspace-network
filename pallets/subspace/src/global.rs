@@ -46,7 +46,7 @@ impl<T: Config> Pallet<T> {
             min_name_length: MinNameLength::<T>::get(),
             max_allowed_subnets: MaxAllowedSubnets::<T>::get(),
             max_allowed_modules: MaxAllowedModules::<T>::get(),
-            curator: Curator::<T>::get(),
+            curator: T::get_curator(),
             floor_founder_share: FloorFounderShare::<T>::get(),
             floor_delegation_fee: FloorDelegationFee::<T>::get(),
             // burn & registrations
@@ -79,7 +79,10 @@ impl<T: Config> Pallet<T> {
         MinWeightStake::<T>::put(params.min_weight_stake);
         SubnetStakeThreshold::<T>::put(params.subnet_stake_threshold);
         FloorDelegationFee::<T>::put(params.floor_delegation_fee);
-        Curator::<T>::put(params.curator);
+
+        // TODO: update curator
+        // Curator::<T>::put(params.curator);
+
         FloorFounderShare::<T>::put(params.floor_founder_share);
 
         // weights

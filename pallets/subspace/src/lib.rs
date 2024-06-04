@@ -487,9 +487,6 @@ pub mod pallet {
     pub type FloorFounderShare<T: Config> =
         StorageValue<_, u8, ValueQuery, DefaultFloorFounderShare<T>>;
 
-    #[pallet::storage]
-    pub type Curator<T: Config> = StorageValue<_, T::AccountId, ValueQuery, DefaultKey<T>>;
-
     #[pallet::storage] // --- ITEM( tota_number_of_existing_networks )
     pub type TotalSubnets<T> = StorageValue<_, u16, ValueQuery>;
 

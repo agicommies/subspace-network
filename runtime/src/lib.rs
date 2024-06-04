@@ -12,6 +12,7 @@ use frame_support::{
     pallet_prelude::Get,
 };
 use pallet_aura::MinimumPeriodTimesTwo;
+use pallet_governance::{Curator, GeneralSubnetApplicationCost};
 use pallet_governance_api::GovernanceConfiguration;
 use pallet_grandpa::{
     fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
@@ -841,6 +842,18 @@ impl pallet_governance_api::GovernanceApi<<Runtime as frame_system::Config>::Acc
 
     fn execute_application(user_id: &AccountId) -> DispatchResult {
         GovernanceModule::execute_application(user_id)
+    }
+
+    fn get_general_subnet_application_cost() -> u64 {
+        GeneralSubnetApplicationCost::<Runtime>::get()
+    }
+
+    fn curator_application_exists(module_key: &AccountId) -> bool {
+        GovernanceModule::curator_application_exists(module_key)
+    }
+
+    fn get_curator() -> AccountId {
+        Curator::<Runtime>::get()
     }
 }
 

@@ -157,6 +157,10 @@ impl GovernanceApi<<Test as frame_system::Config>::AccountId> for Test {
     fn curator_application_exists(module_key: &AccountId) -> bool {
         false
     }
+
+    fn get_cuarator() -> AccountId {
+        Default::default()
+    }
 }
 
 // Build genesis storage according to the mock runtime.

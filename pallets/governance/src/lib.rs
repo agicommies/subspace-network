@@ -24,13 +24,14 @@ type SubnetId = u16;
 pub mod pallet {
     #![allow(clippy::too_many_arguments)]
 
-    use crate::*;
+    use crate::{dao::CuratorApplication, *};
     use frame_support::{
         pallet_prelude::{ValueQuery, *},
         traits::{Currency, StorageInstance},
         PalletId,
     };
     use frame_system::pallet_prelude::{ensure_signed, BlockNumberFor};
+    use pallet_subspace::DefaultKey;
     use sp_runtime::traits::AccountIdConversion;
 
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -140,6 +141,9 @@ pub mod pallet {
     // whitelist for the base subnet (netuid 0)
     #[pallet::storage]
     pub type LegitWhitelist<T: Config> = StorageMap<_, Identity, T::AccountId, u8, ValueQuery>;
+
+    #[pallet::storage]
+    pub type Curator<T: Config> = StorageValue<_, T::AccountId, ValueQuery, DefaultKey<T>>;
 
     // TODO:
     // Add benchmarks for the pallet

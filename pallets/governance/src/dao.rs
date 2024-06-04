@@ -1,19 +1,23 @@
 use crate::*;
 use frame_support::pallet_prelude::DispatchResult;
+use frame_system::ensure_signed;
 use pallet_subspace::Pallet as PalletSubspace;
+use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
 
-#[derive(Clone, Debug, TypeInfo, Decode, Encode)]
+#[derive(Clone, Default, Debug, TypeInfo, Decode, Encode, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
 pub struct CuratorApplication<T: Config> {
     pub id: u64,
     pub user_id: T::AccountId,
     pub paying_for: T::AccountId,
+    #[codec(skip)]
     pub data: Vec<u8>,
     pub status: ApplicationStatus,
     pub application_cost: u64,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, TypeInfo, Decode, Encode)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, MaxEncodedLen, TypeInfo, Decode, Encode)]
 pub enum ApplicationStatus {
     #[default]
     Pending,
