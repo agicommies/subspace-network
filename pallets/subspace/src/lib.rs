@@ -81,6 +81,7 @@ pub mod pallet {
     use global::BurnConfiguration;
     use module::ModuleChangeset;
     use sp_arithmetic::per_things::Percent;
+    use sp_runtime::DispatchResult;
     pub use sp_std::{vec, vec::Vec};
 
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(8);
@@ -116,8 +117,37 @@ pub mod pallet {
     // Global Variables
     // ---------------------------------
 
+    #[pallet::type_value]
+    pub fn DefaultBurnConfig<T: Config>() -> BurnConfiguration<T> {
+        BurnConfiguration {
+            min_burn: 4_000_000_000,
+            max_burn: 250_000_000_000,
+            adjustment_alpha: u64::MAX / 2,
+            adjustment_interval: DefaultTempo::<T>::get() * 2,
+            expected_registrations: DefaultTempo::<T>::get(),
+            _pd: PhantomData,
+        }
+    }
+
     #[pallet::storage]
-    pub type BurnConfig<T: Config> = StorageValue<_, BurnConfiguration<T>, ValueQuery>;
+    pub type BurnConfig<T: Config> =
+        StorageValue<_, BurnConfiguration<T>, ValueQuery, DefaultBurnConfig<T>>;
+
+    #[pallet::type_value]
+    pub fn DefaultSubnetBurnConfig<T: Config>() -> BurnConfiguration<T> {
+        BurnConfiguration {
+            min_burn: 2_000_000_000,
+            max_burn: 100_000_000_000,
+            adjustment_alpha: (DefaultBurnConfig::<T>::get().adjustment_alpha as f32 * 1.2) as u64,
+            adjustment_interval: 2_000,
+            expected_registrations: 1,
+            _pd: PhantomData,
+        }
+    }
+
+    #[pallet::storage]
+    pub type SubnetBurnConfig<T: Config> =
+        StorageValue<_, BurnConfiguration<T>, ValueQuery, DefaultSubnetBurnConfig<T>>;
 
     #[pallet::type_value]
     pub fn DefaultAdjustmentAlpha<T: Config>() -> u64 {
@@ -201,8 +231,15 @@ pub mod pallet {
         StorageMap<_, Identity, u16, u16, ValueQuery>;
 
     #[pallet::storage]
+    pub(super) type SubnetRegistrationsThisInterval<T: Config> = StorageValue<_, u16, ValueQuery>;
+
+    #[pallet::storage]
     // --- MAP (netuid) --> burn
     pub type Burn<T: Config> = StorageMap<_, Identity, u16, u64, ValueQuery>;
+
+    #[pallet::storage]
+    // --- MAP (netuid) --> burn
+    pub type SubnetBurn<T: Config> = StorageValue<_, u64, ValueQuery>;
 
     #[pallet::type_value]
     pub fn DefaultMaxAllowedModules<T: Config>() -> u16 {
@@ -747,6 +784,7 @@ pub mod pallet {
         NoSelfWeight,
         DifferentLengths,
         NotEnoughBalanceToRegister,
+        NotEnoughBalanceToRegisterSubnet,
         StakeNotAdded,
         BalanceNotRemoved,
         BalanceCouldNotBeRemoved,
@@ -963,7 +1001,12 @@ pub mod pallet {
                 block_number.try_into().ok().expect("blockchain won't pass 2 ^ 64 blocks");
 
             // Make sure to use storage layer, so no panic in initialization hook can't happen
-            let res = with_storage_layer(|| Self::adjust_registration_parameters(block_number));
+            let res: DispatchResult = with_storage_layer(|| {
+                Self::adjust_registration_parameters(block_number)?;
+                Self::adjust_subnet_registration_parameters(block_number)?;
+                Ok(())
+            });
+
             if let Err(e) = res {
                 log::error!("Error in on_initialize: {:?}", e);
             }

@@ -1,5 +1,6 @@
 use super::*;
 
+use codec::MaxEncodedLen;
 use frame_support::{
     pallet_prelude::DispatchResult, storage::IterableStorageMap, IterableStorageDoubleMap,
 };
@@ -175,6 +176,7 @@ impl<T: Config> Pallet<T> {
         TotalSubnets::<T>::mutate(|n| *n += 1);
         N::<T>::insert(netuid, 0);
         SubnetEmission::<T>::insert(netuid, 0);
+        SubnetRegistrationsThisInterval::<T>::mutate(|value| *value = value.saturating_add(1));
 
         // Insert the minimum burn to the netuid,
         // to prevent free registrations the first target registration interval.

@@ -116,7 +116,15 @@ impl<T: Config> Pallet<T> {
                     ..DefaultSubnetParams::<T>::get()
                 };
                 let changeset = SubnetChangeset::new(params)?;
-                // TODO: implement a burn mechanism for the subnet creation
+
+                let burn = SubnetBurn::<T>::get();
+
+                Self::remove_balance_from_account(
+                    &key,
+                    Self::u64_to_balance(burn).ok_or(Error::<T>::CouldNotConvertToBalance)?,
+                )
+                .map_err(|_| Error::<T>::NotEnoughBalanceToRegisterSubnet)?;
+
                 Self::add_subnet_from_registration(changeset)?
             }
         };
@@ -460,15 +468,40 @@ impl<T: Config> Pallet<T> {
         } = BurnConfig::<T>::get();
 
         for (netuid, _tempo) in Tempo::<T>::iter() {
-            let registration_this_interval = RegistrationsThisInterval::<T>::get(netuid);
+            let registrations_this_interval = RegistrationsThisInterval::<T>::get(netuid);
 
             Self::adjust_registration(
                 netuid,
                 block_number,
-                registration_this_interval,
+                registrations_this_interval,
                 target_registrations_interval,
                 target_registrations_per_interval,
             );
+        }
+
+        Ok(())
+    }
+
+    pub fn adjust_subnet_registration_parameters(block_number: u64) -> DispatchResult {
+        let BurnConfiguration {
+            adjustment_interval,
+            expected_registrations,
+            ..
+        } = SubnetBurnConfig::<T>::get();
+
+        if block_number % u64::from(adjustment_interval) == 0 {
+            let registrations_this_interval = SubnetRegistrationsThisInterval::<T>::get();
+            let current_burn = SubnetBurn::<T>::get();
+
+            let adjusted_burn = Self::adjust_burn(
+                SubnetBurnConfig::<T>::get(),
+                current_burn,
+                registrations_this_interval,
+                expected_registrations,
+            );
+
+            SubnetBurn::<T>::set(adjusted_burn);
+            SubnetRegistrationsThisInterval::<T>::set(0);
         }
 
         Ok(())
@@ -485,12 +518,13 @@ impl<T: Config> Pallet<T> {
             let current_burn = Burn::<T>::get(netuid);
 
             let adjusted_burn = Self::adjust_burn(
+                BurnConfig::<T>::get(),
                 current_burn,
                 registrations_this_interval,
                 target_registrations_per_interval,
             );
 
-            Burn::<T>::insert(netuid, adjusted_burn);
+            Burn::<T>::set(netuid, adjusted_burn);
 
             // reset the registrations
             RegistrationsThisInterval::<T>::insert(netuid, 0);
@@ -498,6 +532,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn adjust_burn(
+        burn_configuration: BurnConfiguration<T>,
         current_burn: u64,
         registrations_this_interval: u16,
         target_registrations_per_interval: u16,
@@ -507,19 +542,15 @@ impl<T: Config> Pallet<T> {
             / I110F18::from_num(
                 target_registrations_per_interval + target_registrations_per_interval,
             );
-        let BurnConfiguration {
-            min_burn,
-            max_burn,
-            adjustment_alpha,
-            ..
-        } = BurnConfig::<T>::get();
-        let alpha: I110F18 = I110F18::from_num(adjustment_alpha) / I110F18::from_num(u64::MAX);
+
+        let alpha: I110F18 =
+            I110F18::from_num(burn_configuration.adjustment_alpha) / I110F18::from_num(u64::MAX);
         let next_value: I110F18 = alpha * I110F18::from_num(current_burn)
             + (I110F18::from_num(1.0) - alpha) * updated_burn;
-        if next_value >= I110F18::from_num(max_burn) {
-            max_burn
-        } else if next_value <= I110F18::from_num(min_burn) {
-            min_burn
+        if next_value >= I110F18::from_num(burn_configuration.max_burn) {
+            burn_configuration.max_burn
+        } else if next_value <= I110F18::from_num(burn_configuration.min_burn) {
+            burn_configuration.min_burn
         } else {
             next_value.to_num::<u64>()
         }
