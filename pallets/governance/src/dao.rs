@@ -1,5 +1,5 @@
 use crate::*;
-use frame_support::pallet_prelude::DispatchResult;
+use frame_support::pallet_prelude::{BoundedVec, ConstU32, DispatchResult};
 use frame_system::ensure_signed;
 use pallet_subspace::Pallet as PalletSubspace;
 use parity_scale_codec::{Decode, Encode, MaxEncodedLen};
@@ -11,8 +11,7 @@ pub struct CuratorApplication<T: Config> {
     pub id: u64,
     pub user_id: T::AccountId,
     pub paying_for: T::AccountId,
-    #[codec(skip)]
-    pub data: Vec<u8>,
+    pub data: BoundedVec<u8, ConstU32<256>>,
     pub status: ApplicationStatus,
     pub application_cost: u64,
 }
@@ -59,7 +58,7 @@ impl<T: Config> Pallet<T> {
             user_id: application_key,
             paying_for: key.clone(),
             id: application_id,
-            data,
+            data: BoundedVec::truncate_from(data),
             status: ApplicationStatus::Pending,
             application_cost,
         };

@@ -100,6 +100,7 @@ impl<T: Config + pallet_subspace::Config> OnRuntimeUpgrade for InitialMigration<
         DelegatingVotingPower::<T>::set(delegating.try_into().unwrap_or_default());
 
         log::info!("Importing treasury balance...");
+        let treasury_account = DaoTreasuryAddress::<T>::get();
         let old_treasury_balance = old::GlobalDaoTreasury::<T>::get();
 
         let treasury_account_balance = PalletSubspace::<T>::get_balance_u64(&treasury_account);
@@ -110,6 +111,7 @@ impl<T: Config + pallet_subspace::Config> OnRuntimeUpgrade for InitialMigration<
                 &treasury_account,
                 PalletSubspace::<T>::u64_to_balance(old_treasury_balance).unwrap_or_default(),
             );
+        }
 
         let account_balance = PalletSubspace::<T>::get_balance_u64(&treasury_account);
         log::info!(
@@ -155,7 +157,7 @@ impl<T: Config + pallet_subspace::Config> OnRuntimeUpgrade for InitialMigration<
                     id,
                     user_id: application.user_id,
                     paying_for: application.paying_for,
-                    data: application.data,
+                    data: BoundedVec::truncate_from(application.data),
                     status: match application.status {
                         old::ApplicationStatus::Pending => dao::ApplicationStatus::Pending,
                         old::ApplicationStatus::Accepted => dao::ApplicationStatus::Accepted,

@@ -4,13 +4,11 @@ use std::collections::BTreeSet;
 
 use frame_support::{assert_err, assert_noop, assert_ok};
 use mock::*;
-use pallet_governance_api::GovernanceApi;
 use sp_core::U256;
 
 use log::info;
 use pallet_subspace::{
-    voting::ApplicationStatus, Curator, CuratorApplications, Emission, Error, FloorDelegationFee,
-    GeneralSubnetApplicationCost, MaxAllowedModules, MaxAllowedSubnets, MaxAllowedUids,
+    Emission, Error, FloorDelegationFee, MaxAllowedModules, MaxAllowedSubnets, MaxAllowedUids,
     MaxNameLength, MaxRegistrationsPerBlock, MinNameLength, MinStake, RegistrationsPerBlock, Stake,
     SubnetGaps, SubnetNames, TotalSubnets, N,
 };
@@ -562,58 +560,6 @@ fn test_register_invalid_subnet_name() {
 }
 
 // Subnet 0 Whitelist
-#[test]
-fn test_remove_from_whitelist() {
-    new_test_ext().execute_with(|| {
-        let whitelist_key = U256::from(0);
-        let module_key = U256::from(1);
-        Curator::<Test>::put(whitelist_key);
-
-        let proposal_cost = Test::get_global_governance_configuration().proposal_cost;
-        let data = "test".as_bytes().to_vec();
-
-        // apply
-        add_balance(whitelist_key, proposal_cost + 1);
-        // first submit an application
-        assert_ok!(SubspaceModule::add_dao_application(
-            get_origin(whitelist_key),
-            module_key,
-            data.clone(),
-        ));
-
-        // Add the module_key to the whitelist
-        assert_ok!(SubspaceModule::add_to_whitelist(
-            get_origin(whitelist_key),
-            module_key,
-            1
-        ));
-        assert!(SubspaceModule::is_in_legit_whitelist(&module_key));
-
-        // Remove the module_key from the whitelist
-        assert_ok!(SubspaceModule::remove_from_whitelist(
-            get_origin(whitelist_key),
-            module_key
-        ));
-        assert!(!SubspaceModule::is_in_legit_whitelist(&module_key));
-    });
-}
-
-#[test]
-fn test_invalid_curator() {
-    new_test_ext().execute_with(|| {
-        let whitelist_key = U256::from(0);
-        let invalid_key = U256::from(1);
-        let module_key = U256::from(2);
-        Curator::<Test>::put(whitelist_key);
-
-        // Try to add to whitelist with an invalid curator key
-        assert_noop!(
-            SubspaceModule::add_to_whitelist(get_origin(invalid_key), module_key, 1),
-            Error::<Test>::NotCurator
-        );
-        assert!(!SubspaceModule::is_in_legit_whitelist(&module_key));
-    });
-}
 
 #[test]
 fn new_subnet_reutilized_removed_netuid_if_total_is_bigger_than_removed() {

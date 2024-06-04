@@ -1,60 +1,10 @@
 use dao::ApplicationStatus;
 use mock::*;
 use pallet_subspace::{subnet::SubnetChangeset, GlobalParams, SubnetParams};
+use proposal::get_reward_allocation;
+use substrate_fixed::{types::extra::U32, FixedI128};
 
 mod mock;
-
-fn config(proposal_cost: u64, proposal_expiration: u32) {
-    GlobalGovernanceConfig::<Test>::set(GovernanceConfiguration {
-        proposal_cost,
-        proposal_expiration,
-        vote_mode: pallet_governance_api::VoteMode::Vote,
-        ..Default::default()
-    });
-}
-
-fn vote(account: u32, proposal_id: u64, agree: bool) {
-    assert_ok!(Governance::do_vote_proposal(
-        get_origin(account),
-        proposal_id,
-        agree
-    ));
-}
-
-fn register(account: u32, subnet_id: u16, module: u32, stake: u64) {
-    if get_balance(account) <= stake {
-        add_balance(account, stake + to_nano(1));
-    }
-
-    assert_ok!(Subspace::do_register(
-        get_origin(account),
-        format!("subnet-{subnet_id}").as_bytes().to_vec(),
-        format!("module-{module}").as_bytes().to_vec(),
-        format!("address-{account}-{module}").as_bytes().to_vec(),
-        stake,
-        module,
-        None,
-    ));
-}
-
-fn delegate(account: u32) {
-    assert_ok!(Governance::enable_vote_power_delegation(get_origin(
-        account
-    )));
-}
-
-fn stake(account: u32, subnet: u16, module: u32, stake: u64) {
-    if get_balance(account) <= stake {
-        add_balance(account, stake + to_nano(1));
-    }
-
-    assert_ok!(Subspace::do_add_stake(
-        get_origin(account),
-        subnet,
-        module,
-        stake
-    ));
-}
 
 #[test]
 fn global_governance_config_validates_parameters_correctly() {
@@ -553,13 +503,13 @@ fn subnet_proposals_counts_delegated_stake() {
 //         assert_eq!(proposal.proposal_cost, COST);
 //         assert_eq!(proposal.creation_block, 0);
 
-//         SubspaceModule::vote_proposal(get_origin(U256::from(1)), 0, true).unwrap();
+//         Subspace::vote_proposal(get_origin(U256::from(1)), 0, true).unwrap();
 
 //         step_block(200);
 
-//         assert_eq!(SubspaceModule::get_balance_u64(&key), 1);
+//         assert_eq!(Subspace::get_balance_u64(&key), 1);
 
-//         assert_eq!(SubspaceModule::global_params(), original);
+//         assert_eq!(Subspace::global_params(), original);
 //     });
 // }
 
@@ -591,7 +541,7 @@ fn subnet_proposals_counts_delegated_stake() {
 //             min_burn, max_burn, ..
 //         } = BurnConfig::<Test>::get();
 
-//         let params = SubspaceModule::global_params();
+//         let params = Subspace::global_params();
 
 //         let GlobalParams {
 //             max_name_length,
@@ -612,7 +562,7 @@ fn subnet_proposals_counts_delegated_stake() {
 //             ..
 //         } = params.clone();
 
-//         SubspaceModule::add_global_params_proposal(
+//         Subspace::add_global_params_proposal(
 //             get_origin(keys[0]),
 //             max_name_length,
 //             min_name_length,
@@ -634,11 +584,11 @@ fn subnet_proposals_counts_delegated_stake() {
 //         )
 //         .expect("failed to create proposal");
 
-//         assert_eq!(SubspaceModule::get_balance_u64(&keys[0]), 1);
+//         assert_eq!(Subspace::get_balance_u64(&keys[0]), 1);
 
-//         SubspaceModule::vote_proposal(get_origin(keys[0]), 0, true).unwrap();
-//         SubspaceModule::vote_proposal(get_origin(keys[1]), 0, true).unwrap();
-//         SubspaceModule::vote_proposal(get_origin(keys[2]), 0, false).unwrap();
+//         Subspace::vote_proposal(get_origin(keys[0]), 0, true).unwrap();
+//         Subspace::vote_proposal(get_origin(keys[1]), 0, true).unwrap();
+//         Subspace::vote_proposal(get_origin(keys[2]), 0, false).unwrap();
 
 //         ProposalCost::<Test>::set(COST * 2);
 
@@ -648,12 +598,12 @@ fn subnet_proposals_counts_delegated_stake() {
 //         assert_eq!(proposal.status, ProposalStatus::Accepted);
 //         assert_eq!(proposal.finalization_block, Some(100));
 //         assert_eq!(
-//             SubspaceModule::get_balance_u64(&keys[0]),
+//             Subspace::get_balance_u64(&keys[0]),
 //             proposal.proposal_cost + 1,
 //         );
 
 //         ProposalCost::<Test>::set(COST);
-//         assert_eq!(SubspaceModule::global_params(), params);
+//         assert_eq!(Subspace::global_params(), params);
 //     });
 // }
 
@@ -681,7 +631,7 @@ fn subnet_proposals_counts_delegated_stake() {
 //         };
 //         assert_ok!(burn_config.apply());
 
-//         let original = SubspaceModule::global_params();
+//         let original = Subspace::global_params();
 //         let GlobalParams {
 //             floor_founder_share,
 //             max_name_length,
@@ -705,7 +655,7 @@ fn subnet_proposals_counts_delegated_stake() {
 //             min_burn, max_burn, ..
 //         } = BurnConfig::<Test>::get();
 
-//         SubspaceModule::add_global_params_proposal(
+//         Subspace::add_global_params_proposal(
 //             get_origin(keys[0]),
 //             max_name_length,
 //             min_name_length,
@@ -727,11 +677,11 @@ fn subnet_proposals_counts_delegated_stake() {
 //         )
 //         .expect("failed to create proposal");
 
-//         assert_eq!(SubspaceModule::get_balance_u64(&keys[0]), 1);
+//         assert_eq!(Subspace::get_balance_u64(&keys[0]), 1);
 
-//         SubspaceModule::vote_proposal(get_origin(keys[0]), 0, true).unwrap();
-//         SubspaceModule::vote_proposal(get_origin(keys[1]), 0, false).unwrap();
-//         SubspaceModule::vote_proposal(get_origin(keys[2]), 0, false).unwrap();
+//         Subspace::vote_proposal(get_origin(keys[0]), 0, true).unwrap();
+//         Subspace::vote_proposal(get_origin(keys[1]), 0, false).unwrap();
+//         Subspace::vote_proposal(get_origin(keys[2]), 0, false).unwrap();
 
 //         ProposalCost::<Test>::set(COST * 2);
 
@@ -740,10 +690,10 @@ fn subnet_proposals_counts_delegated_stake() {
 //         let proposal = Proposals::<Test>::get(0).expect("proposal was not created");
 //         assert_eq!(proposal.status, ProposalStatus::Refused);
 //         assert_eq!(proposal.finalization_block, Some(100));
-//         assert_eq!(SubspaceModule::get_balance_u64(&keys[0]), 1,);
+//         assert_eq!(Subspace::get_balance_u64(&keys[0]), 1,);
 
 //         ProposalCost::<Test>::set(COST);
-//         assert_eq!(SubspaceModule::global_params(), original);
+//         assert_eq!(Subspace::global_params(), original);
 //     });
 // }
 
@@ -767,7 +717,7 @@ fn subnet_proposals_counts_delegated_stake() {
 
 //         let params = SubnetParams {
 //             tempo: 150,
-//             ..SubspaceModule::subnet_params(0)
+//             ..Subspace::subnet_params(0)
 //         };
 
 //         let SubnetParams {
@@ -792,7 +742,7 @@ fn subnet_proposals_counts_delegated_stake() {
 //             adjustment_alpha,
 //         } = params.clone();
 
-//         SubspaceModule::add_subnet_params_proposal(
+//         Subspace::add_subnet_params_proposal(
 //             get_origin(keys[0]),
 //             0, // netuid
 //             founder,
@@ -817,11 +767,11 @@ fn subnet_proposals_counts_delegated_stake() {
 //         )
 //         .expect("failed to create proposal");
 
-//         assert_eq!(SubspaceModule::get_balance_u64(&keys[0]), 1);
+//         assert_eq!(Subspace::get_balance_u64(&keys[0]), 1);
 
-//         SubspaceModule::vote_proposal(get_origin(keys[0]), 0, true).unwrap();
-//         SubspaceModule::vote_proposal(get_origin(keys[1]), 0, true).unwrap();
-//         SubspaceModule::vote_proposal(get_origin(keys[2]), 0, false).unwrap();
+//         Subspace::vote_proposal(get_origin(keys[0]), 0, true).unwrap();
+//         Subspace::vote_proposal(get_origin(keys[1]), 0, true).unwrap();
+//         Subspace::vote_proposal(get_origin(keys[2]), 0, false).unwrap();
 
 //         ProposalCost::<Test>::set(COST * 2);
 
@@ -831,14 +781,14 @@ fn subnet_proposals_counts_delegated_stake() {
 //         assert_eq!(proposal.status, ProposalStatus::Accepted);
 //         assert_eq!(proposal.finalization_block, Some(100));
 //         assert_eq!(
-//             SubspaceModule::get_balance_u64(&keys[0]),
+//             Subspace::get_balance_u64(&keys[0]),
 //             proposal.proposal_cost + 1,
 //         );
 
 //         dbg!(Tempo::<Test>::contains_key(0));
 
 //         ProposalCost::<Test>::set(COST);
-//         assert_eq!(SubspaceModule::subnet_params(0).tempo, 150);
+//         assert_eq!(Subspace::subnet_params(0).tempo, 150);
 //     });
 // }
 
@@ -855,14 +805,14 @@ fn subnet_proposals_counts_delegated_stake() {
 
 //         ProposalCost::<Test>::set(COST);
 
-//         SubspaceModule::add_global_custom_proposal(get_origin(key), b"test".to_vec())
+//         Subspace::add_global_custom_proposal(get_origin(key), b"test".to_vec())
 //             .expect("failed to create proposal");
 
-//         SubspaceModule::vote_proposal(get_origin(key), 0, true).unwrap();
+//         Subspace::vote_proposal(get_origin(key), 0, true).unwrap();
 //         let proposal = Proposals::<Test>::get(0).expect("proposal was not created");
 //         assert_eq!(proposal.votes_for, BTreeSet::from([key]));
 
-//         SubspaceModule::unvote_proposal(get_origin(key), 0).unwrap();
+//         Subspace::unvote_proposal(get_origin(key), 0).unwrap();
 //         let proposal = Proposals::<Test>::get(0).expect("proposal was not created");
 //         assert_eq!(proposal.votes_for, BTreeSet::from([]));
 //     });
@@ -921,8 +871,8 @@ fn rewards_wont_exceed_treasury() {
 #[test]
 fn test_whitelist() {
     new_test_ext().execute_with(|| {
-        let key = U256::from(0);
-        let adding_key = U256::from(1);
+        let key = 0;
+        let adding_key = 1;
         let mut params = Subspace::global_params();
         params.curator = key;
         Subspace::set_global_params(params);
@@ -934,28 +884,25 @@ fn test_whitelist() {
         // first submit an application
         let balance_before = Subspace::get_balance_u64(&key);
 
-        assert_ok!(SubspaceModule::add_dao_application(
+        assert_ok!(Governance::add_dao_application(
             get_origin(key),
             adding_key,
             data.clone(),
         ));
 
-        let balance_after = SubspaceModule::get_balance_u64(&key);
+        let balance_after = Subspace::get_balance_u64(&key);
         assert_eq!(balance_after, balance_before - proposal_cost);
 
         // Assert that the proposal is initially in the Pending status
         for (_, value) in CuratorApplications::<Test>::iter() {
+            dbg!(&value);
             assert_eq!(value.status, ApplicationStatus::Pending);
             assert_eq!(value.user_id, adding_key);
             assert_eq!(value.data, data);
         }
 
         // add key to whitelist
-        assert_ok!(SubspaceModule::add_to_whitelist(
-            get_origin(key),
-            adding_key,
-            1,
-        ));
+        assert_ok!(Governance::add_to_whitelist(get_origin(key), adding_key, 1,));
 
         let balance_after_accept = Subspace::get_balance_u64(&key);
 
@@ -968,6 +915,6 @@ fn test_whitelist() {
             assert_eq!(value.data, data);
         }
 
-        assert!(SubspaceModule::is_in_legit_whitelist(&adding_key));
+        assert!(Governance::is_in_legit_whitelist(&adding_key));
     });
 }
