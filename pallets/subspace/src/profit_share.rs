@@ -1,4 +1,3 @@
-use core::ops::Rem;
 use frame_support::pallet_prelude::DispatchResult;
 
 use super::*;
@@ -41,8 +40,11 @@ impl<T: Config> Pallet<T> {
         if total_normalized_shares < u16::MAX {
             let diff = u16::MAX.saturating_sub(total_normalized_shares);
             for i in 0..diff {
-                let idx = i.rem(adjusted_shares.len() as u16) as usize;
-                if let Some(share) = adjusted_shares.get_mut(idx) {
+                let Some(idx) = i.checked_rem(adjusted_shares.len() as u16) else {
+                    continue;
+                };
+
+                if let Some(share) = adjusted_shares.get_mut(idx as usize) {
                     *share = share.saturating_add(1);
                 }
             }

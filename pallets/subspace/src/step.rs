@@ -165,7 +165,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                 .map(|(inc, tru)| {
                     let incentive_part = inc.checked_mul(incentive_share).unwrap_or_default();
                     let trust_part = tru.checked_mul(trust_share).unwrap_or_default();
-                    incentive_part.checked_add(trust_part).unwrap_or_default()
+                    incentive_part.saturating_add(trust_part)
                 })
                 .collect();
 

@@ -304,7 +304,7 @@ impl<T: Config> Pallet<T> {
 
         // 3. Remove the network if it is empty.
         let module_count = N::<T>::mutate(netuid, |v| {
-            *v = v.checked_sub(1).unwrap_or(1);
+            *v = v.saturating_sub(1);
             *v
         }); // Decrease the number of modules in the network.
 
