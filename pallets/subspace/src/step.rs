@@ -438,14 +438,20 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         let mut incentive: Vec<I32F32> = vec![I32F32::from_num(0.0); n as usize];
 
         for (i, sparse_row) in weights.iter().enumerate() {
-            for (j, value) in sparse_row.iter() {
-                incentive[*j as usize] += stake[i] * value;
+            if let Some(&stake_i) = stake.get(i) {
+                for (j, value) in sparse_row.iter() {
+                    if let Some(incentive_j) = incentive.get_mut(*j as usize) {
+                        *incentive_j += stake_i * value;
+                    }
+                }
             }
         }
 
         if is_zero(&incentive) {
             for (uid_i, _key) in uid_key_tuples.iter() {
-                incentive[*uid_i as usize] = I32F32::from_num(1.0);
+                if let Some(value) = incentive.get_mut(*uid_i as usize) {
+                    *value = I32F32::from_num(1.0);
+                }
             }
         }
 
@@ -454,7 +460,11 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
     }
 
     fn get_current_weight_age(last_update_vector: &[u64], current_block: u64, uid_i: u16) -> u64 {
-        current_block.saturating_sub(last_update_vector[uid_i as usize])
+        last_update_vector
+            .get(uid_i as usize)
+            .copied()
+            .map(|last_update| current_block.saturating_sub(last_update))
+            .unwrap_or(0)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -481,10 +491,17 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                 return (true, valid_weights);
             }
 
-            let weight_f64 = I64F64::from_num(*weight_ij) / I64F64::from_num(u16::MAX);
-            let weight_stake =
-                (stake_f64[uid_i as usize] * weight_f64) * I64F64::from_num(total_stake_u64);
-
+            let weight_f64 = I64F64::from_num(*weight_ij)
+                .checked_div(I64F64::from_num(u16::MAX))
+                .unwrap_or(I64F64::from_num(0));
+            let weight_stake = stake_f64
+                .get(uid_i as usize)
+                .copied()
+                .unwrap_or(I64F64::from_num(0))
+                .checked_mul(weight_f64)
+                .unwrap_or(I64F64::from_num(0))
+                .checked_mul(I64F64::from_num(total_stake_u64))
+                .unwrap_or(I64F64::from_num(0));
             if weight_stake > min_weight_stake_f64 {
                 valid_weights.push((*uid_j, *weight_ij));
             } else {
@@ -551,10 +568,15 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
             return (token_emission, 0);
         }
 
-        let founder_emission_ratio: I64F64 =
-            I64F64::from_num(founder_share.min(100)) / I64F64::from_num(100);
-        let founder_emission =
-            (founder_emission_ratio * I64F64::from_num(token_emission)).to_num::<u64>();
+        let founder_emission_ratio: I64F64 = I64F64::from_num(founder_share.min(100))
+            .checked_div(I64F64::from_num(100))
+            .unwrap_or(I64F64::from_num(0));
+
+        let founder_emission = founder_emission_ratio
+            .checked_mul(I64F64::from_num(token_emission))
+            .map(|result| result.to_num::<u64>())
+            .unwrap_or(0);
+
         token_emission = token_emission.saturating_sub(founder_emission);
 
         (token_emission, founder_emission)
@@ -575,12 +597,13 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         block_at_registration
     }
 
+    #[allow(clippy::arithmetic_side_effects)]
     pub fn blocks_until_next_epoch(netuid: u16, tempo: u16, block_number: u64) -> u64 {
         // in this case network never runs
         if tempo == 0 {
             return 1000;
         }
-        (block_number + netuid as u64) % (tempo as u64)
+        (block_number + netuid as u64) % (tempo.max(1) as u64)
     }
 
     pub fn get_ownership_ratios(
@@ -596,15 +619,23 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         for (k, v) in stake_from_vector.clone().into_iter() {
             let ownership = I64F64::from_num(v);
             ownership_vector.push((k.clone(), ownership));
-            total_stake_from += ownership;
+            total_stake_from =
+                total_stake_from.checked_add(ownership).unwrap_or(I64F64::from_num(0))
         }
 
         // add the module itself, if it has stake of its own
         if total_stake_from == I64F64::from_num(0) {
             ownership_vector.push((module_key.clone(), I64F64::from_num(0)));
         } else {
-            ownership_vector =
-                ownership_vector.into_iter().map(|(k, v)| (k, v / total_stake_from)).collect();
+            ownership_vector = ownership_vector
+                .into_iter()
+                .map(|(k, v)| {
+                    (
+                        k,
+                        v.checked_div(total_stake_from).unwrap_or(I64F64::from_num(0)),
+                    )
+                })
+                .collect();
         }
 
         ownership_vector
@@ -621,7 +652,9 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
             return;
         }
 
-        if block_number % target_registrations_interval as u64 == 0 {
+        let interval = target_registrations_interval.max(1) as u64;
+        #[allow(clippy::arithmetic_side_effects)]
+        if block_number % interval == 0 {
             let current_burn = Burn::<T>::get(netuid);
 
             let adjusted_burn = Self::adjust_burn(
@@ -645,17 +678,32 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         target_registrations_per_interval: u16,
     ) -> u64 {
         let updated_burn: I110F18 = I110F18::from_num(current_burn)
-            * I110F18::from_num(registrations_this_interval + target_registrations_per_interval)
-            / I110F18::from_num(
-                target_registrations_per_interval + target_registrations_per_interval,
-            );
+            .checked_mul(I110F18::from_num(
+                registrations_this_interval.saturating_add(target_registrations_per_interval),
+            ))
+            .unwrap_or_default()
+            .checked_div(I110F18::from_num(
+                target_registrations_per_interval.saturating_add(target_registrations_per_interval),
+            ))
+            .unwrap_or_default();
         let adjustment_alpha = AdjustmentAlpha::<T>::get(netuid);
         let BurnConfiguration {
             min_burn, max_burn, ..
         } = BurnConfig::<T>::get();
-        let alpha: I110F18 = I110F18::from_num(adjustment_alpha) / I110F18::from_num(u64::MAX);
-        let next_value: I110F18 = alpha * I110F18::from_num(current_burn)
-            + (I110F18::from_num(1.0) - alpha) * updated_burn;
+        let alpha: I110F18 = I110F18::from_num(adjustment_alpha)
+            .checked_div(I110F18::from_num(u64::MAX))
+            .unwrap_or_else(|| I110F18::from_num(0));
+        let next_value: I110F18 = alpha
+            .checked_mul(I110F18::from_num(current_burn))
+            .unwrap_or_else(|| I110F18::from_num(0))
+            .checked_add(
+                I110F18::from_num(1.0)
+                    .checked_sub(alpha)
+                    .unwrap_or_else(|| I110F18::from_num(0))
+                    .checked_mul(updated_burn)
+                    .unwrap_or_else(|| I110F18::from_num(0)),
+            )
+            .unwrap_or_else(|| I110F18::from_num(0));
         if next_value >= I110F18::from_num(max_burn) {
             max_burn
         } else if next_value <= I110F18::from_num(min_burn) {
