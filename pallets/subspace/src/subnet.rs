@@ -383,7 +383,7 @@ impl<T: Config> Pallet<T> {
     pub fn get_total_emission_per_block() -> u64 {
         let total_stake: u64 = Self::total_stake();
         let unit_emission: u64 = UnitEmission::<T>::get();
-        let mut emission_per_block: u64 = unit_emission; // assuming 8 second block times
+        let emission_per_block: u64 = unit_emission; // assuming 8 second block times
         let halving_total_stake_checkpoints: Vec<u64> =
             [10_000_000, 20_000_000, 30_000_000, 40_000_000]
                 .iter()

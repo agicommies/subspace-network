@@ -57,7 +57,11 @@ impl<T: Config> Pallet<T> {
                 if total_stake == 0 {
                     false
                 } else {
-                    let subnet_stake_percent = (subnet_stake * 100) / total_stake;
+                    let subnet_stake_percent = subnet_stake
+                        .checked_mul(100)
+                        .and_then(|x| x.checked_div(total_stake))
+                        .unwrap_or(0);
+
                     subnet_stake_threshold <= Percent::from_parts(subnet_stake_percent as u8)
                 }
             };
@@ -117,7 +121,11 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
 
         let stake_f64: Vec<I64F64> = stake_u64
             .iter()
-            .map(|x| I64F64::from_num(*x) / I64F64::from_num(total_stake_u64))
+            .map(|x| {
+                I64F64::from_num(*x)
+                    .checked_div(I64F64::from_num(total_stake_u64))
+                    .unwrap_or(I64F64::from_num(0))
+            })
             .collect();
 
         let mut stake: Vec<I32F32> = stake_f64.iter().map(|x| I32F32::from_num(*x)).collect();
@@ -145,14 +153,20 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         // trust that acts as a multiplier for the incentive
         let trust_ratio: u16 = TrustRatio::<T>::get(netuid);
         if trust_ratio > 0 {
-            let trust_share: I32F32 = I32F32::from_num(trust_ratio) / I32F32::from_num(100);
+            let trust_share: I32F32 = I32F32::from_num(trust_ratio)
+                .checked_div(I32F32::from_num(100))
+                .unwrap_or(I32F32::from_num(0));
             let incentive_share: I32F32 = I32F32::from_num(1.0).saturating_sub(trust_share);
             let trust = Self::compute_trust(&weights, &stake, &subnet_params, n);
 
             incentive = incentive
                 .iter()
                 .zip(trust.iter())
-                .map(|(inc, tru)| (inc * incentive_share) + (tru * trust_share))
+                .map(|(inc, tru)| {
+                    let incentive_part = inc.checked_mul(incentive_share).unwrap_or_default();
+                    let trust_part = tru.checked_mul(trust_share).unwrap_or_default();
+                    incentive_part.checked_add(trust_part).unwrap_or_default()
+                })
                 .collect();
 
             // save the trust into the trust vector
@@ -193,17 +207,35 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         token_emission: u64,
         netuid: u16,
     ) -> (Vec<I64F64>, Vec<I64F64>) {
-        let incentive_ratio: I64F64 =
-            I64F64::from_num(IncentiveRatio::<T>::get(netuid) as u64) / I64F64::from_num(100);
-        let dividend_ratio: I64F64 = I64F64::from_num(1.0) - incentive_ratio;
+        let incentive_ratio: I64F64 = I64F64::from_num(IncentiveRatio::<T>::get(netuid) as u64)
+            .checked_div(I64F64::from_num(100))
+            .unwrap_or(I64F64::from_num(0));
+        let dividend_ratio: I64F64 = I64F64::from_num(1.0).saturating_sub(incentive_ratio);
 
         let incentive_emission_float: Vec<I64F64> = incentive
             .iter()
-            .map(|&x| I64F64::from_num(x) * I64F64::from_num(token_emission) * incentive_ratio)
+            .map(|&x| {
+                let x_float = I64F64::from_num(x);
+                let token_emission_float = I64F64::from_num(token_emission);
+                x_float
+                    .checked_mul(token_emission_float)
+                    .unwrap_or(I64F64::from_num(0))
+                    .checked_mul(incentive_ratio)
+                    .unwrap_or(I64F64::from_num(0))
+            })
             .collect();
+
         let dividends_emission_float: Vec<I64F64> = dividends
             .iter()
-            .map(|&x| I64F64::from_num(x) * I64F64::from_num(token_emission) * dividend_ratio)
+            .map(|&x| {
+                let x_float = I64F64::from_num(x);
+                let token_emission_float = I64F64::from_num(token_emission);
+                x_float
+                    .checked_mul(token_emission_float)
+                    .unwrap_or(I64F64::from_num(0))
+                    .checked_mul(dividend_ratio)
+                    .unwrap_or(I64F64::from_num(0))
+            })
             .collect();
 
         (incentive_emission_float, dividends_emission_float)
@@ -225,17 +257,19 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
 
         if netuid != 0 {
             let founder_uid = Self::get_uid_for_key(netuid, founder_key);
-            incentive_emission[founder_uid as usize] =
-                incentive_emission[founder_uid as usize].saturating_add(founder_emission);
+            if let Some(founder_incentive) = incentive_emission.get_mut(founder_uid as usize) {
+                *founder_incentive = founder_incentive.saturating_add(founder_emission);
+            }
         }
 
         let mut emission: Vec<u64> = vec![0; n];
         let mut emitted = 0u64;
 
         for (module_uid, module_key) in uid_key_tuples.iter() {
-            let owner_emission_incentive: u64 = incentive_emission[*module_uid as usize];
-            let mut owner_dividends_emission: u64 = dividends_emission[*module_uid as usize];
-
+            let owner_emission_incentive: u64 =
+                *incentive_emission.get(*module_uid as usize).unwrap_or(&0);
+            let mut owner_dividends_emission: u64 =
+                *dividends_emission.get(*module_uid as usize).unwrap_or(&0);
             if let Some(emi) = emission.get_mut(*module_uid as usize) {
                 *emi = owner_emission_incentive.saturating_add(owner_dividends_emission);
             }
@@ -253,8 +287,10 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                     }
 
                     let dividends_from_delegate: u64 =
-                        (I64F64::from_num(total_owner_dividends_emission) * *delegate_ratio)
-                            .to_num::<u64>();
+                        I64F64::from_num(total_owner_dividends_emission)
+                            .checked_mul(*delegate_ratio)
+                            .map(|result| result.to_num::<u64>())
+                            .unwrap_or(0);
                     let to_module: u64 = delegation_fee.mul_floor(dividends_from_delegate);
                     let to_delegate: u64 = dividends_from_delegate.saturating_sub(to_module);
                     Self::increase_stake(netuid, delegate_key, module_key, to_delegate);
@@ -263,7 +299,8 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                 }
             }
 
-            let owner_emission: u64 = owner_emission_incentive + owner_dividends_emission;
+            let owner_emission: u64 =
+                owner_emission_incentive.saturating_add(owner_dividends_emission);
             if owner_emission > 0 {
                 let profit_share_emissions: Vec<(T::AccountId, u64)> =
                     Self::get_profit_share_emissions(module_key, owner_emission);
@@ -286,7 +323,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         }
 
         let total_stake = Self::total_stake() as u128;
-        let total_yuma_stake = total_stake - Self::get_total_subnet_stake(0) as u128;
+        let total_yuma_stake = total_stake.saturating_sub(Self::get_total_subnet_stake(0) as u128);
         let subnet_stake_threshold = SubnetStakeThreshold::<T>::get();
 
         if netuid == 0 && founder_emission > 0 {
@@ -301,8 +338,12 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                 let stakes: BTreeMap<_, _> = TotalStake::<T>::iter()
                     .filter(|(n, _)| *n != 0)
                     .filter(|(_, s)| {
-                        let total_stake_percentage =
-                            Percent::from_parts(((*s as u128 * 100) / total_stake) as u8);
+                        let total_stake_percentage = (*s as u128)
+                            .checked_mul(100)
+                            .unwrap_or(0)
+                            .checked_div(total_stake)
+                            .map(|result| Percent::from_parts(result as u8))
+                            .unwrap_or_default();
                         total_stake_percentage >= subnet_stake_threshold
                     })
                     .collect();
@@ -312,8 +353,9 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                     let Some(subnet_stake) = stakes.get(&netuid) else {
                         continue;
                     };
+                    #[allow(clippy::arithmetic_side_effects)]
                     let yuma_stake_percentage = Percent::from_parts(
-                        ((*subnet_stake as u128 * 100) / total_yuma_stake) as u8,
+                        (((*subnet_stake as u128 * 100) / total_yuma_stake.max(1)) as u8).min(100),
                     );
                     let founder_distribution = yuma_stake_percentage.mul_floor(to_distribute);
                     Self::add_balance_to_account(
@@ -357,6 +399,9 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         Emission::<T>::insert(netuid, emission);
     }
 
+    // TODO: disable this later, this function has proven to be correct
+    #[allow(clippy::indexing_slicing)]
+    #[allow(clippy::arithmetic_side_effects)]
     fn compute_dividends(
         bonds: &[Vec<(u16, I32F32)>],
         incentive: &[I32F32],
@@ -385,6 +430,9 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         (fixed_dividends, dividends)
     }
 
+    // Disable this later, this function has proven to be correct
+    #[allow(clippy::arithmetic_side_effects)]
+    #[allow(clippy::indexing_slicing)]
     fn compute_bonds_delta(
         weights: &[Vec<(u16, I32F32)>],
         stake: &[I32F32],
@@ -402,8 +450,10 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
 
         for sparse_row in bonds.iter_mut() {
             for (j, value) in sparse_row.iter_mut() {
-                if col_sum[*j as usize] > I32F32::from_num(0.0) {
-                    *value /= col_sum[*j as usize];
+                if col_sum.get(*j as usize).unwrap_or(&I32F32::from_num(0.0))
+                    > &I32F32::from_num(0.0)
+                {
+                    *value /= col_sum.get(*j as usize).unwrap_or(&I32F32::from_num(0.0));
                 }
             }
         }
@@ -420,8 +470,12 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         let mut trust = vec![I32F32::from_num(0.0); n as usize];
         for (i, weights_i) in weights.iter().enumerate() {
             for (j, weight_ij) in weights_i.iter() {
-                if *weight_ij > 0 && stake[i] > I32F32::from_num(subnet_params.min_stake) {
-                    trust[*j as usize] += I32F32::from_num(1.0);
+                if let Some(stake_i) = stake.get(i) {
+                    if let Some(trust_j) = trust.get_mut(*j as usize) {
+                        if *weight_ij > 0 && *stake_i > I32F32::from_num(subnet_params.min_stake) {
+                            *trust_j = trust_j.saturating_add(I32F32::from_num(1.0));
+                        }
+                    }
                 }
             }
         }
@@ -438,10 +492,15 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         let mut incentive: Vec<I32F32> = vec![I32F32::from_num(0.0); n as usize];
 
         for (i, sparse_row) in weights.iter().enumerate() {
-            if let Some(&stake_i) = stake.get(i) {
-                for (j, value) in sparse_row.iter() {
-                    if let Some(incentive_j) = incentive.get_mut(*j as usize) {
-                        *incentive_j += stake_i * value;
+            let zero = I32F32::from_num(0.0);
+            let stake_i = stake.get(i).unwrap_or(&zero);
+            for (j, value) in sparse_row.iter() {
+                if let Some(incentive_j) = incentive.get_mut(*j as usize) {
+                    let result = stake_i.checked_mul(*value);
+                    if let Some(product) = result {
+                        *incentive_j = incentive_j
+                            .checked_add(product)
+                            .unwrap_or_else(|| I32F32::from_num(0.0));
                     }
                 }
             }
