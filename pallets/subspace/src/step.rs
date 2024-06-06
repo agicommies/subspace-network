@@ -498,9 +498,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                 if let Some(incentive_j) = incentive.get_mut(*j as usize) {
                     let result = stake_i.checked_mul(*value);
                     if let Some(product) = result {
-                        *incentive_j = incentive_j
-                            .checked_add(product)
-                            .unwrap_or_else(|| I32F32::from_num(0.0));
+                        *incentive_j = incentive_j.saturating_add(product)
                     }
                 }
             }
@@ -678,8 +676,7 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         for (k, v) in stake_from_vector.clone().into_iter() {
             let ownership = I64F64::from_num(v);
             ownership_vector.push((k.clone(), ownership));
-            total_stake_from =
-                total_stake_from.checked_add(ownership).unwrap_or(I64F64::from_num(0))
+            total_stake_from = total_stake_from.saturating_add(ownership);
         }
 
         // add the module itself, if it has stake of its own
@@ -755,14 +752,12 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
         let next_value: I110F18 = alpha
             .checked_mul(I110F18::from_num(current_burn))
             .unwrap_or_else(|| I110F18::from_num(0))
-            .checked_add(
+            .saturating_add(
                 I110F18::from_num(1.0)
-                    .checked_sub(alpha)
-                    .unwrap_or_else(|| I110F18::from_num(0))
+                    .saturating_sub(alpha)
                     .checked_mul(updated_burn)
                     .unwrap_or_else(|| I110F18::from_num(0)),
-            )
-            .unwrap_or_else(|| I110F18::from_num(0));
+            );
         if next_value >= I110F18::from_num(max_burn) {
             max_burn
         } else if next_value <= I110F18::from_num(min_burn) {

@@ -475,9 +475,7 @@ impl<T: Config> YumaCalc<T> {
             .checked_div(I64F64::from_num(1_000_000))
             .unwrap_or(I64F64::from_num(0));
         log::trace!("  bonds moving average: {bonds_moving_average}");
-        let alpha = I32F32::from_num(1)
-            .checked_sub(I32F32::from_num(bonds_moving_average))
-            .unwrap_or(I32F32::from_num(0));
+        let alpha = I32F32::from_num(1).saturating_sub(I32F32::from_num(bonds_moving_average));
         let mut ema_bonds = mat_ema_sparse(&bonds_delta, &bonds, alpha);
         log::trace!("  original ema bonds: {ema_bonds:?}");
 

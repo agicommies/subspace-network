@@ -230,8 +230,7 @@ impl<T: Config> Pallet<T> {
             expiration_block
         } else {
             expiration_block
-                .checked_add(100)
-                .unwrap_or(0)
+                .saturating_add(100)
                 .saturating_sub(expiration_block.checked_rem(100).unwrap_or(0))
         };
 
@@ -461,10 +460,9 @@ fn tick_proposal<T: Config>(
 }
 
 pub fn tick_proposal_rewards<T: Config>(block_number: u64) {
-    let mut to_tick: Vec<(Option<u16>, GovernanceConfiguration)> =
-        pallet_subspace::N::<T>::iter_keys()
-            .map(|subnet_id| (Some(subnet_id), SubnetGovernanceConfig::<T>::get(subnet_id)))
-            .collect();
+    let mut to_tick: Vec<_> = pallet_subspace::N::<T>::iter_keys()
+        .map(|subnet_id| (Some(subnet_id), SubnetGovernanceConfig::<T>::get(subnet_id)))
+        .collect();
     to_tick.push((None, GlobalGovernanceConfig::<T>::get()));
 
     to_tick.into_iter().for_each(|(subnet_id, governance_config)| {
@@ -508,7 +506,7 @@ pub fn execute_proposal_rewards<T: Config>(
     governance_config: GovernanceConfiguration,
 ) {
     #[allow(clippy::arithmetic_side_effects)]
-    if block_number % governance_config.proposal_reward_interval.min(1) != 0 {
+    if block_number % governance_config.proposal_reward_interval.max(1) != 0 {
         return;
     }
 
@@ -540,7 +538,7 @@ pub fn execute_proposal_rewards<T: Config>(
 
         match get_reward_allocation::<T>(&governance_config, n) {
             Ok(allocation) => {
-                total_allocation = total_allocation.checked_add(allocation).unwrap_or_default();
+                total_allocation = total_allocation.saturating_add(allocation);
             }
             Err(err) => {
                 log::error!("could not get reward allocation for proposal {proposal_id}: {err:?}");
@@ -549,7 +547,7 @@ pub fn execute_proposal_rewards<T: Config>(
         }
 
         UnrewardedProposals::<T>::remove(proposal_id);
-        n = n.checked_add(1).unwrap_or(n);
+        n = n.saturating_add(1);
     }
 
     distribute_proposal_rewards::<T>(account_stakes, total_allocation);

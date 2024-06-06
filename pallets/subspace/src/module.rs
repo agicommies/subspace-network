@@ -193,6 +193,7 @@ impl<T: Config> Pallet<T> {
             // No modules in the network.
             return;
         }
+
         let module_key: T::AccountId = Keys::<T>::get(netuid, uid);
         let replace_uid = n.saturating_sub(1);
         let replace_key: T::AccountId = Keys::<T>::get(netuid, replace_uid);
