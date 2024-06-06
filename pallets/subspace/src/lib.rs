@@ -43,12 +43,12 @@ mod benchmarking;
 // This is needed so other pallets can acess
 #[allow(unused_imports)]
 pub use pallet::*;
+pub mod balances;
 pub mod global;
 mod math;
 pub mod module;
 mod profit_share;
 mod registration;
-pub mod rpc;
 mod set_weights;
 mod staking;
 pub mod subnet;
@@ -490,7 +490,7 @@ pub mod pallet {
         T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).unwrap()
     }
     #[pallet::storage] // --- DMAP ( netuid, uid ) --> module_key
-    pub(super) type Keys<T: Config> =
+    pub type Keys<T: Config> =
         StorageDoubleMap<_, Identity, u16, Identity, u16, T::AccountId, ValueQuery, DefaultKey<T>>;
 
     #[pallet::storage] // --- DMAP ( netuid, uid ) --> module_name
@@ -1012,16 +1012,6 @@ pub mod pallet {
         // Bulk stake operations
         // ---------------------------------
 
-        #[pallet::call_index(3)]
-        #[pallet::weight((T::WeightInfo::add_stake_multiple(), DispatchClass::Normal, Pays::No))]
-        pub fn add_stake_multiple(
-            origin: OriginFor<T>,
-            module_keys: Vec<T::AccountId>,
-            amounts: Vec<u64>,
-        ) -> DispatchResult {
-            Self::do_add_stake_multiple(origin, module_keys, amounts)
-        }
-
         #[pallet::call_index(4)]
         #[pallet::weight((T::WeightInfo::remove_stake_multiple(), DispatchClass::Normal, Pays::No))]
         pub fn remove_stake_multiple(
@@ -1518,7 +1508,6 @@ where
         let who = who.clone();
         match call.is_sub_type() {
             Some(Call::add_stake { .. }) => Ok((CallType::AddStake, 0, who)),
-            Some(Call::add_stake_multiple { .. }) => Ok((CallType::AddStakeMultiple, 0, who)),
             Some(Call::remove_stake { .. }) => Ok((CallType::RemoveStake, 0, who)),
             Some(Call::remove_stake_multiple { .. }) => Ok((CallType::RemoveStakeMultiple, 0, who)),
             Some(Call::transfer_stake { .. }) => Ok((CallType::TransferStake, 0, who)),

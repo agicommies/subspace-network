@@ -6,7 +6,6 @@ use pallet_subspace::subnet_consensus::{linear, yuma};
 
 // Handles the whole emission distribution of the blockchain
 
-// TODO: make sure that the proposals are ticked correctly
 impl<T: Config> Pallet<T> {
     pub fn process_emission_distribution(block_number: u64, emission_per_block: u64) {
         log::debug!("stepping block {block_number:?}");

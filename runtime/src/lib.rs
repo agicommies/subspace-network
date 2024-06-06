@@ -30,7 +30,6 @@ use sp_runtime::{
 };
 use sp_std::prelude::*;
 use sp_version::RuntimeVersion;
-use subspace_runtime_api::{ModuleInfo, ModuleParams, ModuleStats};
 
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -701,32 +700,6 @@ impl_runtime_apis! {
         }
         fn query_length_to_fee(length: u32) -> Balance {
             TransactionPayment::length_to_fee(length)
-        }
-    }
-
-    impl subspace_runtime_api::SubspaceRuntimeApi<Block> for Runtime {
-
-        fn get_module_info(key: AccountId, netuid: u16) -> ModuleInfo {
-            let stats = SubspaceModule::get_module_stats(netuid, &key);
-            let params = SubspaceModule::module_params(netuid, &key);
-
-            ModuleInfo {
-                stats: ModuleStats {
-                    stake_from: stats.stake_from,
-                    emission: stats.emission,
-                    incentive: stats.incentive,
-                    dividends: stats.dividends,
-                    last_update: stats.last_update,
-                    registration_block: stats.registration_block,
-                    weights: stats.weights,
-                },
-                params: ModuleParams {
-                    name: params.name,
-                    address: params.address,
-                    delegation_fee: params.delegation_fee,
-                    controller: params.controller,
-                }
-            }
         }
     }
 

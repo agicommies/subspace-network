@@ -64,14 +64,14 @@ frame-system-benchmarking = { workspace = true, optional = true }
 
 # Frontier
 fp-account.workspace = true
-fp-evm.workspace = true
+# fp-evm.workspace = true
 fp-rpc.workspace = true
 fp-self-contained.workspace = true
 
 # Frontier FRAME
 pallet-base-fee.workspace = true
 
-subspace-runtime-api = { path = "../pallets/subspace/rpc/runtime-api", default-features = false }
+# subspace-runtime-api = { path = "../pallets/subspace/rpc/runtime-api", default-features = false }
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true }
 
@@ -117,13 +117,13 @@ std = [
 	# EVM
 	# Frontier
 	"fp-account/std",
-	"fp-evm/std",
+	# "fp-evm/std",
 	"fp-rpc/std",
 	"fp-self-contained/std",
 	# Frontier FRAME
 	"pallet-base-fee/std",
 	# "pallet-dynamic-fee/std",
-	"subspace-runtime-api/std",
+	# "subspace-runtime-api/std",
 	# "pallet-hotfix-sufficients/std",
 ]
 runtime-benchmarks = [

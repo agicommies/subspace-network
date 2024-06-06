@@ -10,8 +10,8 @@ use sp_core::{H256, U256};
 use std::cell::RefCell;
 
 use pallet_subspace::{
-    Address, BurnConfig, DefaultKey, Dividends, Emission, Incentive, LastUpdate,
-    MaxRegistrationsPerBlock, Name, Stake, Tempo, N,
+    Address, BurnConfig, DefaultKey, Dividends, Emission, Incentive, Keys, LastUpdate,
+    MaxRegistrationsPerBlock, Name, Stake, Tempo, Uids, N,
 };
 use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},

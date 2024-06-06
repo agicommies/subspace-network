@@ -1,10 +1,9 @@
 use super::*;
 
+use self::{global::BurnConfiguration, voting::VoteMode};
 use frame_support::{
     pallet_prelude::DispatchResult, storage::IterableStorageMap, IterableStorageDoubleMap,
 };
-
-use self::{global::BurnConfiguration, voting::VoteMode};
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
 use substrate_fixed::types::I64F64;
@@ -193,6 +192,40 @@ impl<T: Config> Pallet<T> {
     // Removing subnets
     // ---------------------------------
 
+    /// Filter for keys that exist only on a specific subnet.
+    fn filter_for_keys_only_on_netuid(netuid: u16) -> Vec<T::AccountId> {
+        let key_counts = Uids::<T>::iter().map(|(_, account_id, _)| account_id).fold(
+            BTreeMap::new(),
+            |mut counts, account_id| {
+                *counts.entry(account_id).or_insert(0) += 1;
+                counts
+            },
+        );
+
+        // Step 2: Filter and collect the account_ids which are unique and match the given netuid
+        Uids::<T>::iter()
+            .filter(|(c_netuid, _, _)| *c_netuid == netuid)
+            .filter_map(|(_, account_id, _)| {
+                if key_counts.get(&account_id) == Some(&1) {
+                    Some(account_id.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Unstakes relevant keys on subnet
+    pub fn remove_subnet_stake_storage(netuid: u16) {
+        // First we get keys that exist only on that specific subnet.
+        let relevant_keys = Self::filter_for_keys_only_on_netuid(netuid);
+
+        // Now remove stake for every key that exists only on that specific subnet.
+        for key in relevant_keys {
+            Self::decrease_stake(None, &key, None, true);
+        }
+    }
+
     pub fn remove_subnet(netuid: u16) -> u16 {
         // TODO: handle errors
         #![allow(unused_must_use)]
@@ -201,6 +234,11 @@ impl<T: Config> Pallet<T> {
         if !Self::if_subnet_exist(netuid) {
             return 0;
         }
+
+        // Unstake Design Decision:
+        // When the subnet is deregistered, and there is a module that has stake,
+        // only on that subnet, the stake has to be unstaked.
+        Self::remove_subnet_stake_storage(netuid);
 
         SubnetNames::<T>::remove(netuid);
         MaxWeightAge::<T>::remove(netuid);
@@ -443,7 +481,7 @@ impl<T: Config> Pallet<T> {
         netuid: u16,
         module_key: &T::AccountId,
     ) -> Vec<(T::AccountId, I64F64)> {
-        let stake_from_vector = Self::get_stake_from_vector(module_key);
+        let stake_from_vector = StakeFrom::<T>::get(module_key);
         let _uid = Self::get_uid_for_key(netuid, module_key);
         let mut total_stake_from: I64F64 = I64F64::from_num(0);
 

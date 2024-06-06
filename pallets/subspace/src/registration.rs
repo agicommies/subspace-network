@@ -165,7 +165,8 @@ impl<T: Config> Pallet<T> {
         // constant -> current_burn logic
         if current_burn > 0 {
             // if min burn is present, decrease the stake by the min burn
-            Self::decrease_stake(&key, &module_key, current_burn);
+            // False, for not adding balance to the account
+            Self::decrease_stake(Some(&key), &module_key, Some(current_burn), false)?;
         }
 
         // Make sure that the registration went through.
@@ -187,6 +188,8 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
+    // TODO:
+    // Find out if this still unstakes you correctly, and subnet deregistration as well.
     pub fn do_deregister(origin: T::RuntimeOrigin, netuid: u16) -> DispatchResult {
         // --- 1. Check that the caller has signed the transaction.
         let key = ensure_signed(origin)?;

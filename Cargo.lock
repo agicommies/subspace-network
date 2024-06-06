@@ -4804,7 +4804,6 @@ name = "node-subspace"
 version = "1.7.3"
 dependencies = [
  "clap",
- "fp-evm",
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "frame-system",
@@ -4843,7 +4842,6 @@ dependencies = [
  "sp-keyring",
  "sp-runtime",
  "sp-timestamp",
- "subspace-rpc",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
 ]
@@ -4853,7 +4851,6 @@ name = "node-subspace-runtime"
 version = "1.7.3"
 dependencies = [
  "fp-account",
- "fp-evm",
  "fp-rpc",
  "fp-self-contained",
  "frame-benchmarking",
@@ -4895,7 +4892,6 @@ dependencies = [
  "sp-storage 19.0.0 (git+https://github.com/paritytech/polkadot-sdk?branch=release-polkadot-v1.10.1)",
  "sp-transaction-pool",
  "sp-version",
- "subspace-runtime-api",
  "substrate-wasm-builder",
 ]
 
@@ -9099,35 +9095,6 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 2.0.61",
-]
-
-[[package]]
-name = "subspace-rpc"
-version = "1.0.0"
-dependencies = [
- "jsonrpsee",
- "lazy_static",
- "pallet-subspace",
- "parity-scale-codec",
- "serde",
- "serde_json",
- "sp-api",
- "sp-blockchain",
- "sp-runtime",
- "subspace-runtime-api",
- "tokio",
-]
-
-[[package]]
-name = "subspace-runtime-api"
-version = "1.0.0"
-dependencies = [
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-api",
- "sp-arithmetic",
- "sp-runtime",
 ]
 
 [[package]]

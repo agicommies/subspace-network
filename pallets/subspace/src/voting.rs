@@ -525,7 +525,7 @@ impl<T: Config> Pallet<T> {
         // TODO:
         let stake = match netuid {
             Some(specific_netuid) => 0, // FIXME: local stake, problem
-            None => Self::total_stake(),
+            None => 0,                  // FIXME: placeholder, this will get cherry picked
         };
         (stake.saturated_into::<u128>() * threshold.deconstruct() as u128 / 100) as u64
     }
