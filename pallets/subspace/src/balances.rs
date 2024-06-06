@@ -39,6 +39,42 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
+    pub fn do_transfer_stake(
+        origin: T::RuntimeOrigin,
+        module_key: T::AccountId,
+        new_module_key: T::AccountId,
+        amount: u64,
+    ) -> dispatch::DispatchResult {
+        // --- 1. We check that the transaction is signed by the caller and retrieve the
+        let key = ensure_signed(origin.clone())?;
+
+        // --- 2. Check if both modules are registered
+        // --- 2.1 old module check
+        ensure!(
+            Self::is_registered(None, &module_key),
+            Error::<T>::NotRegistered
+        );
+        // --- 2.2 new module check
+        ensure!(
+            Self::is_registered(None, &new_module_key),
+            Error::<T>::NotRegistered
+        );
+
+        // --- 3. Check if the caller has enough stake in the old module
+        ensure!(
+            Self::has_enough_stake(&key, &module_key, amount),
+            Error::<T>::NotEnoughStakeToWithdraw
+        );
+
+        // --- 4. Remove stake from the source module and add it to the destination module
+        Self::do_remove_stake(origin.clone(), module_key.clone(), amount)?;
+        // don't allow zero stakes
+        Self::do_add_stake(origin.clone(), new_module_key, amount)?;
+
+        // --- 5. Done and ok
+        Ok(())
+    }
+
     pub fn add_balance_to_account(key: &T::AccountId, amount: BalanceOf<T>) {
         let _ = T::Currency::deposit_creating(key, amount); // Infallibe
     }

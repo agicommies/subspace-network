@@ -481,7 +481,7 @@ impl<T: Config> Pallet<T> {
         netuid: u16,
         module_key: &T::AccountId,
     ) -> Vec<(T::AccountId, I64F64)> {
-        let stake_from_vector = StakeFrom::<T>::get(module_key);
+        let stake_from_vector = Self::get_stake_from_vector(module_key);
         let _uid = Self::get_uid_for_key(netuid, module_key);
         let mut total_stake_from: I64F64 = I64F64::from_num(0);
 

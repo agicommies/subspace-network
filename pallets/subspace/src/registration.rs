@@ -166,7 +166,7 @@ impl<T: Config> Pallet<T> {
         if current_burn > 0 {
             // if min burn is present, decrease the stake by the min burn
             // False, for not adding balance to the account
-            Self::decrease_stake(Some(&key), &module_key, Some(current_burn), false)?;
+            Self::decrease_stake(Some(&key), &module_key, Some(current_burn), false);
         }
 
         // Make sure that the registration went through.
