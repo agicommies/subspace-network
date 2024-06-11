@@ -52,8 +52,9 @@ pub mod pallet {
             let key = T::Lookup::lookup(key.clone())?;
 
             let key_balance = PalletSubspace::<T>::get_balance_u64(&key);
-            let key_stake: u64 =
-                N::<T>::iter_keys().map(|netuid| PalletSubspace::<T>::get_stake(netuid, &key)).sum();
+            let key_stake: u64 = N::<T>::iter_keys()
+                .map(|netuid| PalletSubspace::<T>::get_stake(netuid, &key))
+                .sum();
             let total_worth = key_balance.saturating_add(key_stake);
             if total_worth >= 50_000_000_000_000 {
                 // if it's larger than 50k don't allow more funds
