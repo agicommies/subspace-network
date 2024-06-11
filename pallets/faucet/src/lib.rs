@@ -82,7 +82,7 @@ pub mod pallet {
         // Testnet
         // ---------------------------------
 
-        #[pallet::call_index(11)]
+        #[pallet::call_index(1)]
         #[pallet::weight((
             Weight::from_parts(85_000_000, 0)
             .saturating_add(T::DbWeight::get().reads(16))
@@ -144,6 +144,7 @@ impl<T: Config> Pallet<T> {
         work: Vec<u8>,
         key: AccountIdLookupOf<T>,
     ) -> DispatchResult {
+        // --- 1. Validate unsigned
         ensure_none(origin)?;
 
         let key = T::Lookup::lookup(key)?;
