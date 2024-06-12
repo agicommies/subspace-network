@@ -21,7 +21,10 @@ pub mod pallet {
     use pallet_subspace::N;
     pub use sp_std::{vec, vec::Vec};
 
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+
     #[pallet::pallet]
+    #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(_);
 
     #[pallet::config(with_default)]
@@ -34,10 +37,10 @@ pub mod pallet {
         type Currency: Currency<Self::AccountId> + Send + Sync;
     }
 
-    // This keeps faucet truly free
     #[pallet::validate_unsigned]
     impl<T: Config> ValidateUnsigned for Pallet<T> {
         type Call = Call<T>;
+
         fn validate_unsigned(_: TransactionSource, call: &Self::Call) -> TransactionValidity {
             #[allow(unused_variables)]
             let Call::faucet {
@@ -49,24 +52,29 @@ pub mod pallet {
             else {
                 return InvalidTransaction::Call.into();
             };
-            let key = T::Lookup::lookup(key.clone())?;
 
-            let key_balance = PalletSubspace::<T>::get_balance_u64(&key);
-            let key_stake: u64 = N::<T>::iter_keys()
-                .map(|netuid| PalletSubspace::<T>::get_stake(netuid, &key))
-                .sum();
-            let total_worth = key_balance.saturating_add(key_stake);
-            if total_worth >= 50_000_000_000_000 {
-                // if it's larger than 50k don't allow more funds
-                return InvalidTransaction::Custom(0).into();
+            if cfg!(feature = "testnet-faucet") {
+                let key = T::Lookup::lookup(key.clone())?;
+
+                let key_balance = PalletSubspace::<T>::get_balance_u64(&key);
+                let key_stake: u64 = N::<T>::iter_keys()
+                    .map(|netuid| PalletSubspace::<T>::get_stake(netuid, &key))
+                    .sum();
+                let total_worth = key_balance.saturating_add(key_stake);
+                if total_worth >= 50_000_000_000_000 {
+                    // if it's larger than 50k don't allow more funds
+                    return InvalidTransaction::Custom(0).into();
+                }
+
+                ValidTransaction::with_tag_prefix("RunFaucet")
+                    .priority(0) // Faucet, so low priority
+                    .longevity(5) // 5 blocks longevity to prevent too much spam
+                    .and_provides(key)
+                    .propagate(true)
+                    .build()
+            } else {
+                return InvalidTransaction::Custom(1).into();
             }
-
-            ValidTransaction::with_tag_prefix("RunFaucet")
-                .priority(0) // Faucet, so low priority
-                .longevity(5) // 5 blocks longevity to prevent too much spam
-                .and_provides(key)
-                .propagate(true)
-                .build()
         }
 
         fn pre_dispatch(_: &Self::Call) -> Result<(), TransactionValidityError> {
@@ -184,7 +192,7 @@ impl<T: Config> Pallet<T> {
         ensure!(seal == work_hash, Error::<T>::InvalidSeal);
 
         // --- 5. Add Balance via faucet.
-        let amount: u64 = 10_000_000_000_000;
+        let amount: u64 = 1_000_000_000_000;
         let balance_to_add = PalletSubspace::<T>::u64_to_balance(amount).unwrap();
         PalletSubspace::<T>::add_balance_to_account(&key, balance_to_add);
 

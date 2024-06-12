@@ -111,7 +111,7 @@ pub mod opaque {
 }
 
 pub type Migrations = (
-    pallet_governance::migrations::InitialMigration<Runtime>,
+    // pallet_governance::migrations::InitialMigration<Runtime>,
     pallet_subspace::migrations::v11::MigrateToV11<Runtime>,
 );
 
@@ -267,8 +267,12 @@ impl pallet_timestamp::Config for Runtime {
     type WeightInfo = pallet_timestamp::weights::SubstrateWeight<Runtime>;
 }
 
-// Existential deposit.
+// Existential Deposit
+#[cfg(not(feature = "testnet-faucet"))]
 pub const EXISTENTIAL_DEPOSIT: u64 = 500;
+
+#[cfg(feature = "testnet-faucet")]
+pub const EXISTENTIAL_DEPOSIT: u64 = 0;
 
 impl pallet_balances::Config for Runtime {
     type MaxLocks = ConstU32<50>;
