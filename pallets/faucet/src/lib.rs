@@ -73,7 +73,7 @@ pub mod pallet {
                     .propagate(true)
                     .build()
             } else {
-                return InvalidTransaction::Custom(1).into();
+                InvalidTransaction::Custom(1).into()
             }
         }
 
