@@ -374,7 +374,7 @@ impl pallet_governance::Config for Runtime {
 
 impl pallet_faucet::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
+    type Currency = Balances;  
 }
 
 pub const WEIGHT_MILLISECS_PER_BLOCK: u64 = 2000;
