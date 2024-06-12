@@ -84,10 +84,8 @@ pub mod pallet {
             // Make sure to use storage layer,
             // so runtime can never panic in initialization hook
             let res: Result<(), DispatchError> = with_storage_layer(|| {
-                Ok(Self::process_emission_distribution(
-                    block_number,
-                    emission_per_block,
-                ))
+                Self::process_emission_distribution(block_number, emission_per_block);
+                Ok(())
             });
             if let Err(err) = res {
                 log::error!("Error in on_initialize emission: {err:?}, skipping...");
@@ -117,8 +115,7 @@ pub mod pallet {
     {
             let total_free_balance = Self::get_total_free_balance();
             let total_staked_balance = TotalStake::<T>::get();
-            total_free_balance.try_into().unwrap_or(0)
-                + total_staked_balance.try_into().unwrap_or(0)
+            total_free_balance.try_into().unwrap_or(0) + total_staked_balance.unwrap_or(0)
         }
 
         // Halving Logic / Emission distributed per block

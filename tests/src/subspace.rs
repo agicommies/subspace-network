@@ -4,6 +4,7 @@ use log::info;
 use pallet_subnet_emission::UnitEmission;
 use pallet_subspace::{
     global::BurnConfiguration,
+    migrations::v8::old_storage::MinBurn,
     subnet_consensus::yuma::{AccountKey, EmissionMap, ModuleKey, YumaEpoch},
     voting::{ApplicationStatus, ProposalData, ProposalStatus, VoteMode},
     Burn, BurnConfig, Curator, CuratorApplications, DaoTreasuryAddress, Dividends, Emission, Error,
@@ -11,8 +12,9 @@ use pallet_subspace::{
     GlobalParams, Incentive, MaxAllowedModules, MaxAllowedSubnets, MaxAllowedUids,
     MaxAllowedWeights, MaxNameLength, MaxRegistrationsPerBlock, MaximumSetWeightCallsPerEpoch,
     MinAllowedWeights, MinNameLength, MinStake, ProfitShares, ProposalCost, ProposalExpiration,
-    Proposals, RegistrationsPerBlock, Stake, StakeFrom, StakeTo, SubnetEmission, SubnetGaps,
-    SubnetNames, SubnetParams, Tempo, TotalSubnets, Trust, VoteModeSubnet, N,
+    Proposals, RegistrationsPerBlock, Stake, StakeFrom, StakeTo, SubnetBurn, SubnetBurnConfig,
+    SubnetEmission, SubnetGaps, SubnetNames, SubnetParams, SubnetRegistrationsThisInterval, Tempo,
+    TotalSubnets, Trust, VoteModeSubnet, N,
 };
 use sp_core::U256;
 use sp_runtime::{DispatchResult, Percent};
@@ -20,8 +22,9 @@ use sp_std::vec;
 use std::{
     array::from_fn,
     collections::{BTreeMap, BTreeSet},
+    marker::PhantomData,
 };
-use substrate_fixed::types::I64F64;
+use substrate_fixed::types::{extra::U2, I64F64};
 
 // FIXME: get all of the tests back here
 
@@ -4191,5 +4194,76 @@ fn test_weight_age() {
             active_stake_after < active_stake_after_v2,
             "Stake should be increasing"
         );
+    });
+}
+
+// Subnet Burn
+
+#[test]
+fn test_fail_if_no_subnet_burn() {
+    new_test_ext().execute_with(|| {
+        SubnetBurnConfig::<Test>::set(BurnConfiguration::<Test> {
+            min_burn: 2_000_000_000_000,
+            max_burn: 100_000_000_000_000,
+            adjustment_alpha: (u64::MAX as f32 / 2f32 * 1.2) as u64,
+            adjustment_interval: 2_000,
+            expected_registrations: 1,
+            _pd: PhantomData,
+        });
+
+        let subject = U256::from(0);
+        SubspaceMod::add_balance_to_account(&subject, to_nano(2));
+
+        let origin = get_origin(subject.clone());
+        let module_key = U256::from(0);
+        assert_err!(
+            SubspaceMod::register(
+                origin.clone(),
+                b"unknown-network".to_vec(),
+                b"name".to_vec(),
+                b"address".to_vec(),
+                to_nano(2),
+                module_key,
+                None
+            ),
+            Error::<Test>::NotEnoughBalanceToRegisterSubnet
+        );
+    });
+}
+
+#[test]
+fn test_subnet_burn_adjust() {
+    new_test_ext().execute_with(|| {
+        SubnetBurnConfig::<Test>::set(BurnConfiguration::<Test> {
+            min_burn: 2_000_000_000_000,
+            max_burn: 100_000_000_000_000,
+            adjustment_alpha: (u64::MAX as f32 / 2f32 * 1.2) as u64,
+            adjustment_interval: 2_000,
+            expected_registrations: 1,
+            _pd: PhantomData,
+        });
+
+        let burn_configuration = SubnetBurnConfig::<Test>::get();
+        assert_eq!(SubnetBurn::<Test>::get(), burn_configuration.min_burn);
+
+        step_block(burn_configuration.adjustment_interval + 1);
+
+        assert_eq!(
+            SubnetBurn::<Test>::get(),
+            /* 1_600_000_000_000 */ to_nano(2000)
+        ); // less than min_burn so it's capped to min_burn
+
+        register_module(0, U256::from(0), to_nano(60)).expect("could not register module");
+        step_block(burn_configuration.adjustment_interval + 1);
+
+        assert_eq!(SubnetBurn::<Test>::get(), to_nano(2000));
+
+        register_module(1, U256::from(0), to_nano(60)).expect("could not register module");
+        register_module(2, U256::from(0), to_nano(60)).expect("could not register module");
+        step_block(burn_configuration.adjustment_interval + 1);
+
+        dbg!(SubnetRegistrationsThisInterval::<Test>::get());
+
+        assert_eq!(SubnetBurn::<Test>::get() / 1_000_000_000, 2_400);
     });
 }

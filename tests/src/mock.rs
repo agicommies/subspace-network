@@ -11,7 +11,7 @@ use std::cell::RefCell;
 
 use pallet_subspace::{
     Address, BurnConfig, DefaultKey, Dividends, Emission, Incentive, LastUpdate,
-    MaxRegistrationsPerBlock, Name, Stake, Tempo, N,
+    MaxRegistrationsPerBlock, Name, Stake, SubnetBurn, SubnetBurnConfig, Tempo, N,
 };
 use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
@@ -387,7 +387,7 @@ pub fn register_module(netuid: u16, key: U256, stake: u64) -> DispatchResult {
 
     let origin = get_origin(key);
 
-    SubspaceMod::add_balance_to_account(&key, stake + 1);
+    SubspaceMod::add_balance_to_account(&key, stake + SubnetBurn::<Test>::get() + 1);
 
     SubspaceMod::register(origin, network, name, address, stake, key, None)
 }
@@ -407,6 +407,7 @@ pub fn round_first_five(num: u64) -> u64 {
 #[allow(dead_code)]
 pub fn zero_min_burn() {
     BurnConfig::<Test>::mutate(|cfg| cfg.min_burn = 0);
+    SubnetBurnConfig::<Test>::mutate(|cfg| cfg.min_burn = 0);
 }
 
 #[macro_export]

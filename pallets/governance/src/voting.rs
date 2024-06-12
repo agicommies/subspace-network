@@ -16,7 +16,7 @@ impl<T: Config> Pallet<T> {
             return Err(Error::<T>::ProposalNotFound.into());
         };
 
-        let subnet_id = proposal.subnet_id();
+        let _subnet_id = proposal.subnet_id();
         let ProposalStatus::Open {
             votes_for,
             votes_against,

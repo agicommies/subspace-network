@@ -545,6 +545,7 @@ impl<T: Config> Pallet<T> {
 
         let alpha: I110F18 =
             I110F18::from_num(burn_configuration.adjustment_alpha) / I110F18::from_num(u64::MAX);
+
         let next_value: I110F18 = alpha * I110F18::from_num(current_burn)
             + (I110F18::from_num(1.0) - alpha) * updated_burn;
         if next_value >= I110F18::from_num(burn_configuration.max_burn) {

@@ -136,8 +136,8 @@ pub mod pallet {
     #[pallet::type_value]
     pub fn DefaultSubnetBurnConfig<T: Config>() -> BurnConfiguration<T> {
         BurnConfiguration {
-            min_burn: 2_000_000_000,
-            max_burn: 100_000_000_000,
+            min_burn: 2_000_000_000_000,
+            max_burn: 100_000_000_000_000,
             adjustment_alpha: (DefaultBurnConfig::<T>::get().adjustment_alpha as f32 * 1.2) as u64,
             adjustment_interval: 2_000,
             expected_registrations: 1,
@@ -231,15 +231,19 @@ pub mod pallet {
         StorageMap<_, Identity, u16, u16, ValueQuery>;
 
     #[pallet::storage]
-    pub(super) type SubnetRegistrationsThisInterval<T: Config> = StorageValue<_, u16, ValueQuery>;
+    pub type SubnetRegistrationsThisInterval<T: Config> = StorageValue<_, u16, ValueQuery>;
 
     #[pallet::storage]
     // --- MAP (netuid) --> burn
     pub type Burn<T: Config> = StorageMap<_, Identity, u16, u64, ValueQuery>;
 
+    #[pallet::type_value]
+    pub fn DefaultSubnetBurn<T: Config>() -> u64 {
+        SubnetBurnConfig::<T>::get().min_burn
+    }
+
     #[pallet::storage]
-    // --- MAP (netuid) --> burn
-    pub type SubnetBurn<T: Config> = StorageValue<_, u64, ValueQuery>;
+    pub type SubnetBurn<T: Config> = StorageValue<_, u64, ValueQuery, DefaultSubnetBurn<T>>;
 
     #[pallet::type_value]
     pub fn DefaultMaxAllowedModules<T: Config>() -> u16 {
