@@ -455,7 +455,7 @@ pub mod pallet {
         T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).unwrap()
     }
     #[pallet::storage] // --- DMAP ( netuid, uid ) --> module_key
-    pub(super) type Keys<T: Config> =
+    pub type Keys<T: Config> =
         StorageDoubleMap<_, Identity, u16, Identity, u16, T::AccountId, ValueQuery, DefaultKey<T>>;
 
     #[pallet::storage] // --- DMAP ( netuid, uid ) --> module_name
