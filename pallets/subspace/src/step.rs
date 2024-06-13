@@ -2,6 +2,7 @@ use super::*;
 use crate::{global::BurnConfiguration, math::*};
 use frame_support::storage::with_storage_layer;
 use sp_arithmetic::per_things::Percent;
+use sp_core::Get;
 use sp_std::vec;
 use substrate_fixed::types::{I110F18, I32F32, I64F64};
 
@@ -762,5 +763,50 @@ failed to run yuma consensus algorithm: {err:?}, skipping this block. \
                 .flat_map(|entries| entries.into_values())
                 .sum(),
         }
+    }
+
+    pub(crate) fn deregister_not_whitelisted_modules(mut remaining: Weight) -> Weight {
+        use crate::weights::WeightInfo;
+
+        const MAX_MODULES: usize = 5;
+
+        let db_weight = T::DbWeight::get();
+
+        let mut weight = db_weight.reads(2);
+
+        let find_id_weight = db_weight.reads(1);
+        let deregister_weight = crate::weights::SubstrateWeight::<T>::deregister();
+
+        if !remaining
+            .all_gte(weight.saturating_add(find_id_weight).saturating_add(deregister_weight))
+        {
+            return Weight::zero();
+        }
+
+        let s0_keys: BTreeSet<_> = Keys::<T>::iter_prefix_values(0).collect();
+        let whitelisted = T::whitelisted_keys();
+
+        let not_whitelisted = whitelisted.difference(&s0_keys);
+
+        remaining = remaining.saturating_sub(weight);
+
+        for not_whitelisted in not_whitelisted.take(MAX_MODULES) {
+            // we'll need at least to read outbound lane state, kill a message and update lane state
+            if !remaining.all_gte(find_id_weight.saturating_add(deregister_weight)) {
+                break;
+            }
+
+            let uid = Uids::<T>::get(0, not_whitelisted);
+            weight = weight.saturating_add(find_id_weight);
+            remaining = remaining.saturating_sub(find_id_weight);
+
+            if let Some(uid) = uid {
+                Self::remove_module(0, uid);
+                weight = weight.saturating_add(deregister_weight);
+                remaining = remaining.saturating_sub(deregister_weight);
+            }
+        }
+
+        weight
     }
 }
