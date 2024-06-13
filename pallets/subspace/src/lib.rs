@@ -499,7 +499,7 @@ pub mod pallet {
     }
 
     #[pallet::storage] // -- DMAP(netuid, module_key) -> delegation_fee
-    pub(super) type DelegationFee<T: Config> = StorageDoubleMap<
+    pub type DelegationFee<T: Config> = StorageDoubleMap<
         _,
         Identity,
         u16,
