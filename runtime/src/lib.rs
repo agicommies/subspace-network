@@ -111,7 +111,6 @@ pub mod opaque {
 }
 
 pub type Migrations = (
-    // pallet_governance::migrations::InitialMigration<Runtime>,
     pallet_subspace::migrations::v11::MigrateToV11<Runtime>,
 );
 
