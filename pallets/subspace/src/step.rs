@@ -831,6 +831,7 @@ impl<T: Config> Pallet<T> {
         if !remaining
             .all_gte(weight.saturating_add(find_id_weight).saturating_add(deregister_weight))
         {
+            log::info!("not enough weight remaining: {remaining:?}");
             return Weight::zero();
         }
 
@@ -842,8 +843,11 @@ impl<T: Config> Pallet<T> {
         remaining = remaining.saturating_sub(weight);
 
         for not_whitelisted in not_whitelisted.take(MAX_MODULES) {
+            log::info!("deregistering module {not_whitelisted:?}");
+
             // we'll need at least to read outbound lane state, kill a message and update lane state
             if !remaining.all_gte(find_id_weight.saturating_add(deregister_weight)) {
+                log::info!("not enough weight remaining: {remaining:?}");
                 break;
             }
 
