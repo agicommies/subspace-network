@@ -838,7 +838,7 @@ impl<T: Config> Pallet<T> {
         let s0_keys: BTreeSet<_> = Keys::<T>::iter_prefix_values(0).collect();
         let whitelisted = T::whitelisted_keys();
 
-        let not_whitelisted = whitelisted.difference(&s0_keys);
+        let not_whitelisted = s0_keys.difference(&whitelisted);
 
         remaining = remaining.saturating_sub(weight);
 
@@ -856,9 +856,13 @@ impl<T: Config> Pallet<T> {
             remaining = remaining.saturating_sub(find_id_weight);
 
             if let Some(uid) = uid {
-                Self::remove_module(0, uid);
-                weight = weight.saturating_add(deregister_weight);
-                remaining = remaining.saturating_sub(deregister_weight);
+                let Err(err) = with_storage_layer(|| Self::remove_module(0, uid)) else {
+                    weight = weight.saturating_add(deregister_weight);
+                    remaining = remaining.saturating_sub(deregister_weight);
+                    continue;
+                };
+
+                log::error!("failed to deregister module {uid} due to: {err:?}");
             }
         }
 
