@@ -52,11 +52,7 @@ pub mod rpc;
 mod set_weights;
 mod staking;
 pub mod subnet;
-
-pub mod subnet_consensus {
-    pub mod linear;
-    pub mod yuma;
-}
+pub mod subnet_consensus;
 pub mod voting;
 pub mod weights; // Weight benchmarks // Commune consensus weights
 
