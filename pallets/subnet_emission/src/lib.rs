@@ -115,7 +115,7 @@ pub mod pallet {
     {
             let total_free_balance = Self::get_total_free_balance();
             let total_staked_balance = TotalStake::<T>::get();
-            total_free_balance.try_into().unwrap_or(0) + total_staked_balance.unwrap_or(0)
+            total_free_balance.try_into().unwrap_or(0) + total_staked_balance
         }
 
         // Halving Logic / Emission distributed per block

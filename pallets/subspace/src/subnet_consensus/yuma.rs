@@ -11,6 +11,8 @@ use crate::{
 use frame_support::ensure;
 use sp_std::vec::Vec;
 
+use super::EmissionError;
+
 pub type EmissionMap<T> = BTreeMap<ModuleKey<T>, BTreeMap<AccountKey<T>, u64>>;
 
 pub struct YumaEpoch<T: Config> {
@@ -70,7 +72,7 @@ impl<T: Config> YumaEpoch<T> {
 
     /// Runs the YUMA consensus calculation on the network and distributes the emissions. Returns a
     /// map of emissions distributed per module key.
-    pub fn run(self) -> Result<EmissionMap<T>, YumaError> {
+    pub fn run(self) -> Result<EmissionMap<T>, EmissionError> {
         log::debug!(
             "running yuma for netuid {}, will emit {} modules and {} to founder",
             self.netuid,
@@ -202,7 +204,7 @@ impl<T: Config> YumaEpoch<T> {
     fn distribute_emissions(
         &self,
         result: Vec<(ModuleKey<T>, u64, u64)>,
-    ) -> Result<EmissionMap<T>, YumaError> {
+    ) -> Result<EmissionMap<T>, EmissionError> {
         let mut emissions: EmissionMap<T> = Default::default();
         let mut emitted = 0;
 
@@ -272,13 +274,13 @@ impl<T: Config> YumaEpoch<T> {
 
             ensure!(
                 remaining_emission == 0,
-                YumaError::HasEmissionRemaining { emitted }
+                EmissionError::HasEmissionRemaining { emitted }
             );
         }
 
         ensure!(
             emitted <= self.founder_emission + self.to_be_emitted,
-            YumaError::EmittedMoreThanExpected {
+            EmissionError::EmittedMoreThanExpected {
                 emitted,
                 expected: self.founder_emission + self.to_be_emitted
             }
@@ -687,19 +689,5 @@ impl<T: Config> Pallet<T> {
             }
         }
         bonds
-    }
-}
-
-#[derive(Debug)]
-#[allow(dead_code)]
-pub enum YumaError {
-    EmittedMoreThanExpected { emitted: u64, expected: u64 },
-    HasEmissionRemaining { emitted: u64 },
-    Other(&'static str),
-}
-
-impl From<&'static str> for YumaError {
-    fn from(v: &'static str) -> Self {
-        Self::Other(v)
     }
 }
