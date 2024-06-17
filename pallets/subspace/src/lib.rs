@@ -644,6 +644,7 @@ pub mod pallet {
 
         // Extrinsic panicked
         ExtrinsicPanicked,
+        StepPanicked,
     }
 
     // ---------------------------------
