@@ -11,6 +11,7 @@ pub mod distribute_emission;
 pub mod migrations;
 pub mod subnet_pricing {
     pub mod demo;
+    pub mod root;
 }
 use subnet_pricing::demo::DemoPricing;
 
@@ -27,6 +28,7 @@ pub mod pallet {
     };
     use frame_system::pallet_prelude::BlockNumberFor;
     use pallet_subspace::{SubnetEmission, TotalStake};
+    use subnet_pricing::root::RootPricing;
 
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
@@ -157,7 +159,7 @@ pub mod pallet {
         pub fn get_subnet_pricing(token_emission: u64) -> PricedSubnets {
             // TODO:
             // use a with_storage_layer here
-            let pricing = DemoPricing::<T>::new(token_emission);
+            let pricing = RootPricing::<T>::new(token_emission);
             let priced_subnets = pricing.run().unwrap_or_default();
 
             for (netuid, emission) in priced_subnets.iter() {

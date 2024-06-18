@@ -44,7 +44,7 @@ mod benchmarking;
 #[allow(unused_imports)]
 pub use pallet::*;
 pub mod global;
-mod math;
+pub mod math;
 pub mod module;
 mod profit_share;
 mod registration;
@@ -113,6 +113,8 @@ pub mod pallet {
     // Global Variables
     // ---------------------------------
 
+    pub const ROOTNET_ID: u16 = 0;
+
     #[pallet::type_value]
     pub fn DefaultBurnConfig<T: Config>() -> BurnConfiguration<T> {
         BurnConfiguration {
@@ -149,6 +151,14 @@ pub mod pallet {
     pub fn DefaultAdjustmentAlpha<T: Config>() -> u64 {
         u64::MAX / 2
     }
+
+    #[pallet::type_value]
+    pub fn DefaultRho<T: Config>() -> u16 {
+        10
+    }
+
+    #[pallet::storage]
+    pub type Rho<T> = StorageValue<_, u16, ValueQuery, DefaultRho<T>>;
 
     #[pallet::type_value]
     pub fn DefaultKappa<T: Config>() -> u16 {
@@ -288,6 +298,9 @@ pub mod pallet {
     pub type SetWeightCallsPerEpoch<T: Config> =
         StorageDoubleMap<_, Identity, u16, Identity, T::AccountId, u16, ValueQuery>;
 
+    #[pallet::storage]
+    pub type RootNetWeightCalls<T: Config> = StorageMap<_, Identity, u16, ()>;
+
     #[derive(Decode, Encode, PartialEq, Eq, Clone, Debug, TypeInfo)]
     #[scale_info(skip_type_params(T))]
     pub struct ModuleParams<T: Config> {
@@ -327,6 +340,9 @@ pub mod pallet {
 
         // Other
         pub burn_config: BurnConfiguration<T>,
+
+        pub kappa: u16,
+        pub rho: u16,
     }
 
     // ---------------------------------
@@ -527,7 +543,7 @@ pub mod pallet {
         T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).unwrap()
     }
     #[pallet::storage] // --- DMAP ( netuid, uid ) --> module_key
-    pub(super) type Keys<T: Config> =
+    pub type Keys<T: Config> =
         StorageDoubleMap<_, Identity, u16, Identity, u16, T::AccountId, ValueQuery, DefaultKey<T>>;
 
     #[pallet::storage] // --- DMAP ( netuid, uid ) --> module_name
@@ -870,6 +886,8 @@ pub mod pallet {
 
         MaximumSetWeightsPerEpochReached,
         InsufficientDaoTreasuryFunds,
+
+        MaxWeightCalls,
     }
 
     // ---------------------------------
@@ -1004,6 +1022,7 @@ pub mod pallet {
             let res: DispatchResult = with_storage_layer(|| {
                 Self::adjust_registration_parameters(block_number)?;
                 Self::adjust_subnet_registration_parameters(block_number)?;
+                Self::clear_rootnet_daily_weight_calls(block_number);
                 Ok(())
             });
 

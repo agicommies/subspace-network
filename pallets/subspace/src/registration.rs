@@ -160,6 +160,9 @@ impl<T: Config> Pallet<T> {
         let reserved_slot = Self::reserve_module_slot(netuid);
         ensure!(reserved_slot.is_some(), Error::<T>::NoSlotAvailable);
 
+        // Account for root validator register requirements
+        Self::check_rootnet_registration_requirements(netuid, stake, current_burn)?;
+
         let fee = DefaultDelegationFee::<T>::get();
         // --- 8. Register the module and changeset.
         let module_changeset = ModuleChangeset::new(name, address, fee, metadata);
@@ -182,6 +185,9 @@ impl<T: Config> Pallet<T> {
             Error::<T>::NotRegistered
         );
 
+        // Add validator permit if rootnet
+        Self::add_rootnet_validator(netuid, uid)?;
+
         // --- 10. Increment the number of registrations.
         RegistrationsPerBlock::<T>::mutate(|val: &mut u16| *val += 1);
         RegistrationsThisInterval::<T>::mutate(netuid, |registrations| {
@@ -193,6 +199,54 @@ impl<T: Config> Pallet<T> {
 
         // --- 11. Ok and done.
         Ok(())
+    }
+
+    fn check_rootnet_registration_requirements(
+        netuid: u16,
+        stake: u64,
+        current_burn: u64,
+    ) -> DispatchResult {
+        if netuid == ROOTNET_ID
+            && Self::get_validator_count(ROOTNET_ID)
+                >= MaxAllowedValidators::<T>::get(ROOTNET_ID).unwrap_or(u16::MAX) as usize
+        {
+            let permits = ValidatorPermits::<T>::get(ROOTNET_ID);
+            let (lower_stake_validator, lower_stake) = Keys::<T>::iter_prefix(ROOTNET_ID)
+                .into_iter()
+                .filter(|(uid, _)| permits.get(*uid as usize).is_some_and(|b| *b))
+                .map(|(_, key)| (key.clone(), Stake::<T>::get(key)))
+                .min_by_key(|(_, stake)| *stake)
+                .ok_or_else(|| Error::<T>::ArithmeticError)?; //unreachable
+
+            ensure!(
+                stake >= lower_stake + current_burn,
+                Error::<T>::NotEnoughStakeToRegister
+            );
+
+            let lower_stake_validator_uid =
+                Self::get_uid_for_key(ROOTNET_ID, &lower_stake_validator);
+
+            Self::remove_module(ROOTNET_ID, lower_stake_validator_uid);
+        }
+        Ok(())
+    }
+
+    fn add_rootnet_validator(netuid: u16, module_uid: u16) -> DispatchResult {
+        if netuid == ROOTNET_ID {
+            let mut validator_permits = ValidatorPermits::<T>::get(ROOTNET_ID);
+            if validator_permits.len() <= module_uid as usize {
+                return Err(Error::<T>::NotRegistered.into());
+            }
+
+            validator_permits[module_uid as usize] = true;
+            ValidatorPermits::<T>::set(ROOTNET_ID, validator_permits);
+        }
+
+        Ok(())
+    }
+
+    fn get_validator_count(netuid: u16) -> usize {
+        ValidatorPermits::<T>::get(netuid).into_iter().filter(|b| *b).count()
     }
 
     pub fn do_deregister(origin: T::RuntimeOrigin, netuid: u16) -> DispatchResult {
@@ -572,5 +626,11 @@ impl<T: Config> Pallet<T> {
         }
 
         block_at_registration
+    }
+
+    pub fn clear_rootnet_daily_weight_calls(block: u64) {
+        if block.checked_rem(10_800).is_some_and(|r| r == 0) {
+            let _ = RootNetWeightCalls::<T>::clear(u32::MAX, None);
+        }
     }
 }

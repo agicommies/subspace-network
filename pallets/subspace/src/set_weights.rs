@@ -1,3 +1,5 @@
+use dispatch::DispatchResult;
+
 use super::*;
 
 impl<T: Config> Pallet<T> {
@@ -49,6 +51,8 @@ impl<T: Config> Pallet<T> {
 
         // --- 5. Get the module uid of associated key on network netuid.
         let uid: u16 = Self::get_uid_for_key(netuid, &key);
+
+        Self::check_rootnet_daily_limit(netuid, uid)?;
 
         // --- 6. Ensure the passed uids contain no duplicates.
         ensure!(!Self::contains_duplicates(&uids), Error::<T>::DuplicateUids);
@@ -105,6 +109,17 @@ impl<T: Config> Pallet<T> {
         // --- 17. Emit the tracking event.
         Self::deposit_event(Event::WeightsSet(netuid, uid));
 
+        Ok(())
+    }
+
+    fn check_rootnet_daily_limit(netuid: u16, module_id: u16) -> DispatchResult {
+        if netuid == ROOTNET_ID {
+            if RootNetWeightCalls::<T>::get(&module_id).is_some() {
+                return Err(Error::<T>::MaxWeightCalls.into());
+            }
+
+            RootNetWeightCalls::<T>::set(module_id, Some(()));
+        }
         Ok(())
     }
 

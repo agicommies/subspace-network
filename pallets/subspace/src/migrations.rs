@@ -162,3 +162,26 @@ pub mod v9 {
         }
     }
 }
+
+pub mod v10 {
+    use super::*;
+
+    pub struct MigrateToV10<T>(sp_std::marker::PhantomData<T>);
+
+    impl<T: Config> OnRuntimeUpgrade for MigrateToV10<T> {
+        fn on_runtime_upgrade() -> Weight {
+            let on_chain_version = StorageVersion::get::<Pallet<T>>();
+
+            if on_chain_version != 9 {
+                log::info!("Storage v9 already updated");
+                return Weight::zero();
+            }
+
+            MaxAllowedValidators::<T>::set(0, Some(256));
+            log::info!("set rootnet max validators to 256");
+
+            StorageVersion::new(10).put::<Pallet<T>>();
+            T::DbWeight::get().writes(1)
+        }
+    }
+}
