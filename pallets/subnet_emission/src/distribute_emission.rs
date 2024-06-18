@@ -2,7 +2,7 @@ use super::*;
 use frame_support::storage::with_storage_layer;
 use pallet_subspace::{SetWeightCallsPerEpoch, Tempo};
 
-use pallet_subspace::subnet_consensus::{linear, yuma};
+use pallet_subnet_consensus::{linear, yuma};
 
 // Handles the whole emission distribution of the blockchain
 

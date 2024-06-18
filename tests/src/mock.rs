@@ -25,6 +25,7 @@ frame_support::construct_runtime!(
         System: frame_system,
         Balances: pallet_balances,
         SubnetEmissionMod: pallet_subnet_emission,
+        SubnetConsensus: pallet_subnet_consensus,
         SubspaceMod: pallet_subspace,
     }
 );
@@ -157,6 +158,11 @@ impl pallet_subnet_emission::Config for Test {
     type Decimals = Decimals;
     type HalvingInterval = HalvingInterval;
     type MaxSupply = MaxSupply;
+}
+
+impl pallet_subnet_consensus::Config for Test {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
 }
 
 pub struct Decimals;

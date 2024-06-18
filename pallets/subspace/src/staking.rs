@@ -1,6 +1,5 @@
 use super::*;
 
-use sp_arithmetic::per_things::Percent;
 use sp_runtime::DispatchError;
 use sp_std::{collections::btree_map::BTreeMap, vec::Vec};
 
@@ -295,14 +294,6 @@ impl<T: Config> Pallet<T> {
         }
 
         total_stake
-    }
-
-    // Returns the delegation fee of a module
-    pub fn get_delegation_fee(netuid: u16, module_key: &T::AccountId) -> Percent {
-        let min_deleg_fee_global = FloorDelegationFee::<T>::get();
-        let delegation_fee = DelegationFee::<T>::get(netuid, module_key);
-
-        delegation_fee.max(min_deleg_fee_global)
     }
 
     pub fn has_enough_stake(key: &T::AccountId, module_key: &T::AccountId, amount: u64) -> bool {

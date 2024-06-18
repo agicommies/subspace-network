@@ -1,11 +1,11 @@
 use crate::{mock::*, update_params};
 use frame_support::{assert_err, assert_noop, assert_ok, pallet_prelude::DispatchError};
 use log::info;
+use pallet_subnet_consensus::yuma::{AccountKey, EmissionMap, ModuleKey, YumaEpoch};
 use pallet_subnet_emission::UnitEmission;
 use pallet_subspace::{
     global::BurnConfiguration,
     migrations::v8::old_storage::MinBurn,
-    subnet_consensus::yuma::{AccountKey, EmissionMap, ModuleKey, YumaEpoch},
     voting::{ApplicationStatus, ProposalData, ProposalStatus, VoteMode},
     Burn, BurnConfig, Curator, CuratorApplications, DaoTreasuryAddress, Dividends, Emission, Error,
     FloorDelegationFee, FloorFounderShare, FounderShare, GeneralSubnetApplicationCost,
@@ -128,7 +128,7 @@ fn test_ownership_ratio() {
             );
         }
         let ownership_ratios: Vec<(U256, I64F64)> =
-            SubspaceMod::get_ownership_ratios(netuid, &voter_key);
+            SubnetConsensus::get_ownership_ratios(netuid, &voter_key);
         assert_eq!(ownership_ratios.len(), delegate_keys.len() + 1);
 
         let founder_tokens_before = SubspaceMod::get_balance(&voter_key)
@@ -1407,7 +1407,7 @@ fn test_ownership_ratio_v2() {
                 );
             }
             let ownership_ratios: Vec<(U256, I64F64)> =
-                SubspaceMod::get_ownership_ratios(netuid, k);
+                SubnetConsensus::get_ownership_ratios(netuid, k);
 
             assert_eq!(ownership_ratios.len(), delegate_keys.len() + 1);
             info!("OWNERSHIP RATIOS: {ownership_ratios:?}");

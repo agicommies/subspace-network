@@ -1,7 +1,7 @@
 [package]
-name = "tests"
+name = "pallet-subnet-consensus"
 version = "1.0.0"
-description = "Unit testing for the Subspace runtime."
+description = "FRAME pallet for runtime logic of Subspace Blockchain."
 authors = ["Commune Nucleus Team"]
 homepage = "https://commune.com"
 edition = "2021"
@@ -25,7 +25,6 @@ std = [
 try-runtime = ["frame-support/try-runtime"]
 
 [dependencies]
-substrate-fixed.workspace = true
 pallet-balances.workspace = true
 sp-tracing.workspace = true
 sp-io.workspace = true
@@ -34,10 +33,9 @@ sp-runtime.workspace = true
 sp-arithmetic.workspace = true
 bty.workspace = true
 log.workspace = true
+substrate-fixed.workspace = true
 
-pallet-subspace = { path = "../pallets/subspace", default-features = false }
-pallet-subnet-consensus = { path = "../pallets/subnet_consensus", default-features = false }
-pallet-subnet-emission = { path = "../pallets/subnet_emission", default-features = false }
+pallet-subspace = { path = "../subspace", default-features = false }
 
 frame-support.workspace = true
 frame-system.workspace = true

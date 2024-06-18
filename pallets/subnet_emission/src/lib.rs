@@ -36,7 +36,9 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::config(with_default)]
-    pub trait Config: frame_system::Config + pallet_subspace::Config {
+    pub trait Config:
+        frame_system::Config + pallet_subspace::Config + pallet_subnet_consensus::Config
+    {
         /// The events emitted on proposal changes.
         #[pallet::no_default_bounds]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;

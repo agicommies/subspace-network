@@ -3,12 +3,13 @@ use core::marker::PhantomData;
 use sp_std::{borrow::Cow, collections::btree_map::BTreeMap};
 use substrate_fixed::types::{I32F32, I64F64, I96F32};
 
-use crate::{
-    math::*, vec, Active, Bonds, BondsMovingAverage, Config, Consensus, Dividends, Emission,
-    Founder, Incentive, Kappa, Keys, LastUpdate, MaxAllowedValidators, MaxWeightAge, Pallet,
-    PruningScores, Rank, Stake, Trust, Uids, ValidatorPermits, ValidatorTrust, Weights, N,
-};
+use crate::{math::*, Config, Pallet};
 use frame_support::ensure;
+use pallet_subspace::{
+    vec, Active, Bonds, BondsMovingAverage, Consensus, Dividends, Emission, Founder, Incentive,
+    Kappa, Keys, LastUpdate, MaxAllowedValidators, MaxWeightAge, PruningScores, Rank, Stake, Trust,
+    Uids, ValidatorPermits, ValidatorTrust, Weights, N,
+};
 use sp_std::vec::Vec;
 
 use super::EmissionError;
@@ -57,10 +58,10 @@ impl<T: Config> YumaEpoch<T> {
             founder_emission,
             to_be_emitted,
 
-            current_block: Pallet::<T>::get_current_block_number(),
+            current_block: pallet_subspace::Pallet::<T>::get_current_block_number(),
             activity_cutoff: MaxWeightAge::<T>::get(netuid),
             last_update: LastUpdate::<T>::get(netuid),
-            block_at_registration: Pallet::<T>::get_block_at_registration(netuid),
+            block_at_registration: pallet_subspace::Pallet::<T>::get_block_at_registration(netuid),
 
             validator_forbids,
             validator_permits,
@@ -209,16 +210,17 @@ impl<T: Config> YumaEpoch<T> {
         let mut emitted = 0;
 
         if self.founder_emission > 0 {
-            Pallet::<T>::add_balance_to_account(
+            pallet_subspace::Pallet::<T>::add_balance_to_account(
                 &self.founder_key.0,
-                Pallet::<T>::u64_to_balance(self.founder_emission).unwrap_or_default(),
+                pallet_subspace::Pallet::<T>::u64_to_balance(self.founder_emission)
+                    .unwrap_or_default(),
             );
             emitted += self.founder_emission;
         }
 
         for (module_key, server_emission, mut validator_emission) in result {
             let mut increase_stake = |account_key: &AccountKey<T>, amount: u64| {
-                Pallet::<T>::increase_stake(&account_key.0, &module_key.0, amount);
+                pallet_subspace::Pallet::<T>::increase_stake(&account_key.0, &module_key.0, amount);
                 *emissions
                     .entry(module_key.clone())
                     .or_default()

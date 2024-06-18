@@ -51,19 +51,4 @@ impl<T: Config> Pallet<T> {
 
         Ok(())
     }
-
-    pub fn get_profit_share_emissions(
-        key: &T::AccountId,
-        emission: u64,
-    ) -> Vec<(T::AccountId, u64)> {
-        let profit_shares = ProfitShares::<T>::get(key);
-
-        profit_shares
-            .into_iter()
-            .map(|(share_key, share_ratio)| {
-                let share_emission = emission * share_ratio as u64 / u16::MAX as u64;
-                (share_key, share_emission)
-            })
-            .collect()
-    }
 }
