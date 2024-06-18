@@ -35,6 +35,7 @@ bty.workspace = true
 log.workspace = true
 
 pallet-subspace = { path = "../subspace", default-features = false }
+pallet-subnet-consensus = { path = "../subnet_consensus", default-features = false }
 
 frame-support.workspace = true
 frame-system.workspace = true

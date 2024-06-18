@@ -36,7 +36,9 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::config(with_default)]
-    pub trait Config: frame_system::Config + pallet_subspace::Config {
+    pub trait Config:
+        frame_system::Config + pallet_subspace::Config + pallet_subnet_consensus::Config
+    {
         /// The events emitted on proposal changes.
         #[pallet::no_default_bounds]
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -115,7 +117,7 @@ pub mod pallet {
     {
             let total_free_balance = Self::get_total_free_balance();
             let total_staked_balance = TotalStake::<T>::get();
-            total_free_balance.try_into().unwrap_or(0) + total_staked_balance.unwrap_or(0)
+            total_free_balance.try_into().unwrap_or(0) + total_staked_balance
         }
 
         // Halving Logic / Emission distributed per block

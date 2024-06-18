@@ -1,6 +1,5 @@
 use super::*;
 
-use codec::MaxEncodedLen;
 use frame_support::{
     pallet_prelude::DispatchResult, storage::IterableStorageMap, IterableStorageDoubleMap,
 };
@@ -8,7 +7,6 @@ use frame_support::{
 use self::{global::BurnConfiguration, voting::VoteMode};
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
-use substrate_fixed::types::I64F64;
 
 // ---------------------------------
 // Subnet Parameters
@@ -425,48 +423,6 @@ impl<T: Config> Pallet<T> {
     // ---------------------------------
     // Utility
     // ---------------------------------
-
-    pub fn calculate_founder_emission(netuid: u16, mut token_emission: u64) -> (u64, u64) {
-        let founder_share: u16 = FounderShare::<T>::get(netuid).min(100);
-        if founder_share == 0u16 {
-            return (token_emission, 0);
-        }
-
-        let founder_emission_ratio: I64F64 =
-            I64F64::from_num(founder_share.min(100)) / I64F64::from_num(100);
-        let founder_emission =
-            (founder_emission_ratio * I64F64::from_num(token_emission)).to_num::<u64>();
-        token_emission = token_emission.saturating_sub(founder_emission);
-
-        (token_emission, founder_emission)
-    }
-
-    pub fn get_ownership_ratios(
-        netuid: u16,
-        module_key: &T::AccountId,
-    ) -> Vec<(T::AccountId, I64F64)> {
-        let stake_from_vector = Self::get_stake_from_vector(module_key);
-        let _uid = Self::get_uid_for_key(netuid, module_key);
-        let mut total_stake_from: I64F64 = I64F64::from_num(0);
-
-        let mut ownership_vector: Vec<(T::AccountId, I64F64)> = Vec::new();
-
-        for (k, v) in stake_from_vector.clone().into_iter() {
-            let ownership = I64F64::from_num(v);
-            ownership_vector.push((k.clone(), ownership));
-            total_stake_from += ownership;
-        }
-
-        // add the module itself, if it has stake of its own
-        if total_stake_from == I64F64::from_num(0) {
-            ownership_vector.push((module_key.clone(), I64F64::from_num(0)));
-        } else {
-            ownership_vector =
-                ownership_vector.into_iter().map(|(k, v)| (k, v / total_stake_from)).collect();
-        }
-
-        ownership_vector
-    }
 
     pub fn is_key_registered_on_any_network(key: &T::AccountId) -> bool {
         Self::netuids().iter().any(|&netuid| Uids::<T>::contains_key(netuid, key))

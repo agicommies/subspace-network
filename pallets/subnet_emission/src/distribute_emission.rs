@@ -2,7 +2,7 @@ use super::*;
 use frame_support::storage::with_storage_layer;
 use pallet_subspace::{SetWeightCallsPerEpoch, Tempo};
 
-use pallet_subspace::subnet_consensus::{linear, yuma};
+use pallet_subnet_consensus::{linear, yuma};
 
 // Handles the whole emission distribution of the blockchain
 
@@ -36,11 +36,16 @@ impl<T: Config> Pallet<T> {
             if PendingEmission::<T>::get(netuid) > 0 {
                 let res = with_storage_layer(|| {
                     if netuid == 0 {
-                        // TODO.
-                        // return result here, copy the layout of yuma consensus
-                        // dbg!("running linear");
-                        linear::LinearEpoch::<T>::linear_epoch(netuid, emission_to_drain);
-                        Ok(())
+                        match linear::LinearEpoch::<T>::new(netuid, emission_to_drain).run() {
+                            Ok(_) => Ok(()),
+                            Err(err) => {
+                                log::error!(
+                                    "Failed to run linear consensus algorithm: {err:?}, skipping this block. \
+                                    {emission_to_drain} tokens will be emitted on the next epoch."
+                                );
+                                Err("linear failed")
+                            }
+                        }
                     } else {
                         // dbg!("running yuma");
                         match yuma::YumaEpoch::<T>::new(netuid, emission_to_drain).run() {
