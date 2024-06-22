@@ -75,9 +75,11 @@ pub fn mask_diag_sparse(sparse_matrix: &[Vec<(u16, I32F32)>]) -> Vec<Vec<(u16, I
     for (i, sparse_row) in sparse_matrix.iter().enumerate() {
         for (j, value) in sparse_row.iter() {
             if i != (*j as usize) {
-                if let Some(row) = result.get_mut(i) {
-                    row.push((*j, *value));
-                }
+                let Some(row) = result.get_mut(i) else {
+                    continue;
+                };
+
+                row.push((*j, *value));
             }
         }
     }
@@ -107,11 +109,13 @@ pub fn matmul_sparse(
             // Compute ranks: r_j = SUM(i) w_ij * s_i
             // Compute trust scores: t_j = SUM(i) w_ij * s_i
             // result_j = SUM(i) vector_i * matrix_ij
-            if let Some(target) = result.get_mut(*j as usize) {
-                if let Some(vector_i) = vector.get(i) {
-                    *target = target.saturating_add(vector_i.saturating_mul(*value));
-                }
-            }
+            let Some(target) = result.get_mut(*j as usize) else {
+                continue;
+            };
+            let Some(vector_i) = vector.get(i) else {
+                continue;
+            };
+            *target = target.saturating_add(vector_i.saturating_mul(*value));
         }
     }
     result
@@ -144,27 +148,31 @@ pub fn weighted_median_col_sparse(
             continue;
         }
         for (c, val) in score_r.iter() {
-            if let Some(use_score_c) = use_score.get_mut(*c as usize) {
-                if let Some(use_score_c_k) = use_score_c.get_mut(k) {
-                    *use_score_c_k = *val;
-                }
-            }
+            let Some(use_score_c) = use_score.get_mut(*c as usize) else {
+                continue;
+            };
+            let Some(use_score_c_k) = use_score_c.get_mut(k) else {
+                continue;
+            };
+            *use_score_c_k = *val;
         }
         k = k.saturating_add(1);
     }
     for c in 0..columns as usize {
-        if let Some(median_c) = median.get_mut(c) {
-            if let Some(use_score_c) = use_score.get(c) {
-                *median_c = weighted_median(
-                    &use_stake,
-                    use_score_c,
-                    &stake_idx,
-                    minority,
-                    zero,
-                    stake_sum,
-                );
-            }
-        }
+        let Some(median_c) = median.get_mut(c) else {
+            continue;
+        };
+        let Some(use_score_c) = use_score.get(c) else {
+            continue;
+        };
+        *median_c = weighted_median(
+            &use_stake,
+            use_score_c,
+            &stake_idx,
+            minority,
+            zero,
+            stake_sum,
+        );
     }
     median
 }
@@ -281,9 +289,11 @@ pub fn row_sum_sparse(sparse_matrix: &[Vec<(u16, I32F32)>]) -> Vec<I32F32> {
     let mut result: Vec<I32F32> = vec![I32F32::from_num(0); rows];
     for (i, sparse_row) in sparse_matrix.iter().enumerate() {
         for (_j, value) in sparse_row.iter() {
-            if let Some(result_i) = result.get_mut(i) {
-                *result_i = result_i.saturating_add(*value);
-            }
+            let Some(result_i) = result.get_mut(i) else {
+                continue;
+            };
+
+            *result_i = result_i.saturating_add(*value);
         }
     }
     result
@@ -297,14 +307,17 @@ pub fn col_clip_sparse(
     let mut result: Vec<Vec<(u16, I32F32)>> = vec![vec![]; sparse_matrix.len()];
     for (i, sparse_row) in sparse_matrix.iter().enumerate() {
         for (j, value) in sparse_row.iter() {
-            if let Some(col_threshold_j) = col_threshold.get(*j as usize) {
-                if let Some(result_i) = result.get_mut(i) {
-                    if *col_threshold_j < *value {
-                        result_i.push((*j, *col_threshold_j));
-                    } else {
-                        result_i.push((*j, *value));
-                    }
-                }
+            let Some(col_threshold_j) = col_threshold.get(*j as usize) else {
+                continue;
+            };
+            let Some(result_i) = result.get_mut(i) else {
+                continue;
+            };
+
+            if *col_threshold_j < *value {
+                result_i.push((*j, *col_threshold_j));
+            } else {
+                result_i.push((*j, *value));
             }
         }
     }
@@ -324,12 +337,14 @@ pub fn mask_rows_sparse(
 
     let mut result: Vec<Vec<(u16, I32F32)>> = vec![vec![]; n];
     for (i, sparse_row) in sparse_matrix.iter().enumerate() {
-        if let Some(mask_i) = mask.get(i) {
-            if let Some(result_i) = result.get_mut(i) {
-                if !mask_i {
-                    result_i.clone_from(sparse_row);
-                }
-            }
+        let Some(mask_i) = mask.get(i) else {
+            continue;
+        };
+        let Some(result_i) = result.get_mut(i) else {
+            continue;
+        };
+        if !mask_i {
+            result_i.clone_from(sparse_row);
         }
     }
 
@@ -348,9 +363,11 @@ pub fn vec_mask_sparse_matrix(
     for (i, sparse_row) in sparse_matrix.iter().enumerate() {
         for (j, value) in sparse_row.iter() {
             if !mask_fn(*first_vector.get(i)?, *second_vector.get(*j as usize)?) {
-                if let Some(result_i) = result.get_mut(i) {
-                    result_i.push((*j, *value));
-                }
+                let Some(result_i) = result.get_mut(i) else {
+                    continue;
+                };
+
+                result_i.push((*j, *value));
             }
         }
     }
@@ -415,20 +432,22 @@ pub fn inplace_col_normalize_sparse(sparse_matrix: &mut [Vec<(u16, I32F32)>], co
 
     for sparse_row in sparse_matrix.iter() {
         for (j, value) in sparse_row {
-            if let Some(col_sum_j) = col_sum.get_mut(*j as usize) {
-                *col_sum_j = col_sum_j.saturating_add(*value);
-            }
+            let Some(col_sum_j) = col_sum.get_mut(*j as usize) else {
+                continue;
+            };
+            *col_sum_j = col_sum_j.saturating_add(*value);
         }
     }
 
     for sparse_row in sparse_matrix {
         for (j, value) in sparse_row {
-            if let Some(col_sum_j) = col_sum.get(*j as usize) {
-                if *col_sum_j == I32F32::from_num(0.) {
-                    continue;
-                }
-                *value = value.saturating_div(*col_sum_j);
+            let Some(col_sum_j) = col_sum.get(*j as usize) else {
+                continue;
+            };
+            if *col_sum_j == I32F32::from_num(0.) {
+                continue;
             }
+            *value = value.saturating_div(*col_sum_j);
         }
     }
 }
@@ -440,9 +459,10 @@ pub fn row_hadamard_sparse(
     let mut result: Vec<Vec<(u16, I32F32)>> = sparse_matrix.to_vec();
     for (i, sparse_row) in result.iter_mut().enumerate() {
         for (_j, value) in sparse_row {
-            if let Some(vector_i) = vector.get(i) {
-                *value = value.saturating_mul(*vector_i);
-            }
+            let Some(vector_i) = vector.get(i) else {
+                continue;
+            };
+            *value = value.saturating_mul(*vector_i);
         }
     }
     result
@@ -468,11 +488,13 @@ pub fn matmul_transpose_sparse(
             // Compute dividends: d_j = SUM(i) b_ji * inc_i
             // result_j = SUM(i) vector_i * matrix_ji
             // result_i = SUM(j) vector_j * matrix_ij
-            if let Some(vector_j) = vector.get(*j as usize) {
-                if let Some(result_i) = result.get_mut(i) {
-                    *result_i = result_i.saturating_add(vector_j.saturating_mul(*value))
-                }
-            }
+            let Some(vector_j) = vector.get(*j as usize) else {
+                continue;
+            };
+            let Some(result_i) = result.get_mut(i) else {
+                continue;
+            };
+            *result_i = result_i.saturating_add(vector_j.saturating_mul(*value))
         }
     }
     result
@@ -564,14 +586,17 @@ pub fn vecdiv(x: &[I32F32], y: &[I32F32]) -> Vec<I32F32> {
     let n = x.len();
     let mut result: Vec<I32F32> = vec![I32F32::from_num(0); n];
     for i in 0..n {
-        if let Some(y_i) = y.get(i) {
-            if *y_i != I32F32::from_num(0.) {
-                if let Some(result_i) = result.get_mut(i) {
-                    if let Some(x_i) = x.get(i) {
-                        *result_i = x_i.saturating_div(*y_i);
-                    }
-                }
-            }
+        let Some(y_i) = y.get(i) else {
+            continue;
+        };
+        if *y_i != I32F32::from_num(0.) {
+            let Some(result_i) = result.get_mut(i) else {
+                continue;
+            };
+            let Some(x_i) = x.get(i) else {
+                continue;
+            };
+            *result_i = x_i.saturating_div(*y_i);
         }
     }
     result
@@ -582,21 +607,23 @@ pub fn inplace_col_max_upscale_sparse(sparse_matrix: &mut [Vec<(u16, I32F32)>], 
     let mut col_max: Vec<I32F32> = vec![I32F32::from_num(0.0); columns as usize]; // assume square matrix, rows=cols
     for sparse_row in sparse_matrix.iter() {
         for (j, value) in sparse_row.iter() {
-            if let Some(col_max_j) = col_max.get_mut(*j as usize) {
-                if *col_max_j < *value {
-                    *col_max_j = *value;
-                }
+            let Some(col_max_j) = col_max.get_mut(*j as usize) else {
+                continue;
+            };
+            if *col_max_j < *value {
+                *col_max_j = *value;
             }
         }
     }
     for sparse_row in sparse_matrix.iter_mut() {
         for (j, value) in sparse_row.iter_mut() {
-            if let Some(col_max_j) = col_max.get(*j as usize) {
-                if *col_max_j == I32F32::from_num(0.) {
-                    continue;
-                }
-                *value = value.saturating_div(*col_max_j);
+            let Some(col_max_j) = col_max.get(*j as usize) else {
+                continue;
+            };
+            if *col_max_j == I32F32::from_num(0.) {
+                continue;
             }
+            *value = value.saturating_div(*col_max_j);
         }
     }
 }
