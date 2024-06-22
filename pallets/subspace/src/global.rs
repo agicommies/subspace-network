@@ -85,6 +85,8 @@ impl<T: Config> Pallet<T> {
                                                                                           in percent of the overall network stake */
             // s0 config
             general_subnet_application_cost: GeneralSubnetApplicationCost::<T>::get(),
+            kappa: Kappa::<T>::get(),
+            rho: Rho::<T>::get(),
         }
     }
 
@@ -116,6 +118,9 @@ impl<T: Config> Pallet<T> {
 
         // burn
         params.burn_config.apply().expect("invalid burn configuration");
+
+        Kappa::<T>::set(params.kappa);
+        Rho::<T>::set(params.rho);
     }
 
     pub fn check_global_params(params: &GlobalParams<T>) -> DispatchResult {
@@ -176,6 +181,8 @@ impl<T: Config> Pallet<T> {
             params.proposal_participation_threshold.deconstruct() <= 100,
             Error::<T>::InvalidProposalParticipationThreshold
         );
+
+        // TODO kappa and rho constraints?
 
         Ok(())
     }

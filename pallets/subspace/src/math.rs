@@ -294,6 +294,16 @@ pub fn inplace_normalize_64(x: &mut [I64F64]) {
     }
 }
 
+#[allow(dead_code)]
+pub fn inplace_row_normalize_64(x: &mut [Vec<I64F64>]) {
+    for row in x {
+        let row_sum: I64F64 = row.iter().sum();
+        if row_sum > I64F64::from_num(0.0_f64) {
+            row.iter_mut().for_each(|x_ij: &mut I64F64| *x_ij /= row_sum);
+        }
+    }
+}
+
 pub fn vec_fixed64_to_fixed32(vec: Vec<I64F64>) -> Vec<I32F32> {
     vec.into_iter().map(I32F32::from_num).collect()
 }
@@ -353,6 +363,39 @@ pub fn inplace_normalize_using_sum(x: &mut [I32F32], x_sum: I32F32) {
     for x in x {
         *x /= x_sum;
     }
+}
+
+pub fn fixed64_to_u64(x: I64F64) -> u64 {
+    x.to_num::<u64>()
+}
+
+pub fn vec_fixed64_to_u64(vec: Vec<I64F64>) -> Vec<u64> {
+    vec.into_iter().map(fixed64_to_u64).collect()
+}
+
+pub fn matmul_64(matrix: &[Vec<I64F64>], vector: &[I64F64]) -> Vec<I64F64> {
+    let Some(first_row) = matrix.first() else {
+        return vec![];
+    };
+    let cols = first_row.len();
+    if cols == 0 {
+        return vec![];
+    }
+    assert!(matrix.len() == vector.len());
+    matrix
+        .iter()
+        .zip(vector)
+        .fold(vec![I64F64::from_num(0.0); cols], |acc, (row, vec_val)| {
+            row.iter()
+                .zip(acc)
+                .map(|(m_val, acc_val)| {
+                    // Compute ranks: r_j = SUM(i) w_ij * s_i
+                    // Compute trust scores: t_j = SUM(i) w_ij * s_i
+                    // result_j = SUM(i) vector_i * matrix_ij
+                    acc_val + vec_val * m_val
+                })
+                .collect()
+        })
 }
 
 pub fn matmul_transpose_sparse(
