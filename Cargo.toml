@@ -5,6 +5,7 @@ members = [
     "pallets/governance",
     "pallets/governance/api",
     "pallets/faucet",
+    "pallets/subnet_emission",
     "runtime",
     "xtask",
 ]
