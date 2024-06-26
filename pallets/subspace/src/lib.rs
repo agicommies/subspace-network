@@ -558,6 +558,9 @@ pub mod pallet {
         TooManyRegistrationsPerInterval, /* ---- Thrown when registrations this interval
                                           * exceeds
                                           * allowed number. */
+        TooManySubnetRegistrationsPerInterval, /* ---- Thrown when subnet registrations this
+                                                * interval
+                                                * exceeds allowed number. */
         AlreadyRegistered, /* ---- Thrown when the caller requests registering a module which
                             * already exists in the active set. */
         CouldNotConvertToBalance, /* ---- Thrown when the dispatch attempts to convert between

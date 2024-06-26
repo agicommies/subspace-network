@@ -44,6 +44,14 @@ impl<T: Config> Pallet<T> {
             Some(netuid) => netuid,
             // Create subnet if it does not exist.
             None => {
+                let subnet_burn_config = SubnetBurnConfig::<T>::get();
+
+                ensure!(
+                    SubnetRegistrationsThisInterval::<T>::get()
+                        < subnet_burn_config.max_registrations,
+                    Error::<T>::TooManySubnetRegistrationsPerInterval
+                );
+
                 let params = SubnetParams {
                     name: network_name.try_into().map_err(|_| Error::<T>::SubnetNameTooLong)?,
                     founder: key.clone(),
