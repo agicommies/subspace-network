@@ -307,6 +307,7 @@ impl<T: Config> Pallet<T> {
 
         netuid
     }
+
     // ---------------------------------
     // Updating Subnets
     // ---------------------------------
@@ -522,5 +523,20 @@ impl<T: Config> Pallet<T> {
         <N<T> as IterableStorageMap<u16, u16>>::iter()
             .map(|(netuid, _)| netuid)
             .collect()
+    }
+
+    pub fn remove_subnet_dangling_keys(netuid: u16) {
+        'outer: for (_, key) in Keys::<T>::iter_prefix(netuid) {
+            for (netuid_i, _, key_i) in Keys::<T>::iter() {
+                if netuid == netuid_i {
+                    continue;
+                }
+                if key == key_i {
+                    continue 'outer;
+                }
+            }
+
+            Self::remove_stake_from_storage(&key);
+        }
     }
 }
