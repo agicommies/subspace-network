@@ -109,7 +109,7 @@ impl<T: Config> Pallet<T> {
         Self::reserve_module_slot(netuid)?;
 
         // Account for root validator register requirements
-        Self::check_rootnet_registration_requirements(netuid, stake, current_burn)?;
+        Self::check_rootnet_registration_requirements(netuid, stake)?;
 
         let fee = DefaultDelegationFee::<T>::get();
         // --- 8. Register the module and changeset.
@@ -288,11 +288,7 @@ impl<T: Config> Pallet<T> {
     // Rootnet utils
     // --------------------------
 
-    fn check_rootnet_registration_requirements(
-        netuid: u16,
-        stake: u64,
-        current_burn: u64,
-    ) -> DispatchResult {
+    fn check_rootnet_registration_requirements(netuid: u16, stake: u64) -> DispatchResult {
         if netuid == ROOTNET_ID
             && Self::get_validator_count(ROOTNET_ID)
                 >= MaxAllowedValidators::<T>::get(ROOTNET_ID).unwrap_or(u16::MAX) as usize
@@ -304,10 +300,7 @@ impl<T: Config> Pallet<T> {
                 .min_by_key(|(_, stake)| *stake)
                 .ok_or(Error::<T>::ArithmeticError)?;
 
-            ensure!(
-                stake >= lower_stake.saturating_add(current_burn),
-                Error::<T>::NotEnoughStakeToRegister
-            );
+            ensure!(stake >= lower_stake, Error::<T>::NotEnoughStakeToRegister);
 
             let lower_stake_validator_uid =
                 Self::get_uid_for_key(ROOTNET_ID, &lower_stake_validator);
