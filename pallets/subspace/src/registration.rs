@@ -45,7 +45,6 @@ impl<T: Config> Pallet<T> {
             // Create subnet if it does not exist.
             None => {
                 let subnet_burn_config = SubnetBurnConfig::<T>::get();
-                dbg!(SubnetRegistrationsThisInterval::<T>::get());
                 ensure!(
                     SubnetRegistrationsThisInterval::<T>::get()
                         < subnet_burn_config.max_registrations,
@@ -383,6 +382,7 @@ impl<T: Config> Pallet<T> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn adjust_burn_parameters<F>(
         block_number: u64,
         adjustment_interval: u16,
