@@ -57,7 +57,7 @@ impl<T: Config> Default for SubnetBurnConfiguration<T> {
             min_burn: 2_000_000_000_000,
             max_burn: 100_000_000_000_000,
             adjustment_alpha: u64::MAX / 2,
-            adjustment_interval: 2_000,
+            adjustment_interval: 5_400,
             expected_registrations: 1,
             max_registrations: 1,
             _pd: PhantomData,
