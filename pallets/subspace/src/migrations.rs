@@ -25,6 +25,9 @@ pub fn ss58_to_account_id<T: Config>(
 }
 
 pub mod v11 {
+    use frame_support::storage::with_storage_layer;
+    use sp_runtime::DispatchError;
+
     use self::{
         global::BurnConfiguration,
         old_storage::{MaxBurn, MinBurn},
@@ -288,24 +291,41 @@ pub mod v11 {
 
             log::info!("======Migrated target registrations to v11======");
 
-            for (_, b, c) in old_storage::Stake::<T>::iter() {
-                let current_stake = Stake::<T>::get(&b);
-                Stake::<T>::set(b, current_stake + c);
-            }
-
-            for (_, b, c) in old_storage::StakeTo::<T>::iter() {
-                for (key, stake) in c {
-                    let current = StakeTo::<T>::get(&b, &key);
-                    StakeTo::<T>::set(&b, &key, current + stake);
+            if let Err(err) = with_storage_layer(|| {
+                for (_, b, c) in old_storage::Stake::<T>::iter() {
+                    let current_stake = Stake::<T>::get(&b);
+                    Stake::<T>::set(
+                        b,
+                        current_stake.checked_add(c).ok_or(Error::<T>::ArithmeticError)?,
+                    );
                 }
-            }
 
-            for (_, b, c) in old_storage::StakeFrom::<T>::iter() {
-                for (key, stake) in c {
-                    let current = StakeFrom::<T>::get(&b, &key);
-                    StakeFrom::<T>::set(&b, &key, current + stake);
+                for (_, b, c) in old_storage::StakeTo::<T>::iter() {
+                    for (key, stake) in c {
+                        let current = StakeTo::<T>::get(&b, &key);
+                        StakeTo::<T>::set(
+                            &b,
+                            &key,
+                            current.checked_add(stake).ok_or(Error::<T>::ArithmeticError)?,
+                        );
+                    }
                 }
-            }
+
+                for (_, b, c) in old_storage::StakeFrom::<T>::iter() {
+                    for (key, stake) in c {
+                        let current = StakeFrom::<T>::get(&b, &key);
+                        StakeFrom::<T>::set(
+                            &b,
+                            &key,
+                            current.checked_add(stake).ok_or(Error::<T>::ArithmeticError)?,
+                        );
+                    }
+                }
+
+                Ok::<(), DispatchError>(())
+            }) {
+                log::error!("could not migrate stake related storage values: {err:?}");
+            };
 
             StorageVersion::new(11).put::<Pallet<T>>();
             T::DbWeight::get().writes(1)
