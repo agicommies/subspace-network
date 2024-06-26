@@ -32,9 +32,11 @@ pub mod v11 {
     use super::*;
 
     pub mod old_storage {
+
         use super::*;
         use frame_support::{pallet_prelude::ValueQuery, storage_alias, Identity};
         use pallet_governance_api::VoteMode;
+        use sp_std::collections::btree_map::BTreeMap;
 
         type AccountId<T> = <T as frame_system::Config>::AccountId;
 
@@ -140,6 +142,32 @@ pub mod v11 {
 
         #[storage_alias]
         pub type ProposalExpiration<T: Config> = StorageValue<Pallet<T>, u32>;
+
+        #[storage_alias]
+        pub type Stake<T: Config> =
+            StorageDoubleMap<Pallet<T>, Identity, u16, Identity, AccountIdOf<T>, u64, ValueQuery>;
+
+        #[storage_alias]
+        pub type StakeFrom<T: Config> = StorageDoubleMap<
+            Pallet<T>,
+            Identity,
+            u16,
+            Identity,
+            AccountIdOf<T>,
+            BTreeMap<AccountIdOf<T>, u64>,
+            ValueQuery,
+        >;
+
+        #[storage_alias]
+        pub type StakeTo<T: Config> = StorageDoubleMap<
+            Pallet<T>,
+            Identity,
+            u16,
+            Identity,
+            AccountIdOf<T>,
+            BTreeMap<AccountIdOf<T>, u64>,
+            ValueQuery,
+        >;
     }
 
     pub struct MigrateToV11<T>(sp_std::marker::PhantomData<T>);
@@ -259,6 +287,26 @@ pub mod v11 {
             }
 
             log::info!("======Migrated target registrations to v11======");
+
+            for (_, b, c) in old_storage::Stake::<T>::iter() {
+                let current_stake = Stake::<T>::get(&b);
+                Stake::<T>::set(b, current_stake + c);
+            }
+
+            for (_, b, c) in old_storage::StakeTo::<T>::iter() {
+                for (key, stake) in c {
+                    let current = StakeTo::<T>::get(&b, &key);
+                    StakeTo::<T>::set(&b, &key, current + stake);
+                }
+            }
+
+            for (_, b, c) in old_storage::StakeFrom::<T>::iter() {
+                for (key, stake) in c {
+                    let current = StakeFrom::<T>::get(&b, &key);
+                    StakeFrom::<T>::set(&b, &key, current + stake);
+                }
+            }
+
             StorageVersion::new(11).put::<Pallet<T>>();
             T::DbWeight::get().writes(1)
         }
