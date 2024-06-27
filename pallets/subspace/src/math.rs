@@ -206,7 +206,6 @@ pub fn weighted_median_col_sparse(
 //     * 'median': ( I32F32 ):
 //         - median via random pivot binary search.
 //
-#[allow(clippy::arithmetic_side_effects, clippy::indexing_slicing)]
 pub fn weighted_median(
     stake: &Vec<I32F32>,
     score: &Vec<I32F32>,
@@ -220,49 +219,68 @@ pub fn weighted_median(
         return I32F32::from_num(0);
     }
     if n == 1 {
-        return score[partition_idx[0]];
+        let Some(partition_idx_0) = partition_idx.first() else {
+            return I32F32::from_num(0);
+        };
+        let Some(score_idx) = score.get(*partition_idx_0) else {
+            return I32F32::from_num(0);
+        };
+        return *score_idx;
     }
     assert!(stake.len() == score.len());
     let mid_idx: usize = n / 2;
-    let pivot: I32F32 = score[partition_idx[mid_idx]];
+    let Some(partition_idx_mid_idx) = partition_idx.get(mid_idx) else {
+        return I32F32::from_num(0);
+    };
+    let Some(pivot) = score.get(*partition_idx_mid_idx) else {
+        return I32F32::from_num(0);
+    };
     let mut lo_stake: I32F32 = I32F32::from_num(0);
     let mut hi_stake: I32F32 = I32F32::from_num(0);
     let mut lower: Vec<usize> = vec![];
     let mut upper: Vec<usize> = vec![];
     for &idx in partition_idx.iter() {
-        if score[idx] == pivot {
+        let Some(score_idx) = score.get(idx) else {
+            continue;
+        };
+        let Some(stake_idx) = stake.get(idx) else {
+            continue;
+        };
+        if *score_idx == *pivot {
             continue;
         }
-        if score[idx] < pivot {
-            lo_stake += stake[idx];
+        if *score_idx < *pivot {
+            lo_stake = lo_stake.saturating_add(*stake_idx);
             lower.push(idx);
         } else {
-            hi_stake += stake[idx];
+            hi_stake = hi_stake.saturating_add(*stake_idx);
             upper.push(idx);
         }
     }
-    if (partition_lo + lo_stake <= minority) && (minority < partition_hi - hi_stake) {
-        return pivot;
-    } else if (minority < partition_lo + lo_stake) && !lower.is_empty() {
+    if (partition_lo.saturating_add(lo_stake) <= minority)
+        && (minority < partition_hi.saturating_sub(hi_stake))
+    {
+        return *pivot;
+    } else if (minority < partition_lo.saturating_add(lo_stake)) && !lower.is_empty() {
         return weighted_median(
             stake,
             score,
             &lower,
             minority,
             partition_lo,
-            partition_lo + lo_stake,
+            partition_lo.saturating_add(lo_stake),
         );
-    } else if (partition_hi - hi_stake <= minority) && !upper.is_empty() {
+    } else if (partition_hi.saturating_sub(hi_stake) <= minority) && !upper.is_empty() {
         return weighted_median(
             stake,
             score,
             &upper,
             minority,
-            partition_hi - hi_stake,
+            partition_hi.saturating_sub(hi_stake),
             partition_hi,
         );
     }
-    pivot
+    *pivot
 }
 
 // Sum across each row (dim=0) of a sparse matrix.
