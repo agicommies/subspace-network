@@ -449,7 +449,7 @@ impl<T: Config> Pallet<T> {
             return (token_emission, 0);
         }
 
-        let founder_emission_ratio: I64F64 = I64F64::from_num(founder_share)
+        let founder_emission_ratio: I64F64 = I64F64::from_num(founder_share.min(100))
             .checked_div(I64F64::from_num(100))
             .unwrap_or(I64F64::from_num(0));
 
