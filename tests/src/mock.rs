@@ -332,6 +332,14 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     frame_system::GenesisConfig::<Test>::default().build_storage().unwrap().into()
 }
 
+pub fn new_test_ext_with_block(block: u64) -> sp_io::TestExternalities {
+    sp_tracing::try_init_simple();
+    let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+    let mut ext = sp_io::TestExternalities::new(t);
+    ext.execute_with(|| System::set_block_number(block));
+    ext
+}
+
 pub fn get_origin(key: AccountId) -> RuntimeOrigin {
     <<Test as frame_system::Config>::RuntimeOrigin>::signed(key)
 }
@@ -594,5 +602,12 @@ macro_rules! assert_ok {
     };
 }
 
+macro_rules! assert_in_range {
+    ($value:expr, $expected:expr, $margin:expr) => {
+        assert!($expected - $margin <= $value && $expected + $margin >= $value);
+    };
+}
+
+pub(crate) use assert_in_range;
 pub(crate) use assert_ok;
 pub(crate) use update_params;

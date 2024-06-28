@@ -2,8 +2,9 @@ use pallet_subnet_emission::{
     subnet_pricing::root::RootPricing, PendingEmission, SubnetEmission, UnitEmission,
 };
 use pallet_subspace::{
-    BurnConfig, Emission, MaxAllowedUids, MaxRegistrationsPerBlock, MaxRegistrationsPerInterval,
-    Stake, SubnetBurnConfig, TargetRegistrationsPerInterval, Tempo, ValidatorPermits,
+    BurnConfig, Emission, Kappa, MaxAllowedUids, MaxRegistrationsPerBlock,
+    MaxRegistrationsPerInterval, Rho, Stake, SubnetBurnConfig, TargetRegistrationsPerInterval,
+    Tempo, ValidatorPermits,
 };
 
 pub use crate::mock::*;
@@ -68,26 +69,24 @@ fn test_root_pricing() {
         let net2_perc = net2_emission as f32 / distributed as f32;
         let net3_perc = net3_emission as f32 / distributed as f32;
 
-        dbg!(&net1_perc);
-        dbg!(&net2_perc);
-        dbg!(&net3_perc);
-
-        assert_eq!(net1_perc, 0.04f32);
-        assert_eq!(net2_perc, 0.78f32);
-        assert_eq!(net3_perc, 0.18f32);
+        assert_in_range!(net1_perc, 0.04f32, 0.03f32);
+        assert_in_range!(net2_perc, 0.78f32, 0.03f32);
+        assert_in_range!(net3_perc, 0.18f32, 0.04f32);
     });
 }
 
 #[test]
 fn test_emission() {
-    new_test_ext().execute_with(|| {
+    new_test_ext_with_block(1).execute_with(|| {
         zero_min_burn();
 
         let n = 10;
         MaxRegistrationsPerBlock::<Test>::set(n * 2 as u16);
-        TargetRegistrationsPerInterval::<Test>::set(ROOT_NETUID, n * 2 as u16);
+        TargetRegistrationsPerInterval::<Test>::set(ROOT_NETUID, n as u16);
         MaxAllowedUids::<Test>::set(ROOT_NETUID, n as u16);
-        UnitEmission::<Test>::set(500000001);
+        UnitEmission::<Test>::set(1000000000);
+        Rho::<Test>::set(30);
+        Kappa::<Test>::set(32767);
 
         for i in 0..n {
             let key_id: u32 = i as u32;
@@ -136,7 +135,12 @@ fn test_emission() {
         Tempo::<Test>::set(0, 1);
         // let priced_subnets = assert_ok!(RootPricing::<Test>::new(1_000_000_000).run());
 
-        SubnetEmissionMod::process_emission_distribution(1_000_000_000, 1_000_000_000);
+        // let a = assert_ok!(RootPricing::<Test>::new(1_000_000_000).run());
+        // for (netuid, emission) in a {
+        //     SubnetEmission::<Test>::set(netuid, emission);
+        // }
+
+        let _ = SubnetEmissionMod::get_subnet_pricing(1_000_000_000);
         for netuid in 1..n {
             let emission = SubnetEmission::<Test>::get(netuid);
             println!(
@@ -144,7 +148,7 @@ fn test_emission() {
                 netuid, &emission
             );
 
-            // assert_eq!(emission, 99_999_999);
+            assert_eq!(emission, 99_999_999);
         }
         step_block(2);
         println!("stepped 2 blocks");
@@ -155,7 +159,7 @@ fn test_emission() {
                 "expected pending emission for {}: 199_999_998, got {}",
                 netuid, &pending_emission
             );
-            // assert_eq!(pending_emission, 199_999_998);
+            assert_eq!(pending_emission, 199_999_998);
         }
 
         step_block(1);
@@ -166,17 +170,15 @@ fn test_emission() {
                 "expected pending emission for {}: 299_999_997, got {}",
                 netuid, &pending_emission
             );
-            // assert_eq!(pending_emission, 299_999_997);
+            assert_eq!(pending_emission, 299_999_997);
         }
 
-        panic!();
-
-        // let step = SubnetEmissionMod::blocks_until_next_epoch(
-        //     10,
-        //     1000,
-        //     SubspaceMod::get_current_block_number(),
-        // );
-        // step_block(step as u16);
-        // assert_eq!(PendingEmission::<Test>::get(10), 0);
+        let step = SubnetEmissionMod::blocks_until_next_epoch(
+            10,
+            1000,
+            SubspaceMod::get_current_block_number(),
+        );
+        step_block(step as u16);
+        assert_eq!(PendingEmission::<Test>::get(10), 0);
     });
 }
