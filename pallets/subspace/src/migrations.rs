@@ -1,9 +1,6 @@
 use super::*;
 
-use frame_support::{
-    traits::{Get, OnRuntimeUpgrade, StorageInstance, StorageVersion},
-    weights::Weight,
-};
+use frame_support::traits::{Get, StorageInstance, StorageVersion};
 
 impl<T: Config> StorageInstance for Pallet<T> {
     fn pallet_prefix() -> &'static str {
@@ -26,11 +23,10 @@ pub fn ss58_to_account_id<T: Config>(
 
 pub mod v12 {
     use super::*;
-    use frame_support::storage::with_storage_layer;
-    use sp_runtime::DispatchError;
+    use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
+    use sp_std::collections::btree_map::BTreeMap;
 
     pub mod old_storage {
-
         use super::*;
         use frame_support::{pallet_prelude::ValueQuery, storage_alias, Identity};
         use sp_std::collections::btree_map::BTreeMap;
@@ -60,6 +56,9 @@ pub mod v12 {
             BTreeMap<AccountIdOf<T>, u64>,
             ValueQuery,
         >;
+
+        #[storage_alias]
+        pub type TotalStake<T: Config> = StorageMap<Pallet<T>, Identity, u16, u64, ValueQuery>;
     }
 
     pub struct MigrateToV12<T>(sp_std::marker::PhantomData<T>);
@@ -74,50 +73,55 @@ pub mod v12 {
             }
             log::info!("Migrating storage to v12");
 
-            if let Err(err) = with_storage_layer(|| {
-                for (_, b, c) in old_storage::Stake::<T>::iter() {
-                    let current_stake = Stake::<T>::get(&b);
-                    Stake::<T>::set(
-                        b,
-                        current_stake.checked_add(c).ok_or(Error::<T>::ArithmeticError)?,
-                    );
-                }
-                let _ = old_storage::Stake::<T>::clear(u32::MAX, None);
+            // Download existing data into separate types
+            let old_stake: BTreeMap<(u16, AccountIdOf<T>), u64> = old_storage::Stake::<T>::iter()
+                .map(|(netuid, account, stake)| ((netuid, account), stake))
+                .collect();
+            let old_stake_from: BTreeMap<(u16, AccountIdOf<T>), BTreeMap<AccountIdOf<T>, u64>> =
+                old_storage::StakeFrom::<T>::iter()
+                    .map(|(netuid, account, stakes)| ((netuid, account), stakes))
+                    .collect();
+            let old_stake_to: BTreeMap<(u16, AccountIdOf<T>), BTreeMap<AccountIdOf<T>, u64>> =
+                old_storage::StakeTo::<T>::iter()
+                    .map(|(netuid, account, stakes)| ((netuid, account), stakes))
+                    .collect();
 
-                for (_, b, c) in old_storage::StakeTo::<T>::iter() {
-                    for (key, stake) in c {
-                        let current = StakeTo::<T>::get(&b, &key);
-                        StakeTo::<T>::set(
-                            &b,
-                            &key,
-                            current.checked_add(stake).ok_or(Error::<T>::ArithmeticError)?,
-                        );
-                    }
-                }
-                let _ = old_storage::StakeTo::<T>::clear(u32::MAX, None);
+            // Clear the problematic stake storages
+            let _ = Stake::<T>::clear(u32::MAX, None);
+            let _ = StakeTo::<T>::clear(u32::MAX, None);
+            let _ = StakeFrom::<T>::clear(u32::MAX, None);
 
-                for (_, b, c) in old_storage::StakeFrom::<T>::iter() {
-                    for (key, stake) in c {
-                        let current = StakeFrom::<T>::get(&b, &key);
-                        StakeFrom::<T>::set(
-                            &b,
-                            &key,
-                            current.checked_add(stake).ok_or(Error::<T>::ArithmeticError)?,
-                        );
-                    }
-                }
-                let _ = old_storage::StakeFrom::<T>::clear(u32::MAX, None);
+            // Migrate Stake
+            for ((_, account), stake) in old_stake {
+                let current_stake = Stake::<T>::get(&account);
+                Stake::<T>::insert(&account, current_stake.saturating_add(stake));
+            }
 
-                Ok::<(), DispatchError>(())
-            }) {
-                log::error!("could not migrate stake related storage values: {err:?}");
-            };
+            // Migrate StakeFrom
+            for ((_, from), stakes) in old_stake_from {
+                for (to, amount) in stakes {
+                    let current_amount = StakeFrom::<T>::get(&from, &to);
+                    StakeFrom::<T>::insert(&from, &to, current_amount.saturating_add(amount));
+                }
+            }
+
+            // Migrate StakeTo
+            for ((_, to), stakes) in old_stake_to {
+                for (from, amount) in stakes {
+                    let current_amount = StakeFrom::<T>::get(&from, &to);
+                    StakeTo::<T>::insert(&from, &to, current_amount.saturating_add(amount));
+                }
+            }
+
+            // Migrate TotalStake (unchanged)
+            let total_stake: u64 =
+                old_storage::TotalStake::<T>::iter().map(|(_, stake)| stake).sum();
+            TotalStake::<T>::put(total_stake);
+            old_storage::TotalStake::<T>::remove_all(None);
 
             StorageVersion::new(12).put::<Pallet<T>>();
-            T::DbWeight::get().writes(1)
+
+            T::DbWeight::get().reads_writes(1, 1)
         }
     }
-
-    // TODO:
-    //
 }
