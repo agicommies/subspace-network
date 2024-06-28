@@ -87,15 +87,18 @@ pub mod v12 {
                     .collect();
 
             // Clear the problematic stake storages
+            // We tried to do this with the old storage instead, after migration, but experienced
+            // decoding issues.
             let _ = Stake::<T>::clear(u32::MAX, None);
             let _ = StakeTo::<T>::clear(u32::MAX, None);
             let _ = StakeFrom::<T>::clear(u32::MAX, None);
 
-            // Migrate Stake
+            // Migrate Stake, getting rid of netuid
             for ((_, account), stake) in old_stake {
                 let current_stake = Stake::<T>::get(&account);
                 Stake::<T>::insert(&account, current_stake.saturating_add(stake));
             }
+            log::info!("Migrated Stake");
 
             // Migrate StakeFrom
             for ((_, from), stakes) in old_stake_from {
@@ -104,6 +107,7 @@ pub mod v12 {
                     StakeFrom::<T>::insert(&from, &to, current_amount.saturating_add(amount));
                 }
             }
+            log::info!("Migrated StakeFrom");
 
             // Migrate StakeTo
             for ((_, to), stakes) in old_stake_to {
@@ -112,12 +116,14 @@ pub mod v12 {
                     StakeTo::<T>::insert(&from, &to, current_amount.saturating_add(amount));
                 }
             }
+            log::info!("Migrated StakeTo");
 
             // Migrate TotalStake (unchanged)
             let total_stake: u64 =
                 old_storage::TotalStake::<T>::iter().map(|(_, stake)| stake).sum();
             TotalStake::<T>::put(total_stake);
             old_storage::TotalStake::<T>::remove_all(None);
+            log::info!("Migrated TotalStake");
 
             StorageVersion::new(12).put::<Pallet<T>>();
 
