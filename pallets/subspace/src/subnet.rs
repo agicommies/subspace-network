@@ -526,17 +526,14 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn remove_subnet_dangling_keys(netuid: u16) {
-        'outer: for (_, key) in Keys::<T>::iter_prefix(netuid) {
-            for (netuid_i, _, key_i) in Keys::<T>::iter() {
-                if netuid == netuid_i {
-                    continue;
-                }
-                if key == key_i {
-                    continue 'outer;
-                }
-            }
-
-            Self::remove_stake_from_storage(&key);
+        let netuid_keys: BTreeSet<AccountIdOf<T>> =
+            Uids::<T>::iter_prefix(netuid).map(|(key, _)| key).collect();
+        let global_keys: BTreeSet<AccountIdOf<T>> = Uids::<T>::iter()
+            .filter(|(n, _, _)| n != &netuid)
+            .map(|(_, key, _)| key)
+            .collect();
+        for dangling in netuid_keys.difference(&global_keys) {
+            Self::remove_stake_from_storage(&dangling);
         }
     }
 }
