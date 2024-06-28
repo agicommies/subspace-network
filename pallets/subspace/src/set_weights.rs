@@ -57,7 +57,8 @@ impl<T: Config> Pallet<T> {
 
         // --- 7. Ensure that the passed uids are valid for the network.
         ensure!(
-            uids.iter().all(|&uid| Self::uid_exist_on_network(netuid, uid)),
+            uids.iter().all(|&uid| (netuid == 0 && Self::netuids().contains(&uid))
+                || Self::uid_exist_on_network(netuid, uid)),
             Error::<T>::InvalidUid
         );
 
@@ -71,7 +72,10 @@ impl<T: Config> Pallet<T> {
         );
 
         // --- 9. Ensure the uid is not setting weights for itself.
-        ensure!(!uids.contains(&uid), Error::<T>::NoSelfWeight);
+        ensure!(
+            netuid == 0 || !uids.contains(&uid),
+            Error::<T>::NoSelfWeight
+        );
 
         // --- 10. Get the stake for the key.
         let stake: u64 = Stake::<T>::get(&key);
