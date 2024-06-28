@@ -87,6 +87,8 @@ fn test_emission() {
         MaxRegistrationsPerBlock::<Test>::set(n * 2 as u16);
         TargetRegistrationsPerInterval::<Test>::set(ROOT_NETUID, n * 2 as u16);
         MaxAllowedUids::<Test>::set(ROOT_NETUID, n as u16);
+        UnitEmission::<Test>::set(500000001);
+
         for i in 0..n {
             let key_id: u32 = i as u32;
             let key_origin = get_origin(key_id);
