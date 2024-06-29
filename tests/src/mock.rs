@@ -530,6 +530,9 @@ pub fn register_root_validator(key: AccountId, stake: u64) -> Result<u16, Dispat
     SubspaceMod::register(origin, network.clone(), name, address, stake, key, None)?;
 
     let netuid = SubspaceMod::get_netuid_for_name(&network).ok_or("netuid is missing")?;
+    if netuid != 0 {
+        return Err("rootnet id is not 0".into());
+    }
     pallet_subspace::Uids::<Test>::get(netuid, key).ok_or("uid is missing".into())
 }
 
