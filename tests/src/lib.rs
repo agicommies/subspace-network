@@ -14,4 +14,6 @@ pub mod mock;
 // #[cfg(test)]
 // pub mod subspace;
 #[cfg(test)]
+pub mod root;
+#[cfg(test)]
 pub mod subspace2;

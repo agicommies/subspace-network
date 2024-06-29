@@ -328,6 +328,14 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     frame_system::GenesisConfig::<Test>::default().build_storage().unwrap().into()
 }
 
+pub fn new_test_ext_with_block(block: u64) -> sp_io::TestExternalities {
+    sp_tracing::try_init_simple();
+    let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+    let mut ext = sp_io::TestExternalities::new(t);
+    ext.execute_with(|| System::set_block_number(block));
+    ext
+}
+
 pub fn get_origin(key: AccountId) -> RuntimeOrigin {
     <<Test as frame_system::Config>::RuntimeOrigin>::signed(key)
 }
@@ -507,6 +515,20 @@ pub fn register_module(netuid: u16, key: AccountId, stake: u64) -> Result<u16, D
     Ok(uid)
 }
 
+#[allow(dead_code)]
+pub fn register_root_validator(key: AccountId, stake: u64) -> Result<u16, DispatchError> {
+    let origin = get_origin(key);
+    let network = format!("rootnet").as_bytes().to_vec();
+    let name = format!("module{key}").as_bytes().to_vec();
+    let address = "0.0.0.0:30333".as_bytes().to_vec();
+
+    SubspaceMod::add_balance_to_account(&key, stake + SubnetBurn::<Test>::get() + 1);
+    SubspaceMod::register(origin, network.clone(), name, address, stake, key, None)?;
+
+    let netuid = SubspaceMod::get_netuid_for_name(&network).ok_or("netuid is missing")?;
+    pallet_subspace::Uids::<Test>::get(netuid, key).ok_or("uid is missing".into())
+}
+
 pub fn get_balance(key: AccountId) -> Balance {
     <Balances as Currency<AccountId>>::free_balance(&key)
 }
@@ -592,5 +614,12 @@ macro_rules! assert_ok {
     };
 }
 
+macro_rules! assert_in_range {
+    ($value:expr, $expected:expr, $margin:expr) => {
+        assert!($expected - $margin <= $value && $expected + $margin >= $value);
+    };
+}
+
+pub(crate) use assert_in_range;
 pub(crate) use assert_ok;
 pub(crate) use update_params;
