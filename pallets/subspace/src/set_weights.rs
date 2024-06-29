@@ -57,7 +57,7 @@ impl<T: Config> Pallet<T> {
         Self::validate_stake(&key, uids_len)?;
         Self::finalize_weights(netuid, uid, &uids, &values)?;
         Ok(())
-    } 
+    }
 
     fn validate_input(
         uid: u16,
@@ -146,7 +146,13 @@ impl<T: Config> Pallet<T> {
     // ----------------
 
     fn handle_rate_limiting(uid: u16, netuid: u16, key: &T::AccountId) -> dispatch::DispatchResult {
-        if let Some(max_set_weights) = MaximumSetWeightCallsPerEpoch::<T>::get(netuid) {
+        if netuid == ROOTNET_ID {
+            ensure!(
+                RootNetWeightCalls::<T>::get(uid).is_none(),
+                Error::<T>::MaxWeightCalls
+            );
+            RootNetWeightCalls::<T>::set(uid, Some(()));
+        } else if let Some(max_set_weights) = MaximumSetWeightCallsPerEpoch::<T>::get(netuid) {
             let set_weight_uses = SetWeightCallsPerEpoch::<T>::mutate(netuid, key, |value| {
                 *value = value.saturating_add(1);
                 *value
@@ -155,17 +161,6 @@ impl<T: Config> Pallet<T> {
                 set_weight_uses <= max_set_weights,
                 Error::<T>::MaximumSetWeightsPerEpochReached
             );
-        }
-        Self::check_rootnet_daily_limit(netuid, uid)
-    }
-
-    fn check_rootnet_daily_limit(netuid: u16, module_id: u16) -> DispatchResult {
-        if netuid == ROOTNET_ID {
-            ensure!(
-                RootNetWeightCalls::<T>::get(module_id).is_none(),
-                Error::<T>::MaxWeightCalls
-            );
-            RootNetWeightCalls::<T>::set(module_id, Some(()));
         }
         Ok(())
     }
