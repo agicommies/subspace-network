@@ -2,15 +2,59 @@ use super::*;
 use crate::{module::ModuleChangeset, subnet::SubnetChangeset};
 use frame_support::storage::with_storage_layer;
 
-use frame_support::pallet_prelude::DispatchResult;
+use frame_support::{pallet_prelude::DispatchResult, sp_runtime::DispatchError};
 use frame_system::ensure_signed;
 use sp_core::Get;
+use sp_runtime::BoundedVec;
 use substrate_fixed::types::I110F18;
 
+// TODO: later, once legit whitelist has been filled up, turn on the code below
+// Put this into the `do_register` code
+// We also have to declear a migration, of modules on netuid 0 that are not whitelisted.
+
+// --- 4.1 Ensure that the module_key is in the whitelist, if netuid is 0.
+
+// ensure!(
+//     netuid != 0 || Self::is_in_legit_whitelist(&module_key),
+//     Error::<T>::NotWhitelisted
+// );
+
 impl<T: Config> Pallet<T> {
-    // TODO:
-    // make registration cost for rootnet (s0) to 0
-    // Used on extrinsics, can panic
+    /// Registers a module in a subnet.
+    ///
+    /// # Arguments
+    ///
+    /// * `origin` - The origin of the call, must be a signed account.
+    /// * `network_name` - The name of the subnet to register in.
+    /// * `name` - The name of the module.
+    /// * `address` - The address of the module.
+    /// * `stake` - The amount of stake to register with.
+    /// * `module_key` - The account ID of the module.
+    /// * `metadata` - Optional metadata for the module.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    ///
+    /// * The caller's signature is invalid.
+    /// * The maximum number of registrations per block has been reached.
+    /// * The caller doesn't have enough balance to register.
+    /// * The subnet name is too long when creating a new subnet.
+    /// * The maximum number of registrations per interval has been reached.
+    /// * The stake is insufficient for registration.
+    /// * The module key is already registered.
+    /// * The maximum number of modules per network has been reached.
+    /// * The root network registration requirements are not met.
+    ///
+    /// # Effects
+    ///
+    /// If successful, this function will:
+    ///
+    /// 1. Create a new subnet if the specified network doesn't exist.
+    /// 2. Register the module in the specified subnet.
+    /// 3. Add the stake to the module.
+    /// 4. Update registration counters.
+    /// 5. Emit a `ModuleRegistered` event.
     #[allow(clippy::arithmetic_side_effects)]
     pub fn do_register(
         origin: T::RuntimeOrigin,
@@ -21,123 +65,145 @@ impl<T: Config> Pallet<T> {
         module_key: T::AccountId,
         metadata: Option<Vec<u8>>,
     ) -> DispatchResult {
-        // --- 1. Check that the caller has signed the transaction.
         let key = ensure_signed(origin.clone())?;
 
-        // --- 2. Ensure, that we are not exceeding the max allowed
-        // registrations per block.
+        Self::check_registration_limits()?;
+        Self::ensure_sufficient_balance(&key, stake)?;
+
+        let netuid = Self::resolve_or_create_network(&key, &network_name)?;
+
+        Self::check_interval_registration_limits(netuid)?;
+        Self::validate_user_stake(netuid, stake)?;
+        Self::ensure_module_key_not_registered(netuid, &module_key)?;
+        Self::reserve_module_slot(netuid)?;
+        Self::check_rootnet_registration_requirements(netuid, stake, Burn::<T>::get(netuid))?;
+
+        let uid = Self::register_module(netuid, &module_key, name, address, metadata)?;
+        Self::handle_stake(origin, &key, &module_key, netuid, stake)?;
+
+        Self::finalize_registration(netuid, uid, &module_key)?;
+
+        Ok(())
+    }
+
+    fn check_registration_limits() -> DispatchResult {
         ensure!(
             RegistrationsPerBlock::<T>::get() < MaxRegistrationsPerBlock::<T>::get(),
             Error::<T>::TooManyRegistrationsPerBlock
         );
+        Ok(())
+    }
 
-        // --- 3. Ensure the caller has enough balance to register. We need to
-        // ensure that the stake that the user wants to register with,
-        // is already present as a balance.
+    fn ensure_sufficient_balance(key: &T::AccountId, stake: u64) -> DispatchResult {
         ensure!(
-            Self::has_enough_balance(&key, stake),
+            Self::has_enough_balance(key, stake),
             Error::<T>::NotEnoughBalanceToRegister
         );
+        Ok(())
+    }
 
-        // --- 4. Resolve the network in case it doesn't exist
-        let netuid = match Self::get_netuid_for_name(&network_name) {
-            Some(netuid) => netuid,
-            // Create subnet if it does not exist.
-            None => {
-                let params = SubnetParams {
-                    name: network_name.try_into().map_err(|_| Error::<T>::SubnetNameTooLong)?,
-                    founder: key.clone(),
-                    ..DefaultSubnetParams::<T>::get()
-                };
-                let changeset = SubnetChangeset::new(params)?;
-                let burn = SubnetBurn::<T>::get();
+    fn resolve_or_create_network(
+        key: &T::AccountId,
+        network_name: &[u8],
+    ) -> Result<u16, DispatchError> {
+        match Self::get_netuid_for_name(network_name) {
+            Some(netuid) => Ok(netuid),
+            None => Self::create_subnet(key, network_name),
+        }
+    }
 
-                Self::remove_balance_from_account(
-                    &key,
-                    Self::u64_to_balance(burn).ok_or(Error::<T>::CouldNotConvertToBalance)?,
-                )
-                .map_err(|_| Error::<T>::NotEnoughBalanceToRegisterSubnet)?;
+    fn create_subnet(key: &T::AccountId, network_name: &[u8]) -> Result<u16, DispatchError> {
+        let bounded_name: BoundedVec<u8, ConstU32<256>> =
+            network_name.to_vec().try_into().map_err(|_| Error::<T>::SubnetNameTooLong)?;
 
-                Self::add_subnet_from_registration(changeset)?
-            }
+        let params = SubnetParams {
+            name: bounded_name,
+            founder: key.clone(),
+            ..DefaultSubnetParams::<T>::get()
         };
+        let changeset = SubnetChangeset::new(params)?;
+        let burn = SubnetBurn::<T>::get();
 
-        // 4.1 Ensure, that we are not exceeding the max allowed
-        // registrations per interval.
+        Self::remove_balance_from_account(
+            key,
+            Self::u64_to_balance(burn).ok_or(Error::<T>::CouldNotConvertToBalance)?,
+        )
+        .map_err(|_| Error::<T>::NotEnoughBalanceToRegisterSubnet)?;
+
+        Self::add_subnet_from_registration(changeset)
+    }
+
+    fn check_interval_registration_limits(netuid: u16) -> DispatchResult {
         ensure!(
             RegistrationsThisInterval::<T>::get(netuid)
                 < MaxRegistrationsPerInterval::<T>::get(netuid),
             Error::<T>::TooManyRegistrationsPerInterval
         );
+        Ok(())
+    }
 
-        // TODO: later, once legit whitelist has been filled up, turn on the code below.
-        // We also have to declear a migration, of modules on netuid 0 that are not whitelisted.
-
-        // --- 4.1 Ensure that the module_key is in the whitelist, if netuid is 0.
-
-        // ensure!(
-        //     netuid != 0 || Self::is_in_legit_whitelist(&module_key),
-        //     Error::<T>::NotWhitelisted
-        // );
-
-        // --- 5. Ensure the caller has enough stake to register.
-        let min_stake: u64 = MinStake::<T>::get(netuid);
-        let current_burn: u64 = Burn::<T>::get(netuid);
-        // also ensures that in the case current_burn is present, the stake is enough
-        // as burn, will be decreased from the stake on the module
+    fn validate_user_stake(netuid: u16, stake: u64) -> DispatchResult {
+        let min_stake = MinStake::<T>::get(netuid);
+        let current_burn = Burn::<T>::get(netuid);
         ensure!(
-            (netuid == 0 && stake >= min_stake) // TODO: ASK HONZA
+            (netuid == ROOTNET_ID && stake >= min_stake)
                 || Self::enough_stake_to_register(min_stake, current_burn, stake),
             Error::<T>::NotEnoughStakeToRegister
         );
+        Ok(())
+    }
 
-        // --- 6. Ensure the module key is not already registered.
+    fn ensure_module_key_not_registered(netuid: u16, module_key: &T::AccountId) -> DispatchResult {
         ensure!(
-            !Self::key_registered(netuid, &module_key),
+            !Self::key_registered(netuid, module_key),
             Error::<T>::KeyAlreadyRegistered
         );
+        Ok(())
+    }
 
-        // --- 7. Check if we are exceeding the max allowed modules per network.
-        // If we do deregister slot.
-        Self::reserve_module_slot(netuid)?;
-
-        // Account for root validator register requirements
-        Self::check_rootnet_registration_requirements(netuid, stake, current_burn)?;
-
+    fn register_module(
+        netuid: u16,
+        module_key: &T::AccountId,
+        name: Vec<u8>,
+        address: Vec<u8>,
+        metadata: Option<Vec<u8>>,
+    ) -> Result<u16, DispatchError> {
         let fee = DefaultDelegationFee::<T>::get();
-        // --- 8. Register the module and changeset.
         let module_changeset = ModuleChangeset::new(name, address, fee, metadata);
+        Self::append_module(netuid, module_key, module_changeset)
+    }
 
-        let uid: u16 = Self::append_module(netuid, &module_key, module_changeset)?;
-
-        // --- 9. Add the stake to the module, now that it is registered on the network.
-        // allow to register with zero stake
+    fn handle_stake(
+        origin: T::RuntimeOrigin,
+        key: &T::AccountId,
+        module_key: &T::AccountId,
+        netuid: u16,
+        stake: u64,
+    ) -> DispatchResult {
         Self::do_add_stake(origin, module_key.clone(), stake)?;
 
-        // constant -> current_burn logic
-        if netuid != 0 && current_burn > 0 {
-            // if min burn is present, decrease the stake by the min burn
-            Self::decrease_stake(&key, &module_key, current_burn);
+        let current_burn = Burn::<T>::get(netuid);
+        if netuid != ROOTNET_ID && current_burn > 0 {
+            Self::decrease_stake(key, module_key, current_burn);
         }
 
-        // Make sure that the registration went through.
+        Ok(())
+    }
+
+    fn finalize_registration(netuid: u16, uid: u16, module_key: &T::AccountId) -> DispatchResult {
         ensure!(
-            Self::key_registered(netuid, &module_key),
+            Self::key_registered(netuid, module_key),
             Error::<T>::NotRegistered
         );
 
-        // Add validator permit if rootnet
         Self::add_rootnet_validator(netuid, uid)?;
 
-        // --- 10. Increment the number of registrations.
-        RegistrationsPerBlock::<T>::mutate(|val: &mut u16| *val += 1);
-        RegistrationsThisInterval::<T>::mutate(netuid, |registrations| {
+        RegistrationsPerBlock::<T>::mutate(|val| *val = val.saturating_add(1));        RegistrationsThisInterval::<T>::mutate(netuid, |registrations| {
             *registrations = registrations.saturating_add(1);
         });
-        // --- Deposit successful event.
-        Self::deposit_event(Event::ModuleRegistered(netuid, uid, module_key));
 
-        // --- 11. Ok and done.
+        Self::deposit_event(Event::ModuleRegistered(netuid, uid, module_key.clone()));
+
         Ok(())
     }
 
@@ -245,15 +311,26 @@ impl<T: Config> Pallet<T> {
     /// This function checks whether there are still available module slots on the network. If the
     /// subnet is filled, deregister the least staked module on it, or if the max allowed modules on
     /// the network is reached, deregisters the least staked module on the least staked netuid.
+
+    // --------------------------
+    // Reserving module slots
+    // --------------------------
+
+    /// This function checks whether there are still available module slots on the network. If the
+    /// subnet is filled, deregister the least staked module on it, or if the max allowed modules on
+    /// the network is reached, deregisters the least staked module on the least staked netuid.
     pub fn reserve_module_slot(netuid: u16) -> DispatchResult {
-        if N::<T>::get(netuid) >= MaxAllowedUids::<T>::get(netuid) {
-            // Subnet is full, replace lowest priority node
-            Self::replace_lowest_priority_node(netuid, false)
-        } else if Self::global_n_modules() >= MaxAllowedModules::<T>::get() {
-            // Global limit reached, remove from lowest emission subnet
-            Self::remove_from_lowest_emission_subnet()
-        } else {
-            Ok(())
+        match (netuid, N::<T>::get(netuid), Self::global_n_modules()) {
+            (ROOTNET_ID, _, _) => Ok(()),
+            (_, n, _) if n < MaxAllowedUids::<T>::get(netuid) => {
+                if Self::global_n_modules() < MaxAllowedModules::<T>::get() {
+                    Ok(())
+                } else {
+                    Self::remove_from_lowest_emission_subnet()
+                }
+            }
+            // This rule does not apply for the rootnet
+            _ => Self::replace_lowest_priority_node(netuid, false),
         }
     }
 
@@ -281,6 +358,7 @@ impl<T: Config> Pallet<T> {
     // Rootnet utils
     // --------------------------
 
+    // This reserves a slot for a potential validator on the rootnet.
     fn check_rootnet_registration_requirements(
         netuid: u16,
         stake: u64,
