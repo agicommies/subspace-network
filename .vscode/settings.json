@@ -7,6 +7,6 @@
         "**/*_REMOTE_*": true
     },
     "search.exclude": {
-        "**/autogen_weights.rs": true
+        "**/weights.rs": true
     }
 }
