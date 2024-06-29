@@ -507,7 +507,12 @@ pub fn register_module(netuid: u16, key: AccountId, stake: u64) -> Result<u16, D
     SubspaceMod::register(origin, network.clone(), name, address, stake, key, None)?;
 
     let netuid = SubspaceMod::get_netuid_for_name(&network).ok_or("netuid is missing")?;
-    pallet_subspace::Uids::<Test>::get(netuid, key).ok_or("uid is missing".into())
+    let uid = pallet_subspace::Uids::<Test>::get(netuid, key).ok_or("uid is missing")?;
+
+    Emission::<Test>::mutate(netuid, |v| v[uid as usize] = stake);
+    pallet_subnet_emission::SubnetEmission::<Test>::mutate(netuid, |s| *s += stake);
+
+    Ok(uid)
 }
 
 #[allow(dead_code)]
@@ -577,6 +582,11 @@ pub fn round_first_five(num: u64) -> u64 {
 pub fn zero_min_burn() {
     BurnConfig::<Test>::mutate(|cfg| cfg.min_burn = 0);
     SubnetBurnConfig::<Test>::mutate(|cfg| cfg.min_burn = 0);
+}
+
+#[allow(dead_code)]
+pub fn max_subnet_registrations_per_interval(max: u16) {
+    SubnetBurnConfig::<Test>::mutate(|cfg| cfg.max_registrations = max);
 }
 
 macro_rules! update_params {

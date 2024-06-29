@@ -76,7 +76,7 @@ impl<T: Config> Pallet<T> {
         Self::validate_user_stake(netuid, stake)?;
         Self::ensure_module_key_not_registered(netuid, &module_key)?;
         Self::reserve_module_slot(netuid)?;
-        Self::check_rootnet_registration_requirements(netuid, stake, Burn::<T>::get(netuid))?;
+        Self::check_rootnet_registration_requirements(netuid, stake)?;
 
         let uid = Self::register_module(netuid, &module_key, name, address, metadata)?;
         Self::handle_stake(origin, &key, &module_key, netuid, stake)?;
@@ -198,7 +198,8 @@ impl<T: Config> Pallet<T> {
 
         Self::add_rootnet_validator(netuid, uid)?;
 
-        RegistrationsPerBlock::<T>::mutate(|val| *val = val.saturating_add(1));        RegistrationsThisInterval::<T>::mutate(netuid, |registrations| {
+        RegistrationsPerBlock::<T>::mutate(|val| *val = val.saturating_add(1));
+        RegistrationsThisInterval::<T>::mutate(netuid, |registrations| {
             *registrations = registrations.saturating_add(1);
         });
 
@@ -358,12 +359,7 @@ impl<T: Config> Pallet<T> {
     // Rootnet utils
     // --------------------------
 
-    // This reserves a slot for a potential validator on the rootnet.
-    fn check_rootnet_registration_requirements(
-        netuid: u16,
-        stake: u64,
-        current_burn: u64,
-    ) -> DispatchResult {
+    fn check_rootnet_registration_requirements(netuid: u16, stake: u64) -> DispatchResult {
         if netuid == ROOTNET_ID
             && Self::get_validator_count(ROOTNET_ID)
                 >= MaxAllowedValidators::<T>::get(ROOTNET_ID).unwrap_or(u16::MAX) as usize
@@ -375,10 +371,7 @@ impl<T: Config> Pallet<T> {
                 .min_by_key(|(_, stake)| *stake)
                 .ok_or(Error::<T>::ArithmeticError)?;
 
-            ensure!(
-                stake >= lower_stake.saturating_add(current_burn),
-                Error::<T>::NotEnoughStakeToRegister
-            );
+            ensure!(stake >= lower_stake, Error::<T>::NotEnoughStakeToRegister);
 
             let lower_stake_validator_uid =
                 Self::get_uid_for_key(ROOTNET_ID, &lower_stake_validator);
@@ -461,6 +454,7 @@ impl<T: Config> Pallet<T> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn adjust_burn_parameters<F>(
         block_number: u64,
         adjustment_interval: u16,

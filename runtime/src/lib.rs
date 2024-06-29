@@ -110,8 +110,11 @@ pub mod opaque {
     }
 }
 
-pub type Migrations = (pallet_subspace::migrations::v11::MigrateToV11<Runtime>,);
-
+pub type Migrations = (
+    pallet_subspace::migrations::v12::MigrateToV12<Runtime>,
+    pallet_subnet_emission::migrations::InitialMigration<Runtime>,
+    pallet_governance::migrations::MigrationV1<Runtime>,
+);
 // To learn more about runtime versioning, see:
 // https://docs.substrate.io/main-docs/build/upgrade#runtime-versioning
 #[sp_version::runtime_version]
@@ -373,6 +376,7 @@ impl pallet_governance::Config for Runtime {
     type WeightInfo = pallet_governance::weights::SubstrateWeight<Runtime>;
 }
 
+#[cfg(feature = "testnet-faucet")]
 impl pallet_faucet::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Currency = Balances;
@@ -443,8 +447,10 @@ construct_runtime!(
         Utility: pallet_utility,
         SubspaceModule: pallet_subspace,
         GovernanceModule: pallet_governance,
-        FaucetModule: pallet_faucet,
         SubnetEmissionModule: pallet_subnet_emission,
+
+        #[cfg(feature = "testnet-faucet")]
+        FaucetModule: pallet_faucet,
 
         // EVM Support
         BaseFee: pallet_base_fee,
