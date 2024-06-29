@@ -734,10 +734,12 @@ pub mod pallet {
             Weight::default()
         }
 
-        fn on_idle(_n: BlockNumberFor<T>, remaining: Weight) -> Weight {
-            log::info!("running on_idle");
-            Pallet::<T>::deregister_not_whitelisted_modules(remaining)
-        }
+        // TODO:
+        // later
+        // fn on_idle(_n: BlockNumberFor<T>, remaining: Weight) -> Weight {
+        //     log::info!("running on_idle");
+        //     Pallet::<T>::deregister_not_whitelisted_modules(remaining)
+        // }
     }
 
     // Dispatchable functions allow users to interact with the pallet and invoke state changes.
