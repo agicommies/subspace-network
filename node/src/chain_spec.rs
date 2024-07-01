@@ -95,33 +95,43 @@ pub fn generate_config(path: &str) -> Result<ChainSpec, String> {
             account_id_from_str(&subnet.7),
         ));
 
-        let subnet_module = state.modules[netuid]
-            .iter()
-            .map(|(key, name, addr, weights)| {
-                (
-                    account_id_from_str(key),
-                    name.as_bytes().to_vec(),
-                    addr.as_bytes().to_vec(),
-                    weights.iter().map(|(a, b)| (*a, *b)).collect(),
-                )
-            })
-            .collect();
+        let subnet_module = state.modules.get(netuid).map_or_else(
+            Vec::new, // Changed from || Vec::new()
+            |module| {
+                module
+                    .iter()
+                    .map(|(key, name, addr, weights)| {
+                        (
+                            account_id_from_str(key),
+                            name.as_bytes().to_vec(),
+                            addr.as_bytes().to_vec(),
+                            weights.iter().map(|(a, b)| (*a, *b)).collect(),
+                        )
+                    })
+                    .collect()
+            },
+        );
         modules.push(subnet_module);
 
-        let subnet_stake_to = state.stake_to[netuid]
-            .iter()
-            .map(|(key, key_stake_to)| {
-                let key = account_id_from_str(key);
-                let key_stake_to = key_stake_to
+        let subnet_stake_to = state.stake_to.get(netuid).map_or_else(
+            Vec::new, // Changed from || Vec::new()
+            |stake_to_subnet| {
+                stake_to_subnet
                     .iter()
-                    .map(|(a, b)| {
-                        let key = account_id_from_str(a);
-                        (key, *b)
+                    .map(|(key, key_stake_to)| {
+                        let key = account_id_from_str(key);
+                        let key_stake_to = key_stake_to
+                            .iter()
+                            .map(|(a, b)| {
+                                let key = account_id_from_str(a);
+                                (key, *b)
+                            })
+                            .collect();
+                        (key, key_stake_to)
                     })
-                    .collect();
-                (key, key_stake_to)
-            })
-            .collect();
+                    .collect()
+            },
+        );
         stake_to.push(subnet_stake_to);
     }
 
