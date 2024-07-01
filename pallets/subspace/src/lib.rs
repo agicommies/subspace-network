@@ -641,6 +641,10 @@ pub mod pallet {
         InvalidMaxRegistrationsPerInterval,
         InvalidAdjustmentAlpha,
         InvalidTargetRegistrationsInterval,
+
+        // Extrinsic panicked
+        ExtrinsicPanicked,
+        StepPanicked,
     }
 
     // ---------------------------------
