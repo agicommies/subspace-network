@@ -854,6 +854,35 @@ impl pallet_subnet_emission_api::SubnetEmissionApi for Runtime {
     fn get_rootnet_netuid() -> Option<u16> {
         SubnetEmissionModule::get_rootnet_netuid()
     }
+
+    fn get_pending_emission(netuid: u16) -> u64 {
+        pallet_subnet_emission::PendingEmission::<Runtime>::get(netuid)
+    }
+
+    fn set_pending_emission(netuid: u16, pending_emission: u64) {
+        pallet_subnet_emission::PendingEmission::<Runtime>::set(netuid, pending_emission);
+    }
+
+    fn get_subnet_emission(netuid: u16) -> u64 {
+        pallet_subnet_emission::SubnetEmission::<Runtime>::get(netuid)
+    }
+
+    fn set_subnet_emission(netuid: u16, subnet_emission: u64) {
+        pallet_subnet_emission::SubnetEmission::<Runtime>::set(netuid, subnet_emission);
+    }
+
+    fn get_subnet_consensus_type(
+        netuid: u16,
+    ) -> Option<pallet_subnet_emission_api::SubnetConsensus> {
+        pallet_subnet_emission::SubnetConsensusType::<Runtime>::get(netuid)
+    }
+
+    fn set_subnet_consensus_type(
+        netuid: u16,
+        subnet_consensus: Option<pallet_subnet_emission_api::SubnetConsensus>,
+    ) {
+        pallet_subnet_emission::SubnetConsensusType::<Runtime>::set(netuid, subnet_consensus)
+    }
 }
 
 impl pallet_governance_api::GovernanceApi<<Runtime as frame_system::Config>::AccountId>

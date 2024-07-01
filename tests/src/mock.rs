@@ -173,6 +173,35 @@ impl SubnetEmissionApi for Test {
     fn get_rootnet_netuid() -> Option<u16> {
         pallet_subnet_emission::Pallet::<Test>::get_rootnet_netuid()
     }
+
+    fn get_pending_emission(netuid: u16) -> u64 {
+        pallet_subnet_emission::PendingEmission::<Test>::get(netuid)
+    }
+
+    fn set_pending_emission(netuid: u16, pending_emission: u64) {
+        pallet_subnet_emission::PendingEmission::<Test>::set(netuid, pending_emission);
+    }
+
+    fn get_subnet_emission(netuid: u16) -> u64 {
+        pallet_subnet_emission::SubnetEmission::<Test>::get(netuid)
+    }
+
+    fn set_subnet_emission(netuid: u16, subnet_emission: u64) {
+        pallet_subnet_emission::SubnetEmission::<Test>::set(netuid, subnet_emission);
+    }
+
+    fn get_subnet_consensus_type(
+        netuid: u16,
+    ) -> Option<pallet_subnet_emission_api::SubnetConsensus> {
+        pallet_subnet_emission::SubnetConsensusType::<Test>::get(netuid)
+    }
+
+    fn set_subnet_consensus_type(
+        netuid: u16,
+        subnet_consensus: Option<pallet_subnet_emission_api::SubnetConsensus>,
+    ) {
+        pallet_subnet_emission::SubnetConsensusType::<Test>::set(netuid, subnet_consensus)
+    }
 }
 
 impl pallet_subnet_emission::Config for Test {

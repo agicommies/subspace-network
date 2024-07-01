@@ -23,8 +23,10 @@ pub fn ss58_to_account_id<T: Config>(
 
 pub mod v12 {
     use super::*;
-    use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, StorageDoubleMap};
-    use pallet_governance_api::{GovernanceConfiguration, VoteMode};
+    use dispatch::DispatchResult;
+    use frame_support::{storage::with_storage_layer, traits::OnRuntimeUpgrade, weights::Weight};
+    use pallet_governance_api::VoteMode;
+    use pallet_subnet_emission_api::SubnetConsensus;
     use sp_std::collections::btree_map::BTreeMap;
 
     pub mod old_storage {
@@ -189,31 +191,38 @@ pub mod v12 {
             the consensus type to Linear.
 
             */
+            if let Err(err) = with_storage_layer(|| {
+                transfer_subnet::<T>(1, None)?;
+                transfer_subnet::<T>(2, None)?;
+                transfer_subnet::<T>(0, Some(2))?;
 
-            transfer_subnet::<T>(1, None);
-            transfer_subnet::<T>(2, None);
-            transfer_subnet::<T>(0, Some(2));
+                // Rootnet configuration
+                const ROOTNET_ID: u16 = 0;
+                SubnetNames::<T>::set(ROOTNET_ID, b"Rootnet".to_vec());
+                MaxAllowedUids::<T>::set(ROOTNET_ID, 256);
+                MaxAllowedValidators::<T>::set(ROOTNET_ID, Some(256));
+                set_vote_mode::<T>(ROOTNET_ID);
+                FounderShare::<T>::set(ROOTNET_ID, 0);
+                T::set_subnet_consensus_type(ROOTNET_ID, Some(SubnetConsensus::Root));
 
-            // Rootnet configuration
-            const ROOTNET_ID: u16 = 0;
-            SubnetNames::<T>::set(ROOTNET_ID, b"Rootnet".to_vec());
-            MaxAllowedUids::<T>::set(ROOTNET_ID, 256);
-            MaxAllowedValidators::<T>::set(ROOTNET_ID, Some(256));
-            set_vote_mode::<T>(ROOTNET_ID);
-            FounderShare::<T>::set(ROOTNET_ID, 0);
-            // how to SubnetConsensusType::<T>::set(ROOTNET_ID, SubnetConsensus::Root);
+                // Treasury subnet configuration
+                const TREASURYNET_ID: u16 = 1;
+                SubnetNames::<T>::set(0, b"Treasury".to_vec());
+                set_vote_mode::<T>(TREASURYNET_ID);
+                Founder::<T>::set(TREASURYNET_ID, T::get_dao_treasury_address());
+                FounderShare::<T>::set(TREASURYNET_ID, u16::MAX);
+                T::set_subnet_consensus_type(TREASURYNET_ID, Some(SubnetConsensus::Treasury));
 
-            // Treasury subnet configuration
-            const TREASURYNET_ID: u16 = 1;
-            SubnetNames::<T>::set(0, b"Treasury".to_vec());
-            set_vote_mode::<T>(TREASURYNET_ID);
-            Founder::<T>::set(TREASURYNET_ID, T::get_dao_treasury_address());
-            FounderShare::<T>::set(TREASURYNET_ID, u16::MAX);
-            // how to SubnetConsensusType::<T>::set(TREASURYNET_ID, SubnetConsensus::Treasury);
+                // Linear subnet configuration
+                const LINEARNET_ID: u16 = 2;
+                T::set_subnet_consensus_type(LINEARNET_ID, Some(SubnetConsensus::Linear));
 
-            // Linear subnet configuration
-            const LINEARNET_ID: u16 = 2;
-            // how to SubnetConsensusType::<T>::set(LINEARNET_ID, SubnetConsensus::Linear);
+                log::info!("migrated rootnet.");
+
+                Ok(()) as DispatchResult
+            }) {
+                log::error!("could not complete the rootnet migration: {err:?}");
+            };
 
             StorageVersion::new(12).put::<Pallet<T>>();
             T::DbWeight::get().reads_writes(1, 1)
@@ -235,7 +244,10 @@ pub mod v12 {
         };
     }
 
-    fn transfer_subnet<T: Config>(current_subnet_id: u16, target_subnet_id: Option<u16>) {
+    fn transfer_subnet<T: Config>(
+        current_subnet_id: u16,
+        target_subnet_id: Option<u16>,
+    ) -> DispatchResult {
         let target_subnet_id =
             target_subnet_id.unwrap_or(match SubnetGaps::<T>::get().first().copied() {
                 Some(removed) => removed,
@@ -288,8 +300,22 @@ pub mod v12 {
         migrate_double_map!(T, Weights, curr, target);
         migrate_double_map!(T, DelegationFee, curr, target);
         migrate_double_map!(T, DelegationFee, curr, target);
+        migrate_api!(T, get_pending_emission, set_pending_emission, curr, target);
+        migrate_api!(T, get_subnet_emission, set_subnet_emission, curr, target);
+        migrate_api!(
+            T,
+            get_subnet_consensus_type,
+            set_subnet_consensus_type,
+            curr,
+            target
+        );
 
-        // TODO: StakeFrom, StakeTo (?)
+        let curr_governance_config = T::get_subnet_governance_configuration(curr);
+        let target_governance_config = T::get_subnet_governance_configuration(curr);
+        T::update_subnet_governance_configuration(curr, target_governance_config)?;
+        T::update_subnet_governance_configuration(target, curr_governance_config)?;
+
+        Ok(())
     }
 
     #[macro_export]
@@ -305,6 +331,16 @@ pub mod v12 {
     macro_rules! migrate_map {
         ($gen:ident, $map:ident, $curr_id:ident, $target_id:ident) => {
             $map::<$gen>::swap($curr_id, $target_id);
+        };
+    }
+
+    #[macro_export]
+    macro_rules! migrate_api {
+        ($gen:ident, $getter:ident, $setter:ident, $curr_id:ident, $target_id:ident) => {
+            let curr_value = $gen::$getter($curr_id);
+            let target_value = $gen::$getter($target_id);
+            $gen::$setter($curr_id, target_value);
+            $gen::$setter($target_id, curr_value);
         };
     }
 }
