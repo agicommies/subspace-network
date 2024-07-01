@@ -1,17 +1,12 @@
-mod mock;
+use crate::mock::*;
 use frame_support::assert_ok;
+use pallet_subspace::{global::BurnConfiguration, *};
 
-use mock::*;
-use pallet_subspace::{
-    global::BurnConfiguration, AdjustmentAlpha, Burn, MaxRegistrationsPerBlock,
-    TargetRegistrationsInterval, TargetRegistrationsPerInterval,
-};
-use sp_core::U256;
-
-// test subnet specific burn
 #[test]
-fn test_local_subnet_burn() {
+fn module_registration_burn_increases() {
     new_test_ext().execute_with(|| {
+        max_subnet_registrations_per_interval(3);
+
         let min_burn = to_nano(10);
         let max_burn = to_nano(1000);
 
@@ -20,33 +15,34 @@ fn test_local_subnet_burn() {
             max_burn,
             ..BurnConfiguration::<Test>::default()
         };
-
         assert_ok!(burn_config.apply());
 
-        MaxRegistrationsPerBlock::<Test>::set(5);
         let target_reg_interval = 200;
         let target_reg_per_interval = 25;
 
         // register the general subnet
-        assert_ok!(register_module(0, U256::from(0), to_nano(20)));
-        AdjustmentAlpha::<Test>::insert(0, 200);
-        TargetRegistrationsPerInterval::<Test>::insert(0, 25);
+        assert_ok!(register_module(0, 0, to_nano(20)));
+
         // Adjust max registrations per block to a high number.
         // We will be doing "registration raid"
+        AdjustmentAlpha::<Test>::insert(0, 200);
+        TargetRegistrationsPerInterval::<Test>::insert(0, 25);
         TargetRegistrationsInterval::<Test>::insert(0, target_reg_interval); // for the netuid 0
         TargetRegistrationsPerInterval::<Test>::insert(0, target_reg_per_interval); // for the netuid 0
+        MaxRegistrationsPerInterval::<Test>::insert(0, 1000);
 
         // register 500 modules on yuma subnet
         let netuid = 1;
-        let n = 300;
+        let n = 300u32;
         let initial_stake: u64 = to_nano(500);
 
         MaxRegistrationsPerBlock::<Test>::set(1000);
         // this will perform 300 registrations and step in between
-        for i in 1..n {
+        for module_key in 1..n {
             // this registers five in block
-            assert_ok!(register_module(netuid, U256::from(i), initial_stake));
-            if i % 5 == 0 {
+            assert_ok!(register_module(netuid, module_key, initial_stake));
+
+            if module_key % 5 == 0 {
                 // after that we step 30 blocks
                 // meaning that the average registration per block is 0.166..
                 TargetRegistrationsInterval::<Test>::insert(netuid, target_reg_interval); // for the netuid 0

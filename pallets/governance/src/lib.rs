@@ -1,4 +1,5 @@
 //! The Governance pallet.
+#![allow(non_camel_case_types, non_snake_case)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -39,7 +40,7 @@ pub mod pallet {
     use pallet_subspace::DefaultKey;
     use sp_runtime::traits::AccountIdConversion;
 
-    const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
@@ -139,15 +140,6 @@ pub mod pallet {
     pub type DaoTreasuryAddress<T: Config> =
         StorageValue<_, T::AccountId, ValueQuery, DefaultDaoTreasuryAddress<T>>;
 
-    #[pallet::type_value]
-    pub fn DefaultDaoTreasuryDistribution<T: Config>() -> Percent {
-        Percent::from_percent(5u8)
-    }
-
-    #[pallet::storage]
-    pub type DaoTreasuryDistribution<T: Config> =
-        StorageValue<_, Percent, ValueQuery, DefaultDaoTreasuryDistribution<T>>;
-
     // ---------------------------------
     // Dao
     // ---------------------------------
@@ -198,10 +190,11 @@ pub mod pallet {
             floor_founder_share: u8,
             min_weight_stake: u64,
             curator: T::AccountId,
-            subnet_stake_threshold: Percent,
             proposal_cost: u64,
             proposal_expiration: u32,
             general_subnet_application_cost: u64,
+            kappa: u16,
+            rho: u16,
         ) -> DispatchResult {
             let mut params = pallet_subspace::Pallet::<T>::global_params();
             params.max_name_length = max_name_length;
@@ -214,14 +207,13 @@ pub mod pallet {
             params.floor_founder_share = floor_founder_share;
             params.min_weight_stake = min_weight_stake;
             params.curator = curator;
-            params.subnet_stake_threshold = subnet_stake_threshold;
             params.governance_config.proposal_cost = proposal_cost;
             params.governance_config.proposal_expiration = proposal_expiration;
             params.general_subnet_application_cost = general_subnet_application_cost;
-
             params.burn_config.min_burn = min_burn;
             params.burn_config.max_burn = max_burn;
-
+            params.kappa = kappa;
+            params.rho = rho;
             Self::do_add_global_params_proposal(origin, data, params)
         }
 
@@ -250,6 +242,7 @@ pub mod pallet {
             target_registrations_per_interval: u16,
             max_registrations_per_interval: u16,
             adjustment_alpha: u64,
+            min_immunity_stake: u64,
         ) -> DispatchResult {
             let mut params = pallet_subspace::Pallet::subnet_params(subnet_id);
             params.founder = founder;
@@ -271,6 +264,7 @@ pub mod pallet {
             params.target_registrations_per_interval = target_registrations_per_interval;
             params.max_registrations_per_interval = max_registrations_per_interval;
             params.adjustment_alpha = adjustment_alpha;
+            params.min_immunity_stake = min_immunity_stake;
 
             Self::do_add_subnet_params_proposal(origin, subnet_id, data, params)
         }

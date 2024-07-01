@@ -1,5 +1,5 @@
 [package]
-name = "pallet-governance-api"
+name = "pallet-subnet-emission-api"
 authors = ["Commune Nucleus Team"]
 version = "1.0.0"
 edition = "2021"

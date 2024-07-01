@@ -1,6 +1,6 @@
-use core::num::NonZeroU64;
-
 use super::*;
+use core::num::NonZeroU64;
+use frame_support::pallet_prelude::DispatchResult;
 
 impl<T: Config> Pallet<T> {
     // Returns true if the items contain duplicates.
@@ -9,8 +9,6 @@ impl<T: Config> Pallet<T> {
         items.iter().any(|item| !seen.insert(item))
     }
 
-    // Outside of the on_initalize hook, it's ok for this code to panic.
-    #[allow(clippy::arithmetic_side_effects, clippy::indexing_slicing)]
     pub fn do_set_weights(
         origin: T::RuntimeOrigin,
         netuid: u16,
@@ -38,8 +36,9 @@ impl<T: Config> Pallet<T> {
             Error::<T>::NotRegistered
         );
 
-        let max_set_weights = MaximumSetWeightCallsPerEpoch::<T>::get(netuid);
-        if max_set_weights != 0 {
+        let max_set_weights =
+            MaximumSetWeightCallsPerEpoch::<T>::get(netuid).filter(|max| *max > 0);
+        if let Some(max_set_weights) = max_set_weights {
             let set_weight_uses = SetWeightCallsPerEpoch::<T>::mutate(netuid, &key, |value| {
                 *value = value.saturating_add(1);
                 *value
@@ -53,6 +52,8 @@ impl<T: Config> Pallet<T> {
 
         // --- 5. Get the module uid of associated key on network netuid.
         let uid: u16 = Self::get_uid_for_key(netuid, &key);
+
+        Self::check_rootnet_daily_limit(netuid, uid)?;
 
         // --- 6. Ensure the passed uids contain no duplicates.
         ensure!(!Self::contains_duplicates(&uids), Error::<T>::DuplicateUids);
@@ -76,11 +77,13 @@ impl<T: Config> Pallet<T> {
         ensure!(!uids.contains(&uid), Error::<T>::NoSelfWeight);
 
         // --- 10. Get the stake for the key.
-        let stake: u64 = Stake::<T>::get(netuid, &key);
+        let stake: u64 = Stake::<T>::get(&key);
 
         // --- 11. Check if the stake per weight is greater than the required minimum stake.
         let min_stake_per_weight: u64 = MinWeightStake::<T>::get();
-        let min_stake_for_weights: u64 = min_stake_per_weight * uids.len() as u64;
+        let min_stake_for_weights: u64 = min_stake_per_weight
+            .checked_mul(uids.len() as u64)
+            .ok_or(Error::<T>::ExtrinsicPanicked)?;
         ensure!(
             stake >= min_stake_for_weights,
             Error::<T>::NotEnoughStakePerWeight
@@ -112,13 +115,27 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
+    // -------------
+    // Util
+    // -------------
+
+    fn check_rootnet_daily_limit(netuid: u16, module_id: u16) -> DispatchResult {
+        if netuid == ROOTNET_ID {
+            if RootNetWeightCalls::<T>::get(module_id).is_some() {
+                return Err(Error::<T>::MaxRootnetWeightCallsPerInterval.into());
+            }
+
+            RootNetWeightCalls::<T>::set(module_id, Some(()));
+        }
+        Ok(())
+    }
+
     // Returns true if the uid is set on the network.
     pub fn uid_exist_on_network(netuid: u16, uid: u16) -> bool {
         Keys::<T>::contains_key(netuid, uid)
     }
 
     /// normalizes the passed positive integer weights so that they sum to u16 max value inplace.
-    #[allow(clippy::arithmetic_side_effects)]
     pub fn normalize_weights(weights: Vec<u16>) -> Vec<u16> {
         let Some(sum) = NonZeroU64::new(weights.iter().map(|&x| x as u64).sum()) else {
             return weights;
@@ -126,7 +143,7 @@ impl<T: Config> Pallet<T> {
 
         weights
             .into_iter()
-            .map(|x| ((x as u64 * u16::MAX as u64) / sum) as u16)
+            .map(|x| ((x as u64).saturating_mul(u16::MAX as u64) / sum) as u16)
             .collect()
     }
 }

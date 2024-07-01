@@ -1,21 +1,8 @@
 use super::*;
 
-use frame_support::pallet_prelude::{Decode, DispatchResult, Encode};
+use frame_support::pallet_prelude::DispatchResult;
 use sp_arithmetic::per_things::Percent;
-use sp_std::collections::btree_map::BTreeMap;
 pub struct SubnetDistributionParameters;
-
-#[derive(Decode, Encode, PartialEq, Eq, Clone, Debug)]
-pub struct ModuleStats<T: Config> {
-    pub last_update: u64,
-    pub registration_block: u64,
-    pub stake_from: BTreeMap<T::AccountId, u64>, /* map of key to stake on this module/key *
-                                                  * (includes delegations) */
-    pub emission: u64,
-    pub incentive: u16,
-    pub dividends: u16,
-    pub weights: Vec<(u16, u16)>, // Vec of (uid, weight)
-}
 
 #[derive(Debug)]
 pub struct ModuleChangeset {
@@ -178,13 +165,17 @@ impl<T: Config> Pallet<T> {
         N::<T>::mutate(netuid, |n| *n = n.saturating_add(1));
 
         // increase the stake of the new key
-        Self::increase_stake(netuid, key, key, 0);
+        Self::increase_stake(key, key, 0);
 
         Ok(uid)
     }
 
     /// Replace the module under this uid.
-    pub fn remove_module(netuid: u16, uid: u16) -> DispatchResult {
+    pub fn remove_module(
+        netuid: u16,
+        uid: u16,
+        deregister_subnet_if_empty: bool,
+    ) -> DispatchResult {
         // 1. Get the old key under this position.
         let n = N::<T>::get(netuid);
         if n == 0 {
@@ -309,7 +300,7 @@ impl<T: Config> Pallet<T> {
         DelegationFee::<T>::remove(netuid, &replace_key); // Make uid - key association.
 
         // remove stake from old key and add to new key
-        Self::remove_stake_from_storage(netuid, &module_key);
+        Self::remove_stake_from_storage(&module_key);
 
         // 3. Remove the network if it is empty.
         let module_count = N::<T>::mutate(netuid, |v| {
@@ -318,37 +309,10 @@ impl<T: Config> Pallet<T> {
         }); // Decrease the number of modules in the network.
 
         // remove the network if it is empty
-        if module_count == 0 {
+        if deregister_subnet_if_empty && module_count == 0 {
             Self::remove_subnet(netuid);
         }
 
         Ok(())
-    }
-
-    pub fn get_module_stats(netuid: u16, key: &T::AccountId) -> ModuleStats<T> {
-        let uid = Uids::<T>::get(netuid, key).unwrap_or(u16::MAX);
-
-        let emission = Self::get_emission_for_uid(netuid, uid);
-        let incentive = Self::get_incentive_for_uid(netuid, uid);
-        let dividends = Self::get_dividends_for_uid(netuid, uid);
-        let last_update = Self::get_last_update_for_uid(netuid, uid);
-
-        let weights: Vec<(u16, u16)> = Weights::<T>::get(netuid, uid)
-            .iter()
-            .filter_map(|(i, w)| if *w > 0 { Some((*i, *w)) } else { None })
-            .collect();
-        let stake_from: BTreeMap<T::AccountId, u64> = StakeFrom::<T>::get(netuid, key);
-
-        let registration_block = RegistrationBlock::<T>::get(netuid, uid);
-
-        ModuleStats {
-            stake_from,
-            emission,
-            incentive,
-            dividends,
-            last_update,
-            registration_block,
-            weights,
-        }
     }
 }
