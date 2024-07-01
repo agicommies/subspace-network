@@ -27,6 +27,7 @@ pub mod v12 {
     use frame_support::{storage::with_storage_layer, traits::OnRuntimeUpgrade, weights::Weight};
     use pallet_governance_api::VoteMode;
     use pallet_subnet_emission_api::SubnetConsensus;
+
     use sp_std::collections::btree_map::BTreeMap;
 
     pub mod old_storage {
@@ -191,6 +192,7 @@ pub mod v12 {
             the consensus type to Linear.
 
             */
+
             if let Err(err) = with_storage_layer(|| {
                 transfer_subnet::<T>(1, None)?;
                 transfer_subnet::<T>(2, None)?;
@@ -339,7 +341,6 @@ pub mod v12 {
             $map::<$gen>::swap($curr_id, $target_id);
         };
     }
-
     #[macro_export]
     macro_rules! migrate_api {
         ($gen:ident, $getter:ident, $setter:ident, $curr_id:ident, $target_id:ident) => {
