@@ -51,32 +51,28 @@ impl<T: Config> Pallet<T> {
         values: Vec<u16>,
     ) -> dispatch::DispatchResult {
         let key = ensure_signed(origin)?;
-        let uid = Self::get_uid_for_key(netuid, &key);
-        let uids_len = uids.len();
-        Self::validate_input(uid, &uids, uids_len, &values, netuid, &key)?;
+        let Some(uid) = Self::get_uid_for_key(netuid, &key) else {
+            return Err(Error::<T>::ModuleDoesNotExist.into());
+        };
+        Self::validate_input(uid, &uids, &values, netuid)?;
         Self::handle_rate_limiting(uid, netuid, &key)?;
-        Self::validate_stake(&key, uids_len)?;
+        Self::validate_stake(&key, uids.len())?;
         Self::finalize_weights(netuid, uid, &uids, &values)?;
         Ok(())
     }
 
-    fn validate_input(
-        uid: u16,
-        uids: &[u16],
-        uids_len: usize,
-        values: &[u16],
-        netuid: u16,
-        key: &T::AccountId,
-    ) -> DispatchResult {
-        ensure!(uids_len == values.len(), Error::<T>::WeightVecNotEqualSize);
+    fn validate_input(uid: u16, uids: &[u16], values: &[u16], netuid: u16) -> DispatchResult {
+        ensure!(
+            uids.len() == values.len(),
+            Error::<T>::WeightVecNotEqualSize
+        );
         ensure!(
             Self::if_subnet_exist(netuid),
             Error::<T>::NetworkDoesNotExist
         );
-        ensure!(Self::key_registered(netuid, key), Error::<T>::NotRegistered);
         ensure!(!Self::contains_duplicates(uids), Error::<T>::DuplicateUids);
         Self::perform_uid_validity_check(uids, netuid)?;
-        Self::validate_uids_length(uids_len, netuid)?;
+        Self::validate_uids_length(uids.len(), netuid)?;
         ensure!(
             netuid == ROOTNET_ID || !uids.contains(&uid),
             Error::<T>::NoSelfWeight
@@ -164,7 +160,7 @@ impl<T: Config> Pallet<T> {
         if netuid == ROOTNET_ID {
             ensure!(
                 RootNetWeightCalls::<T>::get(module_id).is_none(),
-                Error::<T>::MaxWeightCalls
+                Error::<T>::MaximumSetWeightsPerEpochReached
             );
             RootNetWeightCalls::<T>::set(module_id, Some(()));
         }

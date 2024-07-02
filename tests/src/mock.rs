@@ -291,7 +291,7 @@ pub fn add_balance(key: AccountId, amount: Balance) {
 
 pub fn delegate(account: u32) {
     assert_ok!(GovernanceMod::enable_vote_power_delegation(get_origin(
-        account.into()
+        account
     )));
 }
 
@@ -299,18 +299,18 @@ pub fn delegate(account: u32) {
 pub fn get_stakes(netuid: u16) -> Vec<u64> {
     SubspaceMod::get_uid_key_tuples(netuid)
         .into_iter()
-        .map(|(_, key)| Stake::<Test>::get(&key))
+        .map(|(_, key)| Stake::<Test>::get(key))
         .collect()
 }
 
 pub fn stake(account: u32, module: u32, stake: u64) {
-    if get_balance(account.into()) <= stake {
-        add_balance(account.into(), stake + to_nano(1));
+    if get_balance(account) <= stake {
+        add_balance(account, stake + to_nano(1));
     }
 
     assert_ok!(SubspaceMod::do_add_stake(
-        get_origin(account.into()),
-        module.into(),
+        get_origin(account),
+        module,
         stake
     ));
 }
@@ -522,7 +522,7 @@ pub fn register_module(netuid: u16, key: AccountId, stake: u64) -> Result<u16, D
 #[allow(dead_code)]
 pub fn register_root_validator(key: AccountId, stake: u64) -> Result<u16, DispatchError> {
     let origin = get_origin(key);
-    let network = format!("rootnet").as_bytes().to_vec();
+    let network = b"rootnet".to_vec();
     let name = format!("module{key}").as_bytes().to_vec();
     let address = "0.0.0.0:30333".as_bytes().to_vec();
 
@@ -542,7 +542,7 @@ pub fn get_balance(key: AccountId) -> Balance {
 
 pub fn vote(account: u32, proposal_id: u64, agree: bool) {
     assert_ok!(GovernanceMod::do_vote_proposal(
-        get_origin(account.into()),
+        get_origin(account),
         proposal_id,
         agree
     ));
@@ -607,7 +607,7 @@ macro_rules! assert_ok {
 
 macro_rules! assert_in_range {
     ($value:expr, $expected:expr, $margin:expr) => {
-        assert!($expected - $margin <= $value && $expected + $margin >= $value);
+        assert!(($expected..=$expected).contains(&$value));
     };
 }
 

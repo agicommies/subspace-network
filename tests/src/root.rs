@@ -2,9 +2,8 @@ use pallet_subnet_emission::{
     subnet_pricing::root::RootPricing, PendingEmission, SubnetEmission, UnitEmission,
 };
 use pallet_subspace::{
-    BurnConfig, Emission, Kappa, MaxAllowedUids, MaxRegistrationsPerBlock,
-    MaxRegistrationsPerInterval, Rho, Stake, SubnetBurnConfig, TargetRegistrationsPerInterval,
-    Tempo, ValidatorPermits,
+    Kappa, MaxAllowedUids, MaxRegistrationsPerBlock, MaxRegistrationsPerInterval, Rho,
+    TargetRegistrationsPerInterval, Tempo,
 };
 
 pub use crate::mock::*;
@@ -81,9 +80,9 @@ fn test_emission() {
         zero_min_burn();
 
         let n = 10;
-        MaxRegistrationsPerBlock::<Test>::set(n * 2 as u16);
-        TargetRegistrationsPerInterval::<Test>::set(ROOT_NETUID, n as u16);
-        MaxAllowedUids::<Test>::set(ROOT_NETUID, n as u16);
+        MaxRegistrationsPerBlock::<Test>::set(n * 2);
+        TargetRegistrationsPerInterval::<Test>::set(ROOT_NETUID, n);
+        MaxAllowedUids::<Test>::set(ROOT_NETUID, n);
         UnitEmission::<Test>::set(1000000000);
         Rho::<Test>::set(30);
         Kappa::<Test>::set(32767);
@@ -122,7 +121,7 @@ fn test_emission() {
         for i in 0..n {
             let key_id: u32 = i as u32;
             let key_origin = get_origin(key_id);
-            let uids: Vec<u16> = vec![i as u16];
+            let uids: Vec<u16> = vec![i];
             let values: Vec<u16> = vec![1];
             assert_ok!(SubspaceMod::set_weights(
                 key_origin,
@@ -133,12 +132,6 @@ fn test_emission() {
         }
 
         Tempo::<Test>::set(0, 1);
-        // let priced_subnets = assert_ok!(RootPricing::<Test>::new(1_000_000_000).run());
-
-        // let a = assert_ok!(RootPricing::<Test>::new(1_000_000_000).run());
-        // for (netuid, emission) in a {
-        //     SubnetEmission::<Test>::set(netuid, emission);
-        // }
 
         let _ = SubnetEmissionMod::get_subnet_pricing(1_000_000_000);
         for netuid in 1..n {
@@ -173,11 +166,8 @@ fn test_emission() {
             assert_eq!(pending_emission, 299_999_997);
         }
 
-        let step = SubnetEmissionMod::blocks_until_next_epoch(
-            10,
-            1000,
-            SubspaceMod::get_current_block_number(),
-        );
+        let step =
+            SubspaceMod::blocks_until_next_epoch(10, SubspaceMod::get_current_block_number());
         step_block(step as u16);
         assert_eq!(PendingEmission::<Test>::get(10), 0);
     });
