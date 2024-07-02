@@ -204,6 +204,8 @@ pub mod v12 {
                 set_vote_mode::<T>(ROOTNET_ID);
                 FounderShare::<T>::set(ROOTNET_ID, 0);
                 T::set_subnet_consensus_type(ROOTNET_ID, Some(SubnetConsensus::Root));
+                Burn::<T>::set(ROOTNET_ID, 0);
+                MinStake::<T>::set(ROOTNET_ID, 0);
 
                 // Treasury subnet configuration
                 const TREASURYNET_ID: u16 = 1;
