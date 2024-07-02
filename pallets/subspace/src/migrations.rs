@@ -213,6 +213,7 @@ pub mod v12 {
                 set_vote_mode::<T>(TREASURYNET_ID);
                 Founder::<T>::set(TREASURYNET_ID, T::get_dao_treasury_address());
                 FounderShare::<T>::set(TREASURYNET_ID, u16::MAX);
+                MaxAllowedUids::<T>::set(TREASURYNET_ID, 0);
                 T::set_subnet_consensus_type(TREASURYNET_ID, Some(SubnetConsensus::Treasury));
 
                 // Linear subnet configuration
