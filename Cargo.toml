@@ -15,6 +15,10 @@ resolver = "2"
 [profile.release]
 panic = "unwind"
 
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+
 [workspace.lints.clippy]
 all = "deny"
 arithmetic_side_effects = "deny"
@@ -24,6 +28,14 @@ out_of_bounds_indexing = "deny"
 integer_arithmetic = "deny"
 match_bool = "deny"
 integer_overflow = "deny"
+float_arithmetic = "deny"
+cast_possible_wrap = "deny"
+cast_precision_loss = "deny"
+unnecessary_sort_by = "warn"
+unnecessary_to_owned = "warn"
+inefficient_to_string = "warn"
+undocumented_unsafe_blocks = "deny"
+cast_sign_loss = "deny"
 infinite_loop = "deny"
 
 [workspace.dependencies]
