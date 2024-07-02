@@ -16,6 +16,10 @@ pub enum SubnetConsensus {
 }
 
 pub trait SubnetEmissionApi {
+    fn get_unit_emission() -> u64;
+
+    fn set_unit_emission(unit_emission: u64);
+
     fn get_lowest_emission_netuid() -> Option<u16>;
 
     fn remove_subnet_emission_storage(netuid: u16);

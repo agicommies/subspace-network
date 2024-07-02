@@ -823,6 +823,14 @@ impl_runtime_apis! {
 }
 
 impl pallet_subnet_emission_api::SubnetEmissionApi for Runtime {
+    fn get_unit_emission() -> u64 {
+        pallet_subnet_emission::UnitEmission::<Runtime>::get()
+    }
+
+    fn set_unit_emission(unit_emission: u64) {
+        pallet_subnet_emission::UnitEmission::<Runtime>::set(unit_emission);
+    }
+
     fn get_lowest_emission_netuid() -> Option<u16> {
         SubnetEmissionModule::get_lowest_emission_netuid()
     }

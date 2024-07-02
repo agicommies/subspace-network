@@ -219,6 +219,9 @@ pub mod v12 {
                 const LINEARNET_ID: u16 = 2;
                 T::set_subnet_consensus_type(LINEARNET_ID, Some(SubnetConsensus::Linear));
 
+                let current_unit_emission = T::get_unit_emission();
+                T::set_unit_emission(current_unit_emission / 4);
+
                 log::info!("migrated rootnet.");
 
                 Ok(()) as DispatchResult

@@ -142,6 +142,14 @@ impl GovernanceApi<<Test as frame_system::Config>::AccountId> for Test {
 }
 
 impl SubnetEmissionApi for Test {
+    fn get_unit_emission() -> u64 {
+        pallet_subnet_emission::UnitEmission::<Test>::get()
+    }
+
+    fn set_unit_emission(unit_emission: u64) {
+        pallet_subnet_emission::UnitEmission::<Test>::set(unit_emission);
+    }
+
     fn get_lowest_emission_netuid() -> Option<u16> {
         pallet_subnet_emission::Pallet::<Test>::get_lowest_emission_netuid()
     }
