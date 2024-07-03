@@ -253,7 +253,7 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
                 keystore: keystore_container.keystore(),
                 sync_oracle: sync_service.clone(),
                 justification_sync_link: sync_service.clone(),
-                block_proposal_slot_portion: SlotProportion::new(0.6666667f32),
+                block_proposal_slot_portion: SlotProportion::new(2f32 / 3f32),
                 max_block_proposal_slot_portion: None,
                 telemetry: telemetry.as_ref().map(|x| x.handle()),
                 compatibility_mode: Default::default(),
