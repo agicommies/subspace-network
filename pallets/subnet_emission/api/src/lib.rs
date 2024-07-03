@@ -8,4 +8,8 @@ pub trait SubnetEmissionApi {
     fn set_subnet_emission_storage(netuid: u16, emission: u64);
 
     fn can_remove_subnet(netuid: u16) -> bool;
+
+    fn is_minable_subnet(netuid: u16) -> bool;
+
+    fn get_rootnet_netuid() -> Option<u16>;
 }
