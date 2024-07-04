@@ -90,13 +90,18 @@ pub mod v12 {
                     .collect();
 
             // Before migration counts
-            let stake_count_before = old_storage::Stake::<T>::iter().count();
-            let stake_from_count_before = old_storage::StakeFrom::<T>::iter()
-                .map(|(_, _, stakes)| stakes.len())
-                .sum::<usize>();
-            let stake_to_count_before = old_storage::StakeTo::<T>::iter()
-                .map(|(_, _, stakes)| stakes.len())
-                .sum::<usize>();
+            let stake_count_before =
+                old_stake.keys().map(|(_, key)| key).collect::<BTreeSet<_>>().len();
+            let stake_from_count_before = old_stake_from
+                .iter()
+                .flat_map(|((_, key), stakes)| stakes.keys().map(move |key2| (key.clone(), key2)))
+                .collect::<BTreeSet<_>>()
+                .len();
+            let stake_to_count_before = old_stake_to
+                .iter()
+                .flat_map(|((_, key), stakes)| stakes.keys().map(move |key2| (key.clone(), key2)))
+                .collect::<BTreeSet<_>>()
+                .len();
 
             // Clear the problematic stake storages
             // We tried to do this with the old storage instead, after migration, but experienced
