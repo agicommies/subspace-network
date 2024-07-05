@@ -584,7 +584,6 @@ pub fn register_subnet(key: AccountId, netuid: u16) -> DispatchResult {
 #[allow(dead_code)]
 pub fn register_module(netuid: u16, key: AccountId, stake: u64) -> Result<u16, DispatchError> {
     let origin = get_origin(key);
-
     let network = format!("test{netuid}").as_bytes().to_vec();
     let name = format!("module{key}").as_bytes().to_vec();
     let address = "0.0.0.0:30333".as_bytes().to_vec();

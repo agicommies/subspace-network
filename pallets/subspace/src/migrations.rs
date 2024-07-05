@@ -24,10 +24,16 @@ pub fn ss58_to_account_id<T: Config>(
 pub mod v12 {
     use super::*;
     use dispatch::DispatchResult;
-    use frame_support::{storage::with_storage_layer, traits::OnRuntimeUpgrade, weights::Weight};
+    use frame_support::{
+        storage::with_storage_layer,
+        traits::{schedule, OnRuntimeUpgrade},
+        weights::Weight,
+    };
+    use frame_system::pallet_prelude::RuntimeCallFor;
     use module::ModuleChangeset;
     use pallet_governance_api::VoteMode;
     use pallet_subnet_emission_api::SubnetConsensus;
+    use sp_core::U256;
     use sp_runtime::Percent;
     use sp_std::collections::btree_map::BTreeMap;
 
@@ -302,6 +308,38 @@ pub mod v12 {
 
                 let current_unit_emission = T::get_unit_emission();
                 T::set_unit_emission(current_unit_emission / 4);
+
+                // let current_block = frame_system::Pallet::<T>::block_number();
+                let current_block: u64 = 0;
+                let two_day_interval: u64 = 10_800 * 2;
+
+                // pallet_scheduler::Pallet::<T>::schedule(
+                //     T::get_dao_treasury_address(), //Don't know how to get origin
+                //     current_block + two_day_interval,
+                //     None,
+                //     1,
+                //     call, //call, Don't know how to create this
+                // );
+
+                // T::RuntimeCall:
+
+                // pallet_scheduler::Pallet::<T>::schedule(
+                //     T::get_dao_treasury_address(), //Don't know how to get origin
+                //     current_block + (two_day_interval * 2),
+                //     None,
+                //     1,
+                //     call, //Don't know how to create this
+                // );
+
+                pallet_scheduler::Pallet::<T>::schedule(
+                    T::get_dao_treasury_address(), //Don't know how to get origin
+                    current_block + (two_day_interval * 3),
+                    None,
+                    1,
+                    Box::new(|| T::set_unit_emission(current_unit_emission)), /* Don't know how
+                                                                               * to
+                                                                               * create this */
+                );
 
                 log::info!("migrated rootnet.");
 

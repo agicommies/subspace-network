@@ -33,6 +33,7 @@ pallet-balances.workspace = true
 pallet-grandpa.workspace = true
 pallet-insecure-randomness-collective-flip.workspace = true
 pallet-multisig.workspace = true
+pallet-scheduler.workspace = true
 pallet-sudo.workspace = true
 pallet-timestamp.workspace = true
 pallet-transaction-payment.workspace = true
@@ -97,6 +98,7 @@ std = [
 	"pallet-grandpa/std",
 	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-multisig/std",
+	"pallet-scheduler/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
@@ -129,6 +131,7 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
+	"pallet-scheduler/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"pallet-subspace/runtime-benchmarks",
@@ -150,6 +153,7 @@ try-runtime = [
 	"pallet-subnet-emission/try-runtime",
 	"pallet-faucet/try-runtime",
 	"pallet-subspace/try-runtime",
+	"pallet-scheduler/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",

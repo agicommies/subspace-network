@@ -450,6 +450,7 @@ construct_runtime!(
         SubspaceModule: pallet_subspace,
         GovernanceModule: pallet_governance,
         SubnetEmissionModule: pallet_subnet_emission,
+        // Scheduler: pallet_scheduler,
 
         #[cfg(feature = "testnet-faucet")]
         FaucetModule: pallet_faucet,

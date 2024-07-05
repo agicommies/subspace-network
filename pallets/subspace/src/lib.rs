@@ -80,6 +80,7 @@ pub mod pallet {
     #[pallet::config(with_default)]
     pub trait Config:
         frame_system::Config
+        // + pallet_scheduler::Config
         + pallet_governance_api::GovernanceApi<<Self as frame_system::Config>::AccountId>
         + pallet_subnet_emission_api::SubnetEmissionApi
     {
