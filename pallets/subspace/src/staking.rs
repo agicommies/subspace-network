@@ -180,7 +180,7 @@ impl<T: Config> Pallet<T> {
         // -- 5. Check before values
         let stake_before_add: u64 = Self::get_stake_to_module(&key, &module_key.clone());
         let balance_before_add: u64 = Self::get_balance_u64(&key);
-        let module_stake_before_add: u64 = Stake::<T>::get(&module_key);
+        let module_stake_before_add: u64 = Self::get_delegated_stake(&module_key);
 
         // --- 6. We remove the balance from the key.
         Self::remove_balance_from_account(&key, removed_balance_as_currency.unwrap())?;
@@ -191,7 +191,7 @@ impl<T: Config> Pallet<T> {
         // -- 8. Check after values
         let stake_after_add: u64 = Self::get_stake_to_module(&key, &module_key.clone());
         let balance_after_add: u64 = Self::get_balance_u64(&key);
-        let module_stake_after_add = Stake::<T>::get(&module_key);
+        let module_stake_after_add = Self::get_delegated_stake(&module_key);
 
         // -- 9. Make sure everything went as expected.
         // Otherwise these ensurers will revert the storage changes.
@@ -245,7 +245,7 @@ impl<T: Config> Pallet<T> {
         // -- 5. Check before values
         let stake_before_remove: u64 = Self::get_stake_to_module(&key, &module_key.clone());
         let balance_before_remove: u64 = Self::get_balance_u64(&key);
-        let module_stake_before_remove: u64 = Stake::<T>::get(&module_key);
+        let module_stake_before_remove: u64 = Self::get_delegated_stake(&module_key);
 
         // --- 6. We remove the balance from the key.
         Self::decrease_stake(&key, &module_key, amount);
@@ -256,7 +256,7 @@ impl<T: Config> Pallet<T> {
         // --- 8. Check after values
         let stake_after_remove: u64 = Self::get_stake_to_module(&key, &module_key.clone());
         let balance_after_remove: u64 = Self::get_balance_u64(&key);
-        let module_stake_after_remove = Stake::<T>::get(&module_key);
+        let module_stake_after_remove = Self::get_delegated_stake(&module_key);
 
         // -- 9. Make sure everything went as expected.
         // Otherwise these ensurers will revert the storage changes.
@@ -281,7 +281,7 @@ impl<T: Config> Pallet<T> {
 
     pub fn get_total_subnet_stake(netuid: u16) -> u64 {
         Keys::<T>::iter_prefix(netuid)
-            .map(|(_, account_id)| Stake::<T>::get(account_id))
+            .map(|(_, account_id)| Self::get_delegated_stake(&account_id))
             .sum()
     }
 
@@ -346,7 +346,7 @@ impl<T: Config> Pallet<T> {
             *stake = stake.saturating_add(amount);
         });
 
-        Stake::<T>::mutate(staked, |stake| *stake = stake.saturating_add(amount));
+        // Stake::<T>::mutate(staked, |stake| *stake = stake.saturating_add(amount));
         TotalStake::<T>::mutate(|total_stake| *total_stake = total_stake.saturating_add(amount));
 
         true
@@ -369,7 +369,7 @@ impl<T: Config> Pallet<T> {
             StakeTo::<T>::remove(staker, staked);
         }
 
-        Stake::<T>::mutate(staked, |stake| *stake = stake.saturating_sub(amount));
+        // Stake::<T>::mutate(staked, |stake| *stake = stake.saturating_sub(amount));
         TotalStake::<T>::mutate(|total_stake| *total_stake = total_stake.saturating_sub(amount));
     }
 
@@ -388,7 +388,7 @@ impl<T: Config> Pallet<T> {
             );
         }
 
-        Stake::<T>::remove(staked);
+        // Stake::<T>::remove(staked);
     }
 
     pub fn add_balance_to_account(key: &T::AccountId, amount: BalanceOf<T>) {
