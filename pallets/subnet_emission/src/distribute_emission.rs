@@ -24,7 +24,6 @@ fn process_subnets<T: Config>(block_number: u64, subnets_emission_distribution: 
         );
 
         if pallet_subspace::Pallet::<T>::blocks_until_next_epoch(netuid, block_number) > 0 {
-            log::warn!("subnet {netuid} wont run epoch");
             continue;
         }
 
@@ -46,7 +45,7 @@ fn update_pending_emission<T: Config>(netuid: u16, new_queued_emission: &u64) {
         *queued = queued.saturating_add(*new_queued_emission);
         *queued
     });
-    log::warn!("subnet {netuid} total pending emission: {emission_to_drain}, increased {new_queued_emission}");
+    log::trace!("subnet {netuid} total pending emission: {emission_to_drain}, increased {new_queued_emission}");
 }
 
 /// Runs an epoch for a given subnet.
@@ -59,7 +58,7 @@ fn update_pending_emission<T: Config>(netuid: u16, new_queued_emission: &u64) {
 /// and if there's emission to distribute, runs the consensus algorithm. If successful,
 /// it finalizes the epoch. If an error occurs during consensus, it logs the error
 fn run_epoch<T: Config>(netuid: u16) {
-    log::warn!("running epoch for subnet {netuid}");
+    log::trace!("running epoch for subnet {netuid}");
 
     let emission_to_drain = PendingEmission::<T>::get(netuid);
     if emission_to_drain > 0 {

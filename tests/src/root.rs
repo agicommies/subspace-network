@@ -6,7 +6,6 @@ use pallet_subspace::{
     Kappa, MaxAllowedUids, MaxRegistrationsPerBlock, MaxRegistrationsPerInterval,
     MinimumAllowedStake, Rho, TargetRegistrationsPerInterval, Tempo,
 };
-use substrate_fixed::types::I64F64;
 
 pub use crate::mock::*;
 
@@ -179,66 +178,5 @@ fn test_emission() {
             SubspaceMod::blocks_until_next_epoch(10, SubspaceMod::get_current_block_number());
         step_block(step as u16);
         assert_eq!(PendingEmission::<Test>::get(10), 0);
-    });
-}
-
-#[test]
-fn test_weight_transformation() {
-    new_test_ext_with_block(1).execute_with(|| {
-        let num_root_validators = 3;
-
-        // log::warn!("num_root_validators = {num_root_validators}");
-
-        let subnet_ids = vec![
-            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-            24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
-        ];
-        // log::warn!("subnet_ids = {subnet_ids:?}");
-        let num_subnet_ids = 38;
-        // log::warn!("num_subnet_ids = {num_subnet_ids}");
-
-        let mut weights: Vec<Vec<I64F64>> =
-            vec![vec![I64F64::from_num(0.0); num_subnet_ids]; num_root_validators];
-
-        let o_weights = vec![(
-            3,
-            vec![
-                (0, 11915),
-                (1, 10723),
-                (13, 9532),
-                (14, 8340),
-                (15, 7149),
-                (17, 5957),
-                (18, 4766),
-                (20, 3574),
-                (26, 2383),
-                (12, 1191),
-            ],
-        )];
-
-        for (uid_i, weights_i) in o_weights {
-            println!("validator {uid_i}");
-            for (netuid, weight_ij) in &weights_i {
-                println!("netuid {netuid} weight {weight_ij}");
-
-                let idx = uid_i as usize;
-                if let Some(weight) = weights.get_mut(idx) {
-                    if let Some((w, _)) =
-                        weight.iter_mut().zip(&subnet_ids).find(|(_, subnet)| *subnet == netuid)
-                    {
-                        *w = I64F64::from_num(*weight_ij);
-                    } else {
-                        println!("huh1?");
-                    }
-                } else {
-                    println!("huh2?");
-                }
-            }
-        }
-        // log::warn!("weights = {weights:?}");
-
-        dbg!(&weights);
-
-        panic!("hehe")
     });
 }
