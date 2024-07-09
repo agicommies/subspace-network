@@ -101,6 +101,7 @@ pub mod pallet {
                 block_number.try_into().ok().expect("blockchain won't pass 2 ^ 64 blocks");
 
             let emission_per_block = Self::get_total_emission_per_block();
+            log::warn!("emission_per_block at block #{block_number} = {emission_per_block}");
             // Make sure to use storage layer,
             // so runtime can never panic in initialization hook
             let res: Result<(), DispatchError> = with_storage_layer(|| {
@@ -169,18 +170,34 @@ pub mod pallet {
             let max_supply = T::MaxSupply::get();
             let decimals = T::Decimals::get() as u32;
 
+            log::info!("total_issuance = {total_issuance}");
+            log::info!("unit_emission = {unit_emission}");
+            log::info!("halving_interval = {halving_interval}");
+            log::info!("max_supply = {max_supply}");
+            log::info!("decimals = {decimals}");
+
             let halving_interval = halving_interval
                 .checked_mul(10_u64.pow(decimals))
                 .expect("halving_interval overflow");
 
+            log::info!("halving_interval = {halving_interval}");
+
             let max_supply =
                 max_supply.checked_mul(10_u64.pow(decimals)).expect("max_supply overflow");
 
+            log::info!("max_supply = {max_supply}");
+
             if total_issuance >= max_supply {
+                log::info!("total_issuance >= max_supply");
                 0
             } else {
                 let halving_count =
                     total_issuance.checked_div(halving_interval).expect("Division failed");
+                log::info!("halving_count = {halving_count}");
+                log::info!(
+                    "unit_emission >> halving_count = {}",
+                    unit_emission >> halving_count
+                );
                 unit_emission >> halving_count
             }
         }
@@ -197,11 +214,19 @@ pub mod pallet {
             // TODO:
             // use a with_storage_layer here
             let rootnet_id = Self::get_rootnet_netuid().unwrap_or(0);
+            log::warn!("rootnet_id = {rootnet_id}");
             let pricing = RootPricing::<T>::new(rootnet_id, token_emission);
-            let priced_subnets = pricing.run().unwrap_or_default();
+            let priced_subnets = match pricing.run() {
+                Ok(priced_subnets) => priced_subnets,
+                Err(err) => {
+                    log::error!("error while running root pricing: {err:?}");
+                    Default::default()
+                }
+            };
 
             for (netuid, emission) in priced_subnets.iter() {
                 SubnetEmission::<T>::insert(netuid, emission);
+                log::warn!("set {netuid} SubnetEmission to {emission}");
             }
 
             priced_subnets
