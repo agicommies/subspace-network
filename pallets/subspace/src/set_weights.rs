@@ -122,9 +122,15 @@ impl<T: Config> Pallet<T> {
 
     pub fn perform_uid_validity_check(uids: &[u16], netuid: u16) -> DispatchResult {
         ensure!(
-            uids.iter().all(|&uid| Self::uid_exist_on_network(netuid, uid)),
+            Self::is_rootnet(netuid)
+                || uids.iter().all(|&uid| Self::uid_exist_on_network(netuid, uid)),
             Error::<T>::InvalidUid
         );
+        ensure!(
+            !Self::is_rootnet(netuid) || uids.iter().all(|&uid| Self::if_subnet_exist(uid)),
+            Error::<T>::InvalidUid
+        );
+
         Ok(())
     }
 
