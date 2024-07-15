@@ -612,6 +612,8 @@ pub fn register_root_validator(key: AccountId, stake: u64) -> Result<u16, Dispat
     let name = format!("module{key}").as_bytes().to_vec();
     let address = "0.0.0.0:30333".as_bytes().to_vec();
 
+    // TODO:
+    // Once rootnet does not have burn, remove the `SubnetBurn::<Test>::get()`
     SubspaceMod::add_balance_to_account(&key, stake + SubnetBurn::<Test>::get() + 1);
     SubspaceMod::register(origin, network.clone(), name, address, stake, key, None)?;
 
