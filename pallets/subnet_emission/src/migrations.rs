@@ -29,6 +29,27 @@ impl<T: Config + pallet_subspace::Config> OnRuntimeUpgrade for InitialMigration<
             crate::UnitEmission::<T>::get()
         );
 
+        let block = PalletSubspace::<T>::get_current_block_number();
+        let unit_emission: u64 = 23148148148;
+        
+        log::info!("Migrating OriginalUnitEmission");
+        OriginalUnitEmission::<T>::set(unit_emission);
+        log::info!(
+            "Original unit emission set to {}",
+            OriginalUnitEmission::<T>::get()
+        );
+
+        // Only update UnitEmission if it hasn't been changed yet
+        UnitEmission::<T>::set(unit_emission / 3);
+        log::info!("Unit emission updated to {}", UnitEmission::<T>::get());
+
+        // Only set EmissionLoweringBlock if it hasn't been set yet
+        EmissionLoweringBlock::<T>::set(block);
+        log::info!(
+            "EmissionLoweringBlock set to {}",
+            EmissionLoweringBlock::<T>::get()
+        );
+
         let old_pending_emission =
             pallet_subspace::migrations::v12::old_storage::PendingEmission::<T>::iter()
                 .collect::<Vec<_>>();
@@ -58,12 +79,6 @@ impl<T: Config + pallet_subspace::Config> OnRuntimeUpgrade for InitialMigration<
                 log::info!("Setting Yuma consensus for subnet {}", subnet_id);
                 SubnetConsensusType::<T>::set(subnet_id, Some(SubnetConsensus::Yuma));
             }
-        }
-
-        if OriginalUnitEmission::<T>::get() == 0 {
-            OriginalUnitEmission::<T>::set(UnitEmission::<T>::get());
-            UnitEmission::<T>::set(UnitEmission::<T>::get() / 3);
-            EmissionLoweringBlock::<T>::set(PalletSubspace::<T>::get_current_block_number());
         }
 
         Weight::zero()
