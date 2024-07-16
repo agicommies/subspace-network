@@ -21,6 +21,7 @@ pub fn ss58_to_account_id<T: Config>(
     Ok(T::AccountId::decode(&mut &account_id_vec[..]).unwrap())
 }
 
+/// ! First migration running in global stake update
 pub mod v12 {
     use super::*;
     use dispatch::DispatchResult;
@@ -395,8 +396,8 @@ pub mod v12 {
         // Weights
         // DelegationFee
         // DelegationFee
-        T::set_pending_emission(subnet_id, 0);
-        T::set_subnet_emission(subnet_id, 0);
+        old_storage::PendingEmission::<T>::set(subnet_id, 0);
+        old_storage::SubnetEmission::<T>::set(subnet_id, 0);
         T::set_subnet_consensus_type(subnet_id, Some(consensus_type));
     }
 
@@ -434,6 +435,15 @@ pub mod v12 {
                 let target_value = T::$getter(target);
                 T::$setter(curr, target_value);
                 T::$setter(target, curr_value);
+            };
+        }
+
+        macro_rules! migrate_storage_alias {
+            ($storage:ty) => {
+                let curr_value = <$storage>::get(curr);
+                let target_value = <$storage>::get(target);
+                <$storage>::insert(curr, target_value);
+                <$storage>::insert(target, curr_value);
             };
         }
 
@@ -481,8 +491,10 @@ pub mod v12 {
         migrate_double_map!(RegistrationBlock);
         migrate_double_map!(Weights);
         migrate_double_map!(DelegationFee);
-        migrate_api!(get_pending_emission, set_pending_emission);
-        migrate_api!(get_subnet_emission, set_subnet_emission);
+        // Pending emission
+        migrate_storage_alias!(old_storage::PendingEmission<T>);
+        // Subnet emission
+        migrate_storage_alias!(old_storage::SubnetEmission<T>);
         migrate_api!(get_subnet_consensus_type, set_subnet_consensus_type);
 
         let curr_governance_config = T::get_subnet_governance_configuration(curr);
