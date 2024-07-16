@@ -107,7 +107,6 @@ fn subnet_update_changes_all_parameter_values() {
         assert_eq!(MaxAllowedWeights::<Test>::get(netuid), max_allowed_weights);
         assert_eq!(MinAllowedWeights::<Test>::get(netuid), min_allowed_weights);
         assert_eq!(MaxWeightAge::<Test>::get(netuid), max_weight_age);
-        assert_eq!(MinStake::<Test>::get(netuid), min_stake);
         assert_eq!(SubnetNames::<Test>::get(netuid), name.into_inner());
         assert_eq!(Tempo::<Test>::get(netuid), tempo);
         assert_eq!(TrustRatio::<Test>::get(netuid), trust_ratio);
@@ -181,7 +180,6 @@ fn removes_subnet_from_storage() {
                 $m!(MaxAllowedWeights, max_allowed_weights);
                 $m!(MinAllowedWeights, min_allowed_weights);
                 $m!(MaxWeightAge, max_weight_age);
-                $m!(MinStake, min_stake);
                 $m!(SubnetNames, name);
                 $m!(Tempo, tempo);
                 $m!(TrustRatio, trust_ratio);

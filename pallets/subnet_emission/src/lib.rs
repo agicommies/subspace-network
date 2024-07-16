@@ -236,7 +236,7 @@ pub mod pallet {
 
         pub fn handle_emission_division(block_number: u64) {
             let emission_lowering_block = EmissionLoweringBlock::<T>::get();
-            let relative_blocks = block_number - emission_lowering_block;
+            let relative_blocks = block_number.saturating_sub(emission_lowering_block);
 
             if relative_blocks > 0 && relative_blocks.wrapping_rem(10800) == 0 {
                 let i = relative_blocks.saturating_div(10800);
@@ -245,7 +245,7 @@ pub mod pallet {
                 }
 
                 UnitEmission::<T>::set(
-                    OriginalUnitEmission::<T>::get().saturating_div(3u64 - (i as u64)),
+                    OriginalUnitEmission::<T>::get().saturating_div(3u64.saturating_sub(i)),
                 );
             }
         }

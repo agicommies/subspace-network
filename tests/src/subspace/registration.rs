@@ -6,13 +6,12 @@ use pallet_subspace::*;
 use sp_runtime::Percent;
 
 #[test]
-fn module_registration_respects_min_stake() {
+fn module_is_registered_correctly() {
     new_test_ext().execute_with(|| {
         zero_min_burn();
         MinimumAllowedStake::<Test>::set(0);
 
         let netuid = 0;
-        let min_stake = 100_000_000;
         let max_registrations_per_block = 10;
         let reg_this_block = 100;
 
@@ -25,7 +24,6 @@ fn module_registration_respects_min_stake() {
             Error::<Test>::NotEnoughBalanceToRegister
         );
 
-        MinStake::<Test>::set(netuid, min_stake);
         MaxRegistrationsPerBlock::<Test>::set(max_registrations_per_block);
         step_block(1);
         assert_eq!(RegistrationsPerBlock::<Test>::get(), 0);
@@ -33,10 +31,8 @@ fn module_registration_respects_min_stake() {
         let n = reg_this_block as u32;
         let keys_list: Vec<_> = (1..n).collect();
 
-        let min_stake_to_register = MinStake::<Test>::get(netuid);
-
         for key in keys_list {
-            let _ = register_module(netuid, key, min_stake_to_register);
+            let _ = register_module(netuid, key, 0);
         }
 
         let registrations_this_block = RegistrationsPerBlock::<Test>::get();

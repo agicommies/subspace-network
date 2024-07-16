@@ -292,7 +292,6 @@ pub mod v12 {
                 set_vote_mode::<T>(ROOTNET_ID);
                 FounderShare::<T>::set(ROOTNET_ID, 0);
                 Burn::<T>::set(ROOTNET_ID, 0);
-                MinStake::<T>::set(ROOTNET_ID, 0);
                 Pallet::<T>::append_module(
                     ROOTNET_ID,
                     &T::get_dao_treasury_address(),
@@ -411,7 +410,6 @@ pub mod v12 {
         MaxAllowedUids::<T>::set(subnet_id, 420);
         ImmunityPeriod::<T>::set(subnet_id, 0);
         MinAllowedWeights::<T>::set(subnet_id, 1);
-        MinStake::<T>::set(subnet_id, 0);
         // MaxRegistrationsPerInterval::<T>::set(subnet_id, T::DefaultMaxRegistrationsPerInterval);
         MaxWeightAge::<T>::set(subnet_id, 3600);
         MaxAllowedWeights::<T>::set(subnet_id, 420);
@@ -507,7 +505,6 @@ pub mod v12 {
         migrate_map!(MaxAllowedUids);
         migrate_map!(ImmunityPeriod);
         migrate_map!(MinAllowedWeights);
-        migrate_map!(MinStake);
         migrate_map!(MaxRegistrationsPerInterval);
         migrate_map!(MaxWeightAge);
         migrate_map!(MaxAllowedWeights);
