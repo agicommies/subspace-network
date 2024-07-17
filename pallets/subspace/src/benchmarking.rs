@@ -230,4 +230,16 @@ benchmarks! {
         params.adjustment_alpha,
         params.min_immunity_stake
     )
+    // 11
+    // delegate_rootnet_control {
+    //     use pallet_subnet_emission_api::SubnetConsensus;
+    //     let module_key: T::AccountId = account("ModuleKey", 0, 2);
+    //     let module_key2: T::AccountId = account("ModuleKey2", 0, 3);
+
+    //     let stake = 100000000000000u64;
+    //     register_mock::<T>(module_key.clone(), module_key.clone(), stake, "test".as_bytes().to_vec())?;
+    //     register_mock::<T>(module_key2.clone(), module_key2.clone(), stake, "test1".as_bytes().to_vec())?;
+    //     let netuid = SubspaceMod::<T>::get_netuid_for_name(b"testnet").unwrap();
+    //     T::set_subnet_consensus_type(netuid, Some(SubnetConsensus::Root));
+    // }: delegate_rootnet_control(RawOrigin::Signed(module_key), module_key2)
 }

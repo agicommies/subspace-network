@@ -516,6 +516,10 @@ pub mod pallet {
         DefaultDelegationFee<T>,
     >;
 
+    #[pallet::storage]
+    pub type RootnetControlDelegation<T: Config> =
+        StorageMap<_, Identity, T::AccountId, T::AccountId>;
+
     // ---------------------------------
     // Event Variables
     // ---------------------------------
@@ -712,6 +716,8 @@ pub mod pallet {
         StepPanicked,
         /// The stake amount to add or remove is too small. Minimum is 0.5 unit.
         StakeTooSmall,
+        /// The target rootnet module is delegating to another module an
+        TargetIsDelegating,
     }
 
     // ---------------------------------
@@ -800,6 +806,8 @@ pub mod pallet {
 
             // Clears the root net weights daily quota
             Self::clear_rootnet_daily_weight_calls(block_number);
+
+            Self::copy_delegated_weights(block_number);
 
             for netuid in N::<T>::iter_keys() {
                 if Self::blocks_until_next_epoch(netuid, block_number) > 0 {
@@ -1021,6 +1029,14 @@ pub mod pallet {
 
             let changeset = SubnetChangeset::update(netuid, params)?;
             Self::do_update_subnet(origin, netuid, changeset)
+        }
+        #[pallet::call_index(11)]
+        #[pallet::weight(0)]
+        pub fn delegate_rootnet_control(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+        ) -> DispatchResult {
+            Self::do_delegate_rootnet_control(origin, target)
         }
     }
 

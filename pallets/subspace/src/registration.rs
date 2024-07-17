@@ -123,6 +123,7 @@ impl<T: Config> Pallet<T> {
             !Self::key_registered(netuid, &key),
             Error::<T>::StillRegistered
         );
+
         // --- 4. Deposit the event
         Self::deposit_event(Event::ModuleDeregistered(netuid, uid, key));
         // --- 5. Ok and done.
