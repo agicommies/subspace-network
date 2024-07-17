@@ -24,6 +24,7 @@ diff [here](https://github.com/agicommies/subspace-network/compare/db8a19b1d2155
 - Extrinsics changes:
 
   - `add_stake`, `remove_stake`, `add_stake_multiple`, `remove_stake_multiple` and `transfer_stake` lost their subnet id parameter.
+  - `register` no longer takes the `stake` parameter
 
 ## Version 1.7.8
 
