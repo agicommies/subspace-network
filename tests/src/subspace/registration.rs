@@ -27,7 +27,7 @@ fn module_is_registered_correctly() {
             SubspaceMod::do_register(get_origin(0), network, name, address, 0, None),
             Error::<Test>::NotEnoughBalanceToRegister
         );
-        Burn::<Test>::insert(0, 0);
+        Burn::<Test>::insert(netuid, 0);
         MaxRegistrationsPerBlock::<Test>::set(max_registrations_per_block);
         step_block(1);
         assert_eq!(RegistrationsPerBlock::<Test>::get(), 0);
