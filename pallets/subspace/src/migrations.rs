@@ -74,6 +74,9 @@ pub mod v12 {
 
         #[storage_alias]
         pub type SubnetEmission<T: Config> = StorageMap<Pallet<T>, Identity, u16, u64, ValueQuery>;
+
+        #[storage_alias]
+        pub type MinStake<T: Config> = StorageMap<Pallet<T>, Identity, u16, u64>;
     }
 
     pub struct MigrateToV12<T>(sp_std::marker::PhantomData<T>);
@@ -92,6 +95,7 @@ pub mod v12 {
 
             // --- 1.1 Nuke the old `Stake` storage, we will no longer support this StorageValue
             let _ = old_storage::Stake::<T>::clear(u32::MAX, None);
+            let _ = old_storage::MinStake::<T>::clear(u32::MAX, None);
 
             // --- 1.2 Download existing data into separate types
             let old_stake_from = old_storage::StakeFrom::<T>::iter().fold(

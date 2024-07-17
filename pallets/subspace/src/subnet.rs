@@ -154,7 +154,8 @@ impl<T: Config> SubnetChangeset<T> {
         );
 
         ensure!(
-            netuid.is_some_and(|netuid| params.max_allowed_uids >= N::<T>::get(netuid)),
+            netuid.map_or(true, |netuid| params.max_allowed_uids
+                >= N::<T>::get(netuid)),
             Error::<T>::InvalidMaxAllowedUids
         );
 

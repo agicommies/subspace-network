@@ -240,13 +240,13 @@ pub mod pallet {
 
             if relative_blocks > 0 && relative_blocks.wrapping_rem(10800) == 0 {
                 let i = relative_blocks.saturating_div(10800);
-                if i > 2 {
-                    return;
-                }
 
-                UnitEmission::<T>::set(
-                    OriginalUnitEmission::<T>::get().saturating_div(3u64.saturating_sub(i)),
-                );
+                if let Some(emission) = 3u64
+                    .checked_sub(i)
+                    .and_then(|i| OriginalUnitEmission::<T>::get().checked_div(i))
+                {
+                    UnitEmission::<T>::set(emission);
+                }
             }
         }
     }
