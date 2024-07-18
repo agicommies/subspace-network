@@ -716,8 +716,10 @@ pub mod pallet {
         StepPanicked,
         /// The stake amount to add or remove is too small. Minimum is 0.5 unit.
         StakeTooSmall,
-        /// The target rootnet module is delegating to another module an
-        TargetIsDelegating,
+        /// The target rootnet validator is delegating weights to another validator
+        TargetIsDelegatingControl,
+        /// There is no subnet that is running with the Rootnet consensus
+        RootnetSubnetNotFound,
     }
 
     // ---------------------------------
@@ -1030,7 +1032,7 @@ pub mod pallet {
             let changeset = SubnetChangeset::update(netuid, params)?;
             Self::do_update_subnet(origin, netuid, changeset)
         }
-        
+
         #[pallet::call_index(11)]
         #[pallet::weight((T::WeightInfo::delegate_rootnet_control(), DispatchClass::Normal, Pays::No))]
         pub fn delegate_rootnet_control(

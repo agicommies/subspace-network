@@ -1,6 +1,5 @@
 use super::*;
 use frame_support::pallet_prelude::DispatchResult;
-use sp_runtime::DispatchError;
 
 impl<T: Config> Pallet<T> {
     /// Sets weights for a node in a specific subnet.   
@@ -213,7 +212,7 @@ impl<T: Config> Pallet<T> {
     ) -> DispatchResult {
         let key = ensure_signed(origin)?;
 
-        let rootnet_id = T::get_rootnet_netuid().ok_or(DispatchError::Other("no rootnet found"))?;
+        let rootnet_id = T::get_rootnet_netuid().ok_or(Error::<T>::RootnetSubnetNotFound)?;
 
         let Some(origin_uid) = Self::get_uid_for_key(rootnet_id, &key) else {
             return Err(Error::<T>::ModuleDoesNotExist.into());
@@ -224,7 +223,7 @@ impl<T: Config> Pallet<T> {
         };
 
         if RootnetControlDelegation::<T>::get(&target).is_some() {
-            return Err(Error::<T>::TargetIsDelegating.into());
+            return Err(Error::<T>::TargetIsDelegatingControl.into());
         }
 
         Self::check_rootnet_daily_limit(rootnet_id, origin_uid)?;

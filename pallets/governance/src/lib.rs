@@ -443,21 +443,27 @@ pub mod pallet {
         VoteModeIsNotAuthority,
         /// An internal error occurred, probably relating to the size of the bounded sets.
         InternalError,
-
-        // DAO / Governance
+        /// The application data is too small or empty.
         ApplicationTooSmall,
+        /// The application data is too large, exceeding the maximum allowed size.
         ApplicationTooLarge,
+        /// The application is not in a pending state.
         ApplicationNotPending,
+        /// The application data is invalid or malformed.
         InvalidApplication,
+        /// The account doesn't have enough balance to submit an application.
         NotEnoughtBalnceToApply,
+        /// The recommended weight for the application is invalid.
         InvalidRecommendedWeight,
-        NotCurator, /* --- Thrown when the user tries to set the curator and is not the
-                     * curator */
+        /// The operation can only be performed by the curator.
+        NotCurator,
+        /// The application with the given ID was not found.
         ApplicationNotFound,
-        AlreadyWhitelisted, /* --- Thrown when the user tries to whitelist an account that is
-                             * already whitelisted. */
-        NotWhitelisted, /* --- Thrown when the user tries to remove an account from the
-                         * whitelist that is not whitelisted. */
+        /// The account is already whitelisted and cannot be added again.
+        AlreadyWhitelisted,
+        /// The account is not whitelisted and cannot be removed from the whitelist.
+        NotWhitelisted,
+        /// Failed to convert the given value to a balance.
         CouldNotConvertToBalance,
     }
 }

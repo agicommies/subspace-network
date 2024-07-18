@@ -324,12 +324,19 @@ impl<T: Config> Pallet<T> {
 
     fn handle_rootnet_module_deregistration(key: T::AccountId, netuid: u16) {
         if Self::is_rootnet(netuid) {
+            // Remove the direct delegation for the key
             RootnetControlDelegation::<T>::remove(&key);
-            for (origin, target) in RootnetControlDelegation::<T>::iter() {
-                if target == key {
-                    RootnetControlDelegation::<T>::remove(origin);
-                }
-            }
+
+            // Remove all delegations to the key
+            RootnetControlDelegation::<T>::translate(
+                |_, v: T::AccountId| {
+                    if v == key {
+                        None
+                    } else {
+                        Some(v)
+                    }
+                },
+            );
         }
     }
 }
