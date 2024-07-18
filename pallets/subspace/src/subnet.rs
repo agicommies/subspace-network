@@ -213,12 +213,11 @@ impl<T: Config> Pallet<T> {
     ) -> Result<u16, DispatchError> {
         let netuid = netuid.unwrap_or_else(|| match SubnetGaps::<T>::get().first().copied() {
             Some(removed) => removed,
-            None => TotalSubnets::<T>::get(),
+            None => Self::get_total_subnets(),
         });
 
         let name = changeset.params.name.clone();
         changeset.apply(netuid)?;
-        TotalSubnets::<T>::mutate(|n| *n = n.saturating_add(1));
         N::<T>::insert(netuid, 0);
         T::set_subnet_emission_storage(netuid, 0);
         SubnetRegistrationsThisInterval::<T>::mutate(|value| *value = value.saturating_add(1));
@@ -318,7 +317,6 @@ impl<T: Config> Pallet<T> {
         // =========================================================================================
 
         N::<T>::remove(netuid);
-        TotalSubnets::<T>::mutate(|val| *val = val.saturating_sub(1));
         SubnetGaps::<T>::mutate(|subnets| subnets.insert(netuid));
 
         // --- 5. Emit the event.
@@ -537,6 +535,10 @@ impl<T: Config> Pallet<T> {
         for dangling in netuid_keys.difference(&global_keys) {
             Self::remove_stake_from_storage(dangling);
         }
+    }
+
+    pub fn get_total_subnets() -> u16 {
+        N::<T>::iter_keys().count() as u16
     }
 
     /// Calculates the number of blocks until the next epoch for a subnet.

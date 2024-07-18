@@ -269,7 +269,7 @@ pub mod pallet {
     // ---------------------------------
 
     #[pallet::storage] // DMAP ( key, account ) --> stake
-    pub type StakeFrom<T: Config> = 
+    pub type StakeFrom<T: Config> =
         StorageDoubleMap<_, Identity, T::AccountId, Identity, T::AccountId, u64, ValueQuery>;
 
     #[pallet::storage] // --- DMAP ( key, account ) --> stake
@@ -291,9 +291,6 @@ pub mod pallet {
 
     #[pallet::storage] // --- ITEM ( floor_founder_share )
     pub type FloorFounderShare<T: Config> = StorageValue<_, u8, ValueQuery, ConstU8<8>>;
-
-    #[pallet::storage] // --- ITEM ( tota_number_of_existing_networks )
-    pub type TotalSubnets<T> = StorageValue<_, u16, ValueQuery>;
 
     #[pallet::storage] // --- MAP ( netuid ) --> subnetwork_n (Number of UIDs in the network).
     pub type N<T> = StorageMap<_, Identity, u16, u16, ValueQuery>;
@@ -786,7 +783,6 @@ pub mod pallet {
                     }
                 }
             }
-            log::info!("{}", TotalSubnets::<T>::get());
             log::info!("{:?}", SubnetGaps::<T>::get());
         }
     }

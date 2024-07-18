@@ -358,35 +358,31 @@ pub mod v12 {
             // spot.
             for (netuid, emission) in old_storage::SubnetEmission::<T>::iter() {
                 if emission == 0 {
-                    // We need to set yuma for the subnet that we want to remove,
-                    // as we don't want an early return from the `remove_subnet`
-                    // Rest of consensus overwrites are handled in subnet_emission module migration
-                    T::set_subnet_consensus_type(netuid, Some(SubnetConsensus::Yuma));
-                    Pallet::<T>::remove_subnet(netuid);
-                    log::info!("removed subnnet with no emission, netuid {:?}", netuid)
+                    let current_subnet_consensus = T::get_subnet_consensus_type(netuid);
+                    if current_subnet_consensus.is_none() {
+                        // Get the subnet name before removal
+                        let subnet_name = SubnetNames::<T>::get(netuid);
+                        let name_str = core::str::from_utf8(&subnet_name).unwrap_or_default();
+
+                        // We need to set yuma for the subnet that we want to remove,
+                        // as we don't want an early return from the `remove_subnet`
+                        // Rest of consensus overwrites are handled in subnet_emission module
+                        // migration
+                        T::set_subnet_consensus_type(netuid, Some(SubnetConsensus::Yuma));
+                        Pallet::<T>::remove_subnet(netuid);
+                        log::info!(
+                            "removed subnet with no emission, netuid {:?}, name: {}",
+                            netuid,
+                            name_str
+                        );
+                    }
                 }
             }
 
-            // Sanity logging
-            let total_subnets = TotalSubnets::<T>::get();
-            let subnet_names_count = SubnetNames::<T>::iter_keys().count() as u16;
-            log::info!("Total subnets (TotalSubnets): {}", total_subnets);
-            log::info!("Subnet names count (SubnetNames): {}", subnet_names_count);
-
             log::info!("Listing all subnet names:");
             for (netuid, name) in SubnetNames::<T>::iter() {
-                let name_str = core::str::from_utf8(&name).unwrap_or("<invalid UTF-8>");
+                let name_str = core::str::from_utf8(&name).unwrap_or_default();
                 log::info!("Netuid: {}, Name: {}", netuid, name_str);
-            }
-
-            if total_subnets != subnet_names_count {
-                log::error!(
-                    "Subnet count mismatch: TotalSubnets = {}, SubnetNames count = {}",
-                    total_subnets,
-                    subnet_names_count
-                );
-            } else {
-                log::info!("Subnet counts match: {}", total_subnets);
             }
 
             // --- 6. Done
@@ -474,11 +470,7 @@ pub mod v12 {
         let target =
             target.unwrap_or_else(|| match SubnetGaps::<T>::mutate(|set| set.pop_first()) {
                 Some(removed) => removed,
-                None => {
-                    let id = TotalSubnets::<T>::get();
-                    TotalSubnets::<T>::mutate(|value| *value = value.saturating_add(1));
-                    id
-                }
+                None => Pallet::<T>::get_total_subnets(),
             });
 
         log::info!("transferring subnet {} to {}", curr, target);
