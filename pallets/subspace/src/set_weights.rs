@@ -223,7 +223,7 @@ impl<T: Config> Pallet<T> {
             return Err(Error::<T>::ModuleDoesNotExist.into());
         };
 
-        if let Some(_) = RootnetControlDelegation::<T>::get(&target) {
+        if RootnetControlDelegation::<T>::get(&target).is_some() {
             return Err(Error::<T>::TargetIsDelegating.into());
         }
 

@@ -1030,8 +1030,9 @@ pub mod pallet {
             let changeset = SubnetChangeset::update(netuid, params)?;
             Self::do_update_subnet(origin, netuid, changeset)
         }
+        
         #[pallet::call_index(11)]
-        #[pallet::weight(0)]
+        #[pallet::weight((T::WeightInfo::delegate_rootnet_control(), DispatchClass::Normal, Pays::No))]
         pub fn delegate_rootnet_control(
             origin: OriginFor<T>,
             target: T::AccountId,
