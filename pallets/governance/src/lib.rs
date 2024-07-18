@@ -378,22 +378,25 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(crate) fn deposit_event)]
     pub enum Event<T: Config> {
+        /// A new proposal has been created.
         ProposalCreated(ProposalId),
-
+        /// A proposal has been accepted.
         ProposalAccepted(ProposalId),
+        /// A proposal has been refused.
         ProposalRefused(ProposalId),
+        /// A proposal has expired.
         ProposalExpired(ProposalId),
-
+        /// A vote has been cast on a proposal.
         ProposalVoted(u64, T::AccountId, bool),
+        /// A vote has been unregistered from a proposal.
         ProposalVoteUnregistered(u64, T::AccountId),
-
-        WhitelistModuleAdded(T::AccountId), /* --- Event created when a module account has been
-                                             * added to the whitelist. */
-        WhitelistModuleRemoved(T::AccountId), /* --- Event created when a module account has
-                                               * been removed from the whitelist. */
+        /// A module account has been added to the whitelist.
+        WhitelistModuleAdded(T::AccountId),
+        /// A module account has been removed from the whitelist.
+        WhitelistModuleRemoved(T::AccountId),
+        /// A new application has been created.
         ApplicationCreated(u64),
     }
-
     // ---------------------------------
     // Errors
     // ---------------------------------
