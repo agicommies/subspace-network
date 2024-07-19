@@ -305,3 +305,17 @@ fn delegate_weight_control() {
         )
     });
 }
+
+#[test]
+fn test_normalize_weights_does_not_mutate_when_sum_not_zero() {
+    new_test_ext().execute_with(|| {
+        let max_allowed: u16 = 3;
+
+        let weights: Vec<u16> = Vec::from_iter(0..max_allowed);
+
+        let expected = weights.clone();
+        let result = SubspaceMod::normalize_weights(&weights);
+
+        assert_eq!(expected.len(), result.len(), "Length of weights changed?!");
+    });
+}

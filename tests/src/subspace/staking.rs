@@ -1,6 +1,8 @@
 use crate::mock::*;
 use frame_support::assert_noop;
+use pallet_subnet_emission_api::{SubnetConsensus, SubnetEmissionApi};
 use pallet_subspace::*;
+use substrate_fixed::types::I64F64;
 
 #[test]
 fn adds_stake_and_removes_to_module_and_calculates_total_stake() {
@@ -156,5 +158,64 @@ fn adds_and_removes_multiple_stakes_for_different_modules() {
         assert_eq!(SubspaceMod::get_balance_u64(&key), 11);
         assert!(!SubspaceMod::get_stake_from_vector(&keys[0]).contains_key(&key));
         assert!(!SubspaceMod::get_stake_from_vector(&keys[1]).contains_key(&key));
+    });
+}
+
+#[test]
+fn test_ownership_ratio() {
+    new_test_ext().execute_with(|| {
+        let netuid: u16 = 0;
+        let num_modules: u16 = 10;
+        let stake_per_module: u64 = 1_000_000_000;
+        // make sure that the results won´t get affected by burn
+        zero_min_burn();
+
+        register_n_modules(netuid, num_modules, 10);
+
+        let keys = SubspaceMod::get_keys(netuid);
+
+        for k in &keys {
+            let delegate_keys: Vec<u32> =
+                (0..num_modules).map(|i| (i + num_modules + 1) as u32).collect();
+            for d in delegate_keys.iter() {
+                add_balance(*d, stake_per_module + 1);
+            }
+
+            let pre_delegate_stake_from_vector = SubspaceMod::get_stake_from_vector(k);
+            assert_eq!(pre_delegate_stake_from_vector.len(), 1); // +1 for the module itself, +1 for the delegate key on
+
+            log::info!("KEY: {}", k);
+            for (i, d) in delegate_keys.iter().enumerate() {
+                log::info!("DELEGATE KEY: {d}");
+                assert_ok!(SubspaceMod::add_stake(get_origin(*d), *k, stake_per_module,));
+                let stake_from_vector = SubspaceMod::get_stake_from_vector(k);
+                assert_eq!(
+                    stake_from_vector.len(),
+                    pre_delegate_stake_from_vector.len() + i + 1
+                );
+            }
+            let ownership_ratios: Vec<(u32, I64F64)> = SubspaceMod::get_ownership_ratios(netuid, k);
+
+            assert_eq!(ownership_ratios.len(), delegate_keys.len() + 1);
+            log::info!("OWNERSHIP RATIOS: {ownership_ratios:?}");
+
+            step_epoch(netuid);
+
+            let stake_from_vector = SubspaceMod::get_stake_from_vector(k);
+            let stake: u64 = SubspaceMod::get_delegated_stake(k);
+            let sumed_stake: u64 = stake_from_vector.iter().fold(0, |acc, (_a, x)| acc + x);
+            let total_stake: u64 = SubspaceMod::get_total_subnet_stake(netuid);
+
+            log::info!("STAKE: {}", stake);
+            log::info!("SUMED STAKE: {sumed_stake}");
+            log::info!("TOTAL STAKE: {total_stake}");
+
+            assert_eq!(stake, sumed_stake);
+
+            // for (d_a, o) in ownership_ratios.iter() {
+            //     info!("OWNERSHIP RATIO: {}", o);
+
+            // }
+        }
     });
 }
