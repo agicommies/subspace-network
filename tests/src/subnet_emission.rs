@@ -17,37 +17,6 @@ use pallet_subnet_emission::{
 use pallet_subnet_emission_api::SubnetConsensus;
 use pallet_subspace::*;
 
-// fn update_params(netuid: u16, tempo: u16, max_weights: u16, min_weights: u16) {
-//     Tempo::<Test>::insert(netuid, tempo);
-//     MaxAllowedWeights::<Test>::insert(netuid, max_weights);
-//     MinAllowedWeights::<Test>::insert(netuid, min_weights);
-// }
-
-#[test]
-fn test_no_weights() {
-    new_test_ext().execute_with(|| {
-        let netuid: u16 = 0;
-
-        // make sure that the results won´t get affected by burn
-        zero_min_burn();
-        MinimumAllowedStake::<Test>::set(0);
-
-        register_n_modules(0, 10, 1000, false);
-        Tempo::<Test>::insert(netuid, 1);
-        let _keys = SubspaceMod::get_keys(netuid);
-        let _uids = SubspaceMod::get_uids(netuid);
-
-        let incentives: Vec<u16> = Incentive::<Test>::get(netuid);
-        let dividends: Vec<u16> = Dividends::<Test>::get(netuid);
-        let emissions: Vec<u64> = Emission::<Test>::get(netuid);
-        let _total_incentives: u16 = incentives.iter().sum();
-        let _total_dividends: u16 = dividends.iter().sum();
-        let _total_emissions: u64 = emissions.iter().sum();
-    });
-}
-
-// TODO:
-// get back to life
 // #[test]
 // fn test_dividends_same_stake() {
 //     new_test_ext().execute_with(|| {
@@ -60,11 +29,9 @@ fn test_no_weights() {
 //         zero_min_burn();
 
 //         // SETUP NETWORK
-//         register_n_modules(netuid, n, stake_per_module);
-//         update_params(netuid, 1, n, 0);
+//         register_n_modules(netuid, n, stake_per_module, false);
 
 //         let keys = SubspaceMod::get_keys(netuid);
-//         let _uids = SubspaceMod::get_uids(netuid);
 
 //         // do a list of ones for weights
 //         let weight_uids: Vec<u16> = [2, 3].to_vec();
@@ -84,9 +51,8 @@ fn test_no_weights() {
 //         assert!(incentives[2] > 0);
 //         assert_eq!(dividends[2], dividends[3]);
 //         let delta: u64 = 100;
-//         assert!((incentives[2] as u64) > (weight_values[0] as u64 * incentives[3] as u64) -
-// delta);         assert!((incentives[2] as u64) < (weight_values[0] as u64 * incentives[3] as u64)
-// + delta);
+//         assert!((incentives[2] as u64) > (weight_values[0] as u64 * incentives[3] as u64) - delta);
+//         assert!((incentives[2] as u64) < (weight_values[0] as u64 * incentives[3] as u64) + delta);
 
 //         assert!(emissions[2] > (weight_values[0] as u64 * emissions[3]) - delta);
 //         assert!(emissions[2] < (weight_values[0] as u64 * emissions[3]) + delta);
@@ -128,8 +94,6 @@ fn test_no_weights() {
 //                 expected_stake_difference
 //             );
 //         }
-
-//         check_network_stats(netuid);
 //     });
 // }
 
