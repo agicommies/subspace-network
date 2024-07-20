@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::mock::*;
 
-use frame_support::assert_ok;
+use frame_support::{assert_ok, traits::Currency};
 use log::info;
 use pallet_governance::DaoTreasuryAddress;
 use pallet_subnet_emission::{
@@ -208,7 +208,7 @@ fn test_pruning() {
         // Setup subnet
         register_n_modules(netuid, n, stake_per_module, false);
         MaxAllowedModules::<Test>::put(n + 2);
-        Tempo::<Test>::insert(netuid, tempo);
+        Tempo::<Test>::set(netuid, tempo);
         ImmunityPeriod::<Test>::insert(netuid, 0);
 
         // Register validator and set consensus type
@@ -310,7 +310,6 @@ fn test_lowest_priority_mechanism() {
         assert_ok!(register_named_subnet(u32::MAX, 0, "Rootnet"));
         SubnetConsensusType::<Test>::insert(0, SubnetConsensus::Root);
         assert_ok!(register_root_validator(u32::MAX, stake_per_module));
-        MaxRegistrationsPerBlock::<Test>::set(1000);
 
         // Disable limitations
         zero_min_burn();
@@ -352,7 +351,6 @@ fn test_lowest_priority_mechanism() {
         let incentives: Vec<u16> = Incentive::<Test>::get(netuid);
         let dividends: Vec<u16> = Dividends::<Test>::get(netuid);
         let emissions: Vec<u64> = Emission::<Test>::get(netuid);
-        let _stakes: Vec<u64> = get_stakes(netuid);
 
         assert!(emissions[prune_uid as usize] == 0);
         assert!(incentives[prune_uid as usize] == 0);
@@ -368,103 +366,6 @@ fn test_lowest_priority_mechanism() {
         assert!(lowest_priority_uid == prune_uid);
     });
 }
-
-// #[test]
-// fn test_deregister_zero_emission_uids() {
-// 	new_test_ext().execute_with(|| {
-//     // CONSSTANTS
-//     let netuid: u16 = 0;
-//     let n : u16 = 100;
-//     let num_zero_uids : u16 = 10;
-//     let blocks_per_epoch_list : u64 = 1;
-//     let stake_per_module : u64 = 10_000;
-
-//     // SETUP NETWORK
-//     let tempo: u16 = 1;
-//     register_n_modules( netuid, n, stake_per_module );
-//     SubspaceMod::set_tempo( netuid, tempo );
-//     SubspaceMod::set_max_allowed_weights(netuid, n );
-//     SubspaceMod::set_min_allowed_weights(netuid, 0 );
-//     SubspaceMod::set_immunity_period(netuid, tempo );
-
-//     let keys = SubspaceMod::get_keys( netuid );
-//     let uids = SubspaceMod::get_uids( netuid );
-//     // do a list of ones for weights
-//     let weight_uids : Vec<u16> = (0..n).collect();
-//     // do a list of ones for weights
-//     let mut weight_values : Vec<u16> = weight_uids.iter().map(|x| 1 as u16 ).collect();
-
-//     let mut shuffled_uids: Vec<u16> = weight_uids.clone().to_vec();
-//     shuffled_uids.shuffle(&mut thread_rng());
-
-//     let mut zero_uids : Vec<u16> = shuffled_uids[0..num_zero_uids as usize].to_vec();
-
-//     for uid in zero_uids.iter() {
-//         weight_values[*uid as usize] = 0;
-
-//     }
-//     let old_n  : u16 = N::<Test>::get( netuid );
-//     set_weights(netuid, keys[0], weight_uids.clone() , weight_values.clone() );
-//     step_block( tempo );
-//     let n: u16 = N::<Test>::get( netuid );
-//     assert !( old_n - num_zero_uids == n );
-
-//     });
-
-// }
-
-// TODO:
-// #[test]
-// fn test_with_weights() {
-// 	new_test_ext().execute_with(|| {
-// 		let n_list: Vec<u16> = vec![10, 50, 100, 1000];
-// 		let blocks_per_epoch_list: u64 = 1;
-// 		let stake_per_module: u64 = 10_000;
-
-// 		for (netuid, n) in n_list.iter().enumerate() {
-// 			info!("netuid: {}", netuid);
-// 			let netuid: u16 = netuid as u16;
-// 			let n: u16 = *n;
-
-// 			for i in 0..n {
-// 				info!("i: {}", i);
-// 				info!("keys: {:?}", SubspaceMod::get_keys(netuid));
-// 				info!("uids: {:?}", SubspaceMod::get_uids(netuid));
-// 				let key: U256 = i;
-// 				info!(
-// 					"Before Registered: {:?} -> {:?}",
-// 					key,
-// 					SubspaceMod::key_registered(netuid, &key)
-// 				);
-// 				register_module(netuid, key, stake_per_module);
-// 				info!(
-// 					"After Registered: {:?} -> {:?}",
-// 					key,
-// 					SubspaceMod::key_registered(netuid, &key)
-// 				);
-// 			}
-// 			SubspaceMod::set_tempo(netuid, 1);
-// 			SubspaceMod::set_max_allowed_weights(netuid, n);
-// 			let keys = SubspaceMod::get_keys(netuid);
-// 			let uids = SubspaceMod::get_uids(netuid);
-
-// 			let weight_values: Vec<u16> = (0..n).collect();
-// 			let weight_uids: Vec<u16> = (0..n).collect();
-
-// 			for i in 0..n {
-// 				SubspaceMod::set_weights(
-// 					get_origin(keys[i as usize]),
-// 					netuid,
-// 					weight_values.clone(),
-// 					weight_uids.clone(),
-// 				)
-// 				.unwrap();
-// 			}
-// 			step_block(1);
-// 			check_network_stats(netuid);
-// 		}
-// 	});
-// }
 
 #[test]
 fn calculates_blocks_until_epoch() {
@@ -612,70 +513,83 @@ fn test_trust() {
     });
 }
 
-// TODO:
-// get back to life
-// #[test]
-// fn test_founder_share() {
-//     new_test_ext().execute_with(|| {
-//         let netuid = 0;
-//         let n = 20;
-//         let initial_stake: u64 = 1000;
-//         let keys: Vec<U256> = (0..n).map(U256::from).collect();
-//         let stakes: Vec<u64> = (0..n).map(|_x| initial_stake * 1_000_000_000).collect();
+#[test]
+fn test_founder_share() {
+    new_test_ext().execute_with(|| {
+        let netuid = 1;
+        let n: u16 = 20;
+        let initial_stake: u64 = to_nano(1_000);
+        let keys: Vec<u32> = (0..n as u32).collect();
+        let stakes: Vec<u64> = (0..n).map(|_x| initial_stake).collect();
 
-//         let founder_key = keys[0];
-//         MaxRegistrationsPerBlock::<Test>::set(1000);
-//         for i in 0..n {
-//             assert_ok!(register_module(netuid, keys[i], stakes[i]));
-//             let stake_from_vector = SubspaceMod::get_stake_to_vector(netuid, &keys[i]);
-//             info!("{:?}", stake_from_vector);
-//         }
-//         update_params!(netuid => { founder_share: 12 });
-//         let founder_share = FounderShare::<Test>::get(netuid);
-//         let founder_ratio: f64 = founder_share as f64 / 100.0;
+        // Setup Rootnet
+        assert_ok!(register_named_subnet(u32::MAX, 0, "Rootnet"));
+        SubnetConsensusType::<Test>::insert(0, SubnetConsensus::Root);
+        assert_ok!(register_root_validator(u32::MAX, initial_stake));
 
-//         let subnet_params = SubspaceMod::subnet_params(netuid);
+        let founder_key = keys[0];
+        MaxRegistrationsPerBlock::<Test>::set(1000);
+        for i in 0..n {
+            assert_ok!(register_module(
+                netuid,
+                keys[i as usize],
+                stakes[i as usize],
+                false
+            ));
+        }
+        SubnetConsensusType::<Test>::insert(netuid, SubnetConsensus::Yuma);
 
-//         let founder_stake_before = Stake::<Test>::get(netuid, founder_key);
-//         info!("founder_stake_before: {founder_stake_before:?}");
-//         // vote to avoid key[0] as we want to see the key[0] burn
-//         step_epoch(netuid);
-//         let threshold = SubnetStakeThreshold::<Test>::get();
-//         let total_emission =
-//             SubspaceMod::calculate_network_emission(netuid, threshold) * subnet_params.tempo as
-// u64;         let expected_founder_share = (total_emission as f64 * founder_ratio) as u64;
-//         let expected_emission = total_emission - expected_founder_share;
-//         let emissions = Emission::<Test>::get(netuid);
-//         let dividends = Dividends::<Test>::get(netuid);
-//         let incentives = Incentive::<Test>::get(netuid);
-//         let total_dividends: u64 = dividends.iter().sum::<u16>() as u64;
-//         let total_incentives: u64 = incentives.iter().sum::<u16>() as u64;
+        // Set rootnet weight
+        set_weights(0, u32::MAX, vec![netuid], vec![1]);
 
-//         let founder_dividend_emission = ((dividends[0] as f64 / total_dividends as f64)
-//             * (expected_emission / 2) as f64) as u64;
-//         let founder_incentive_emission = ((incentives[0] as f64 / total_incentives as f64)
-//             * (expected_emission / 2) as f64) as u64;
-//         let founder_emission = founder_incentive_emission + founder_dividend_emission;
+        update_params!(netuid => { founder_share: 12 });
+        let founder_share = FounderShare::<Test>::get(netuid);
+        let founder_ratio: f64 = founder_share as f64 / 100.0;
+        let subnet_params = SubspaceMod::subnet_params(netuid);
+        let total_emission = UnitEmission::<Test>::get() * subnet_params.tempo as u64;
+        let expected_founder_share_precise = total_emission as f64 * founder_ratio;
 
-//         let calcualted_total_emission = emissions.iter().sum::<u64>();
+        <pallet_balances::Pallet<Test> as Currency<_>>::make_free_balance_be(
+            &founder_key.into(),
+            0u32.into(),
+        );
+        step_epoch(netuid);
 
-//         let key_stake = Stake::<Test>::get(netuid, founder_key);
-//         let founder_total_stake = founder_stake_before + founder_emission;
-//         assert_eq!(
-//             key_stake - (key_stake % 1000),
-//             founder_total_stake - (founder_total_stake % 1000)
-//         );
-//         assert_eq!(
-//             SubspaceMod::get_balance(&Test::get_dao_treasury_address()),
-//             expected_founder_share - 1 /* Account for rounding errors */
-//         );
+        let founder_balance = SubspaceMod::get_balance(&founder_key);
 
-//         assert_eq!(
-//             expected_emission - (expected_emission % 100000),
-//             calcualted_total_emission - (calcualted_total_emission % 100000)
-//         );
-//     });
-// }
+        let tolerance = 3_000_000_000;
+
+        assert!(
+            (founder_balance as i64 - expected_founder_share_precise as i64).abs() <= tolerance,
+            "Founder balance {} differs from expected {} by more than {}",
+            founder_balance,
+            expected_founder_share_precise,
+            tolerance
+        );
+
+        // Repeat with consensus of linear
+        SubnetConsensusType::<Test>::insert(netuid, SubnetConsensus::Linear);
+
+        let treasury_address = DaoTreasuryAddress::<Test>::get();
+
+        // Explicitly show 0 balance
+        <pallet_balances::Pallet<Test> as Currency<_>>::make_free_balance_be(
+            &treasury_address,
+            0u32.into(),
+        );
+        step_epoch(netuid);
+
+        let treasury_balance = SubspaceMod::get_balance(&treasury_address);
+
+        assert!(
+            (treasury_balance as i64 - expected_founder_share_precise as i64).abs() <= tolerance,
+            "Founder balance {} differs from expected {} by more than {}",
+            founder_balance,
+            expected_founder_share_precise,
+            tolerance
+        );
+    });
+}
 
 // ------------
 // Step Yuma

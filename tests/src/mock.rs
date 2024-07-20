@@ -8,7 +8,7 @@ use frame_support::{
 use frame_system as system;
 use pallet_governance::GlobalGovernanceConfig;
 use pallet_governance_api::*;
-use pallet_subnet_emission_api::SubnetEmissionApi;
+use pallet_subnet_emission_api::{SubnetConsensus, SubnetEmissionApi};
 use scale_info::prelude::collections::BTreeSet;
 use sp_core::{ConstU16, H256};
 use std::cell::RefCell;
@@ -178,8 +178,8 @@ impl SubnetEmissionApi for Test {
         pallet_subnet_emission::Pallet::<Test>::is_mineable_subnet(netuid)
     }
 
-    fn get_rootnet_netuid() -> Option<u16> {
-        pallet_subnet_emission::Pallet::<Test>::get_rootnet_netuid()
+    fn get_consensus_netuid(subnet_consensus: SubnetConsensus) -> Option<u16> {
+        pallet_subnet_emission::Pallet::<Test>::get_consensus_netuid(subnet_consensus)
     }
 
     fn get_pending_emission(netuid: u16) -> u64 {

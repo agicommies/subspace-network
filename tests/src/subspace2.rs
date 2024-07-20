@@ -132,9 +132,6 @@ fn test_ownership_ratio() {
         assert_eq!(total_new_tokens, total_emissions);
 
         let stake_from_vector = SubspaceMod::get_stake_from_vector(&voter_key);
-        let _stake: u64 = SubspaceMod::get_stake(netuid, &voter_key);
-        let _sumed_stake: u64 = stake_from_vector.iter().fold(0, |acc, (_a, x)| acc + x);
-        let _total_stake: u64 = SubspaceMod::get_total_subnet_stake(netuid);
         info!("stake_from_vector: {stake_from_vector:?}");
     });
 }

@@ -34,7 +34,7 @@ pub trait SubnetEmissionApi {
 
     fn is_mineable_subnet(netuid: u16) -> bool;
 
-    fn get_rootnet_netuid() -> Option<u16>;
+    fn get_consensus_netuid(subnet_consensus: SubnetConsensus) -> Option<u16>;
 
     fn get_pending_emission(netuid: u16) -> u64;
 
