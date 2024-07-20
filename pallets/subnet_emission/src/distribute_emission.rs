@@ -5,8 +5,6 @@ use frame_support::storage::with_storage_layer;
 use pallet_subnet_emission_api::SubnetConsensus;
 use pallet_subspace::N;
 
-// TODO: make sure that sn0 recycles emission and s1 puts to treasury
-
 /// Processes subnets by updating pending emissions and running epochs when due.
 ///
 /// # Arguments
