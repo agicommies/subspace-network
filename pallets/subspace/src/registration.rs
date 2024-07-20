@@ -297,7 +297,7 @@ impl<T: Config> Pallet<T> {
         // RESERVE SUBNET SLOT
         // if we have not reached the max number of subnets, then we can start a new one
         let target_subnet = if num_subnets >= max_subnets {
-            let lowest_emission_netuid = T::get_lowest_emission_netuid();
+            let lowest_emission_netuid = T::get_lowest_emission_netuid(false);
             let netuid = lowest_emission_netuid.ok_or(sp_runtime::DispatchError::Other(
                 "No valid netuid to deregister",
             ))?;
@@ -361,7 +361,7 @@ impl<T: Config> Pallet<T> {
     }
 
     fn remove_from_lowest_emission_subnet() -> DispatchResult {
-        if let Some(subnet_id) = T::get_lowest_emission_netuid() {
+        if let Some(subnet_id) = T::get_lowest_emission_netuid(true) {
             if let Some(module_uid) = Self::get_lowest_uid(subnet_id, true) {
                 Self::remove_module(subnet_id, module_uid, true)
             } else {

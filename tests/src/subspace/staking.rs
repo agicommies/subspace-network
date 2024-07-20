@@ -1,6 +1,5 @@
 use crate::mock::*;
 use frame_support::assert_noop;
-use pallet_subnet_emission_api::{SubnetConsensus, SubnetEmissionApi};
 use pallet_subspace::*;
 use substrate_fixed::types::I64F64;
 
@@ -23,7 +22,7 @@ fn adds_stake_and_removes_to_module_and_calculates_total_stake() {
             let mut subnet_stake = 0;
 
             for key in key_vector.iter() {
-                assert_ok!(register_module(netuid, *key, amount_staked));
+                assert_ok!(register_module(netuid, *key, amount_staked, false));
 
                 assert_eq!(SubspaceMod::get_owned_stake(key), amount_staked);
                 assert_eq!(SubspaceMod::get_balance(key), 1);
@@ -65,8 +64,8 @@ fn transfers_stake_between_keys() {
         let stake_amount = to_nano(10);
         let netuid = 0;
 
-        assert_ok!(register_module(netuid, key_1, stake_amount));
-        assert_ok!(register_module(netuid, key_2, 1));
+        assert_ok!(register_module(netuid, key_1, stake_amount, false));
+        assert_ok!(register_module(netuid, key_2, 1, false));
 
         assert_ok!(SubspaceMod::transfer_stake(
             get_origin(key_1),
@@ -90,7 +89,7 @@ fn fails_to_withdraw_zero_stake() {
 
         let key = 0;
 
-        assert_ok!(register_module(0, key, 1));
+        assert_ok!(register_module(0, key, 1, false));
         assert_noop!(
             SubspaceMod::do_remove_stake(get_origin(1), key, 1),
             Error::<Test>::NotEnoughStakeToWithdraw
@@ -108,7 +107,7 @@ fn adds_and_removes_stakes_for_a_delegated_module() {
         add_balance(key, 6);
 
         let module_key = 0u32;
-        assert_ok!(register_module(0, module_key, 1));
+        assert_ok!(register_module(0, module_key, 1, false));
 
         assert_ok!(SubspaceMod::add_stake(get_origin(key), module_key, 5));
         assert_eq!(SubspaceMod::get_balance_u64(&key), 1);
@@ -133,7 +132,7 @@ fn adds_and_removes_multiple_stakes_for_different_modules() {
         add_balance(key, 11);
 
         let keys = [0u32, 1];
-        register_n_modules(0, keys.len() as u16, 1);
+        register_n_modules(0, keys.len() as u16, 1, false);
 
         assert_ok!(SubspaceMod::add_stake_multiple(
             get_origin(key),
@@ -170,7 +169,7 @@ fn test_ownership_ratio() {
         // make sure that the results won´t get affected by burn
         zero_min_burn();
 
-        register_n_modules(netuid, num_modules, 10);
+        register_n_modules(netuid, num_modules, 10, false);
 
         let keys = SubspaceMod::get_keys(netuid);
 

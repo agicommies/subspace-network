@@ -23,33 +23,6 @@ use pallet_subspace::*;
 //     MinAllowedWeights::<Test>::insert(netuid, min_weights);
 // }
 
-// TODO:
-// get back to life
-// fn check_network_stats(netuid: u16) {
-//     let emission_buffer: u64 = 1_000; // the numbers arent perfect but we want to make sure they
-// fall within a range (10_000 / 2**64)     let threshold = SubnetStakeThreshold::<Test>::get();
-//     let subnet_emission: u64 = SubspaceMod::calculate_network_emission(netuid, threshold);
-//     let incentives: Vec<u16> = Incentive::<Test>::get(netuid);
-//     let dividends: Vec<u16> = Dividends::<Test>::get(netuid);
-//     let emissions: Vec<u64> = Emission::<Test>::get(netuid);
-//     let total_incentives: u16 = incentives.iter().sum();
-//     let total_dividends: u16 = dividends.iter().sum();
-//     let total_emissions: u64 = emissions.iter().sum();
-
-//     info!("total_emissions: {total_emissions}");
-//     info!("total_incentives: {total_incentives}");
-//     info!("total_dividends: {total_dividends}");
-
-//     info!("emission: {emissions:?}");
-//     info!("incentives: {incentives:?}");
-//     info!("dividends: {dividends:?}");
-
-//     assert!(
-//         total_emissions >= subnet_emission - emission_buffer
-//             || total_emissions <= subnet_emission + emission_buffer
-//     );
-// }
-
 #[test]
 fn test_no_weights() {
     new_test_ext().execute_with(|| {
@@ -59,7 +32,7 @@ fn test_no_weights() {
         zero_min_burn();
         MinimumAllowedStake::<Test>::set(0);
 
-        register_n_modules(0, 10, 1000);
+        register_n_modules(0, 10, 1000, false);
         Tempo::<Test>::insert(netuid, 1);
         let _keys = SubspaceMod::get_keys(netuid);
         let _uids = SubspaceMod::get_uids(netuid);
@@ -243,79 +216,117 @@ fn test_no_weights() {
 //                 expected_stake_difference
 //             );
 //         }
-//         check_network_stats(netuid);
 //     });
 // }
 
-// TODO:
-// get back to life
-// #[test]
-// fn test_pruning() {
-//     new_test_ext().execute_with(|| {
-//         // CONSTANTS
-//         let netuid: u16 = 0;
-//         let n: u16 = 100;
-//         let stake_per_module: u64 = 10_000;
-//         let tempo: u16 = 100;
+#[test]
+fn test_pruning() {
+    new_test_ext().execute_with(|| {
+        // Initialize test environment
+        zero_min_burn();
+        let netuid: u16 = 1;
+        let n: u16 = 100;
+        let stake_per_module: u64 = to_nano(10_000);
+        let tempo: u16 = 100;
 
-//         // make sure that the results won´t get affected by burn
-//         zero_min_burn();
-//         MaxRegistrationsPerBlock::<Test>::set(1000);
+        // Setup Rootnet
+        assert_ok!(register_named_subnet(u32::MAX, 0, "Rootnet"));
+        SubnetConsensusType::<Test>::insert(0, SubnetConsensus::Root);
+        assert_ok!(register_root_validator(u32::MAX, stake_per_module));
+        MaxRegistrationsPerBlock::<Test>::set(1000);
 
-//         // SETUP NETWORK
-//         register_n_modules(netuid, n, stake_per_module);
-//         MaxAllowedModules::<Test>::put(n);
-//         update_params(netuid, 1, n, 0);
+        // Setup subnet
+        register_n_modules(netuid, n, stake_per_module, false);
+        MaxAllowedModules::<Test>::put(n + 2);
+        Tempo::<Test>::insert(netuid, tempo);
+        ImmunityPeriod::<Test>::insert(netuid, 0);
 
-//         let voter_idx = 0;
-//         let keys = SubspaceMod::get_keys(netuid);
-//         let _uids = SubspaceMod::get_uids(netuid);
+        // Register validator and set consensus type
+        let voter_idx = u32::MAX;
+        assert_ok!(register_module(netuid, voter_idx, stake_per_module, false));
+        SubnetConsensusType::<Test>::insert(netuid, SubnetConsensus::Yuma);
 
-//         // Create a list of UIDs excluding the voter_idx
-//         let weight_uids: Vec<u16> = (0..n).filter(|&x| x != voter_idx as u16).collect();
+        // Set rootnet weight
+        set_weights(0, u32::MAX, vec![netuid], vec![1]);
 
-//         // Create a list of ones for weights, excluding the voter_idx
-//         let mut weight_values: Vec<u16> = weight_uids.iter().map(|_x| 1_u16).collect();
+        // Prepare weights
+        let weight_uids: Vec<u16> = (0..n).collect();
+        let mut weight_values: Vec<u16> = weight_uids
+            .iter()
+            .enumerate()
+            .map(|(i, _)| (weight_uids.len() - i) as u16)
+            .collect();
 
-//         let prune_uid: u16 = weight_uids.last().cloned().unwrap_or(0);
+        // Set prune_uid to the last UID and set its weight to 0
+        let prune_uid: u16 = *weight_uids.last().unwrap();
+        if let Some(prune_idx) = weight_uids.iter().position(|&uid| uid == prune_uid) {
+            weight_values[prune_idx] = 0;
+        }
 
-//         if let Some(prune_idx) = weight_uids.iter().position(|&uid| uid == prune_uid) {
-//             weight_values[prune_idx] = 0;
-//         }
+        // Step block so yuma does not think modules are deregistered, and set weights
+        step_block(1);
+        set_weights(
+            netuid,
+            voter_idx,
+            weight_uids.clone(),
+            weight_values.clone(),
+        );
+        step_block(tempo);
 
-//         set_weights(
-//             netuid,
-//             keys[voter_idx as usize],
-//             weight_uids.clone(),
-//             weight_values.clone(),
-//         );
+        // Debug emission and lowest priority UID
+        let lowest_priority_uid: u16 = SubspaceMod::get_lowest_uid(netuid, false).unwrap();
+        assert_eq!(lowest_priority_uid, prune_uid);
 
-//         step_block(tempo);
+        // Register new module
+        let new_key = n as u32 + 1;
+        let prune_key = SubspaceMod::get_key_for_uid(netuid, prune_uid).unwrap();
+        assert_ok!(register_module(netuid, new_key, stake_per_module, false));
 
-//         let lowest_priority_uid: u16 = SubspaceMod::get_lowest_uid(netuid, false).unwrap_or(0);
-//         assert!(lowest_priority_uid == prune_uid);
+        // Assert new module is registered
+        let is_registered: bool = SubspaceMod::key_registered(netuid, &new_key);
+        assert!(is_registered);
 
-//         let new_key: U256 = U256::from(n + 1);
+        // Assert total number of modules
+        let n_assert = n + 1;
+        assert_eq!(
+            N::<Test>::get(netuid),
+            n_assert,
+            "N::<Test>::get(netuid): {} != n: {}",
+            N::<Test>::get(netuid),
+            n_assert
+        );
 
-//         assert_ok!(register_module(netuid, new_key, stake_per_module));
+        // Assert pruned module is no longer registered
+        let is_prune_registered: bool = SubspaceMod::key_registered(netuid, &prune_key);
+        assert!(!is_prune_registered);
 
-//         let is_registered: bool = SubspaceMod::key_registered(netuid, &new_key);
-//         assert!(is_registered);
+        // Now test register a new subnet, with 2 modules, both 0 emission,
+        // the oldest will be the lowest_uid
+        let new_netuid: u16 = 2;
+        // Restart the module limit
+        MaxAllowedModules::<Test>::put(1000);
+        assert_ok!(register_module(
+            new_netuid,
+            u32::MAX,
+            stake_per_module,
+            false
+        ));
+        assert_ok!(register_module(
+            new_netuid,
+            u32::MAX - 1,
+            stake_per_module,
+            false
+        ));
 
-//         assert!(
-//             N::<Test>::get(netuid) == n,
-//             "N::<Test>::get(netuid): {} != n: {}",
-//             N::<Test>::get(netuid),
-//             n
-//         );
+        // Temper with the registration blocks
+        RegistrationBlock::<Test>::insert(new_netuid, 0, 1);
+        RegistrationBlock::<Test>::insert(new_netuid, 1, 0);
 
-//         let is_prune_registered: bool =
-//             SubspaceMod::key_registered(netuid, &keys[prune_uid as usize]);
-//         assert!(!is_prune_registered);
-
-//         check_network_stats(netuid);
-//     });
-// }
+        assert_eq!(SubspaceMod::get_emission_for_uid(new_netuid, 0), 0);
+        assert_eq!(SubspaceMod::get_emission_for_uid(new_netuid, 1), 0);
+        assert_eq!(SubspaceMod::get_lowest_uid(new_netuid, false), Some(1));
+    });
+}
 
 // TODO:
 // get back to life
@@ -526,7 +537,7 @@ fn test_incentives() {
         MinimumAllowedStake::<Test>::set(0);
 
         // SETUP NETWORK
-        register_n_modules(netuid, n, stake_per_module);
+        register_n_modules(netuid, n, stake_per_module, false);
         // Test perform under linear consensus network.
         SubnetConsensusType::<Test>::insert(netuid, SubnetConsensus::Linear);
         let mut params = SubspaceMod::subnet_params(netuid);
@@ -586,7 +597,7 @@ fn test_trust() {
         let n: u16 = 10;
         let stake_per_module: u64 = 10_000;
 
-        register_n_modules(netuid, n, stake_per_module);
+        register_n_modules(netuid, n, stake_per_module, false);
         // Testing trust on linear consensus
         SubnetConsensusType::<Test>::insert(netuid, SubnetConsensus::Linear);
         // Make sure that the network has some pending emission to start running consensus
@@ -739,7 +750,7 @@ fn test_1_graph() {
         FloorFounderShare::<Test>::put(0);
 
         // Register general subnet
-        assert_ok!(register_module(0, 10, 1));
+        assert_ok!(register_module(0, 10, 1, false));
 
         log::info!("test_1_graph:");
         let netuid: u16 = 1;
@@ -747,12 +758,12 @@ fn test_1_graph() {
         let uid: u16 = 0;
         let stake_amount: u64 = to_nano(100);
 
-        assert_ok!(register_module(netuid, key, stake_amount));
+        assert_ok!(register_module(netuid, key, stake_amount, false));
         update_params!(netuid => {
             max_allowed_uids: 2
         });
 
-        assert_ok!(register_module(netuid, key + 1, 1));
+        assert_ok!(register_module(netuid, key + 1, 1, false));
         assert_eq!(N::<Test>::get(netuid), 2);
 
         run_to_block(1); // run to next block to ensure weights are set on nodes after their registration block
@@ -800,7 +811,7 @@ fn test_10_graph() {
             N::<Test>::get(netuid),
         );
 
-        assert_ok!(register_module(netuid, key, stake_amount));
+        assert_ok!(register_module(netuid, key, stake_amount, false));
         assert_eq!(N::<Test>::get(netuid) - 1, uid);
     }
 
@@ -811,7 +822,7 @@ fn test_10_graph() {
         FloorFounderShare::<Test>::put(0);
         MaxRegistrationsPerBlock::<Test>::set(1000);
         // Register general subnet
-        assert_ok!(register_module(0, 10_000, 1));
+        assert_ok!(register_module(0, 10_000, 1, false));
 
         log::info!("test_10_graph");
 
@@ -829,7 +840,7 @@ fn test_10_graph() {
             max_allowed_uids: n as u16 + 1
         });
 
-        assert_ok!(register_module(netuid, n + 1, 1));
+        assert_ok!(register_module(netuid, n + 1, 1, false));
         assert_eq!(N::<Test>::get(netuid), 11);
 
         run_to_block(1); // run to next block to ensure weights are set on nodes after their registration block
@@ -885,7 +896,8 @@ fn yuma_weights_older_than_max_age_are_discarded() {
         assert_ok!(register_module(
             rootnet_netuid,
             rootnet_key,
-            rootnet_stake_amount
+            rootnet_stake_amount,
+            false
         ));
         SubnetConsensusType::<Test>::insert(rootnet_netuid, SubnetConsensus::Root);
 
@@ -894,7 +906,7 @@ fn yuma_weights_older_than_max_age_are_discarded() {
         let key = 1;
         let stake_amount: u64 = to_nano(1_000);
 
-        assert_ok!(register_module(netuid, key, stake_amount));
+        assert_ok!(register_module(netuid, key, stake_amount, false));
 
         // Register the yuma subnet.
         let yuma_netuid: u16 = 2;
@@ -907,13 +919,15 @@ fn yuma_weights_older_than_max_age_are_discarded() {
         assert_ok!(register_module(
             yuma_netuid,
             yuma_validator_key,
-            yuma_vali_amount
+            yuma_vali_amount,
+            false
         ));
         // This will act as an miner.
         assert_ok!(register_module(
             yuma_netuid,
             yuma_miner_key,
-            yuma_miner_amount
+            yuma_miner_amount,
+            false
         ));
 
         // Set rootnet weight equally
@@ -993,7 +1007,7 @@ fn test_emission_exploit() {
         // Make sure registration cost is not affected
         zero_min_burn();
 
-        assert_ok!(register_module(netuid, key, stake_amount));
+        assert_ok!(register_module(netuid, key, stake_amount, false));
 
         // Register the yuma subnet.
         let yuma_netuid: u16 = 1;
@@ -1003,7 +1017,8 @@ fn test_emission_exploit() {
         assert_ok!(register_module(
             yuma_netuid,
             yuma_badactor_key,
-            yuma_badactor_amount
+            yuma_badactor_amount,
+            false
         ));
         update_params!(netuid => { tempo: SUBNET_TEMPO });
 
@@ -1065,7 +1080,8 @@ fn test_emission_exploit() {
         assert_ok!(register_module(
             new_netuid,
             honest_actor_key,
-            yuma_badactor_amount
+            yuma_badactor_amount,
+            false
         ));
         // we will set a slower tempo, standard 100
         update_params!(new_netuid => { tempo: 100 });
@@ -1089,7 +1105,7 @@ fn test_tempo_compound() {
         let root_key = 0;
         let stake_amount: u64 = to_nano(1_000);
 
-        assert_ok!(register_module(root_netuid, root_key, stake_amount));
+        assert_ok!(register_module(root_netuid, root_key, stake_amount, false));
         SubnetConsensusType::<Test>::insert(root_netuid, SubnetConsensus::Root);
 
         // Register the yuma subnets, the important part of the tests starts here:
@@ -1097,14 +1113,14 @@ fn test_tempo_compound() {
         let s_netuid: u16 = 1;
         let s_key = 1;
         let s_amount: u64 = to_nano(10_000);
-        assert_ok!(register_module(s_netuid, s_key, s_amount));
+        assert_ok!(register_module(s_netuid, s_key, s_amount, false));
         update_params!(s_netuid => { tempo: SLOW_TEMPO });
 
         // FAST
         let f_netuid = 2;
         // Now an honest actor will come, the goal is for him to accumulate more
         let f_key = 2;
-        assert_ok!(register_module(f_netuid, f_key, s_amount));
+        assert_ok!(register_module(f_netuid, f_key, s_amount, false));
         // we will set a slower tempo
         update_params!(f_netuid => { tempo: QUICK_TEMPO });
 
