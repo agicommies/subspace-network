@@ -212,8 +212,6 @@ impl<T: Config> Pallet<T> {
             Error::<T>::ModuleDoesNotExist
         );
 
-        Self::add_rootnet_validator(netuid, uid)?;
-
         RegistrationsPerBlock::<T>::mutate(|val| *val = val.saturating_add(1));
         RegistrationsThisInterval::<T>::mutate(netuid, |registrations| {
             *registrations = registrations.saturating_add(1);
@@ -401,23 +399,6 @@ impl<T: Config> Pallet<T> {
         )?;
 
         Self::remove_module(rootnet_id, lower_stake_validator_uid, true)
-    }
-
-    fn add_rootnet_validator(netuid: u16, module_uid: u16) -> DispatchResult {
-        let rootnet_id = T::get_consensus_netuid(SubnetConsensus::Root).unwrap_or(Self::ROOTNET_ID);
-        if netuid == rootnet_id {
-            let mut validator_permits = ValidatorPermits::<T>::get(rootnet_id);
-            if validator_permits.len() <= module_uid as usize {
-                return Err(Error::<T>::ModuleDoesNotExist.into());
-            }
-
-            if let Some(permit) = validator_permits.get_mut(module_uid as usize) {
-                *permit = true;
-                ValidatorPermits::<T>::set(rootnet_id, validator_permits);
-            }
-        }
-
-        Ok(())
     }
 
     // --------------------------
