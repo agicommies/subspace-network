@@ -155,18 +155,16 @@ impl<T: Config + pallet_subspace::Config> RootPricing<T> {
 
     fn get_root_weights(rootnet_id: u16) -> Vec<Vec<I64F64>> {
         let num_modules = Uids::<T>::iter_prefix(rootnet_id).count();
-        let num_root_validators = num_modules;
 
         let subnet_ids = pallet_subspace::N::<T>::iter_keys().collect::<Vec<_>>();
         let num_subnet_ids = subnet_ids.len();
 
         let mut weights: Vec<Vec<I64F64>> =
-            vec![vec![I64F64::from_num(0.0); num_subnet_ids]; num_root_validators];
+            vec![vec![I64F64::from_num(0.0); num_subnet_ids]; num_modules];
 
         for (uid_i, weights_i) in pallet_subspace::Weights::<T>::iter_prefix(rootnet_id) {
             for (netuid, weight_ij) in &weights_i {
-                let idx = (uid_i as usize)
-                    .saturating_sub(num_modules.saturating_sub(num_root_validators));
+                let idx = (uid_i as usize).saturating_sub(num_modules.saturating_sub(num_modules));
                 if let Some(weight) = weights.get_mut(idx) {
                     if let Some((w, _)) =
                         weight.iter_mut().zip(&subnet_ids).find(|(_, subnet)| *subnet == netuid)
