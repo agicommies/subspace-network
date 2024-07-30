@@ -413,17 +413,17 @@ pub mod v12 {
         log::info!("transferring subnet {} to {}", curr, target);
 
         macro_rules! migrate_double_map {
-            ($map:ident) => {
-                let keys = $map::<T>::iter_key_prefix(&curr).collect::<Vec<_>>();
+            ($map:ty) => {
+                let keys = <$map>::iter_key_prefix(&curr).collect::<Vec<_>>();
                 for k2 in keys {
-                    $map::<T>::swap(&curr, &k2, &target, &k2);
+                    <$map>::swap(&curr, &k2, &target, &k2);
                 }
             };
         }
 
         macro_rules! migrate_map {
-            ($map:ident) => {
-                $map::<T>::swap(curr, target);
+            ($map:ty) => {
+                <$map>::swap(curr, target);
             };
         }
 
@@ -433,15 +433,6 @@ pub mod v12 {
                 let target_value = T::$getter(target);
                 T::$setter(curr, target_value);
                 T::$setter(target, curr_value);
-            };
-        }
-
-        macro_rules! migrate_storage_alias {
-            ($storage:ty) => {
-                let curr_value = <$storage>::get(curr);
-                let target_value = <$storage>::get(target);
-                <$storage>::insert(curr, target_value);
-                <$storage>::insert(target, curr_value);
             };
         }
 
@@ -512,56 +503,56 @@ pub mod v12 {
 
         // SUBSPACE MODULE
         // MAPS
-        migrate_map!(BondsMovingAverage);
-        migrate_map!(ValidatorPermits);
-        migrate_map!(ValidatorTrust);
-        migrate_map!(PruningScores);
-        migrate_map!(MaxAllowedValidators);
-        migrate_map!(Consensus);
-        migrate_map!(Active);
-        migrate_map!(Rank);
-        migrate_map!(RegistrationsThisInterval);
-        migrate_map!(Burn);
-        migrate_map!(MaximumSetWeightCallsPerEpoch);
-        migrate_map!(TargetRegistrationsInterval);
-        migrate_map!(TargetRegistrationsPerInterval);
-        migrate_map!(AdjustmentAlpha);
-        migrate_map!(MinImmunityStake);
-        migrate_map!(SubnetNames);
-        migrate_map!(N);
-        migrate_map!(Founder);
-        migrate_map!(IncentiveRatio);
-        migrate_map!(MaxAllowedUids);
-        migrate_map!(ImmunityPeriod);
-        migrate_map!(MinAllowedWeights);
-        migrate_map!(MaxRegistrationsPerInterval);
-        migrate_map!(MaxWeightAge);
-        migrate_map!(MaxAllowedWeights);
-        migrate_map!(TrustRatio);
-        migrate_map!(Tempo);
-        migrate_map!(FounderShare);
-        migrate_map!(Incentive);
-        migrate_map!(Trust);
-        migrate_map!(Dividends);
-        migrate_map!(Emission);
-        migrate_map!(LastUpdate);
-        migrate_map!(SubnetRegistrationBlock);
+        migrate_map!(BondsMovingAverage<T>);
+        migrate_map!(ValidatorPermits<T>);
+        migrate_map!(ValidatorTrust<T>);
+        migrate_map!(PruningScores<T>);
+        migrate_map!(MaxAllowedValidators<T>);
+        migrate_map!(Consensus<T>);
+        migrate_map!(Active<T>);
+        migrate_map!(Rank<T>);
+        migrate_map!(RegistrationsThisInterval<T>);
+        migrate_map!(Burn<T>);
+        migrate_map!(MaximumSetWeightCallsPerEpoch<T>);
+        migrate_map!(TargetRegistrationsInterval<T>);
+        migrate_map!(TargetRegistrationsPerInterval<T>);
+        migrate_map!(AdjustmentAlpha<T>);
+        migrate_map!(MinImmunityStake<T>);
+        migrate_map!(SubnetNames<T>);
+        migrate_map!(N<T>);
+        migrate_map!(Founder<T>);
+        migrate_map!(IncentiveRatio<T>);
+        migrate_map!(MaxAllowedUids<T>);
+        migrate_map!(ImmunityPeriod<T>);
+        migrate_map!(MinAllowedWeights<T>);
+        migrate_map!(MaxRegistrationsPerInterval<T>);
+        migrate_map!(MaxWeightAge<T>);
+        migrate_map!(MaxAllowedWeights<T>);
+        migrate_map!(TrustRatio<T>);
+        migrate_map!(Tempo<T>);
+        migrate_map!(FounderShare<T>);
+        migrate_map!(Incentive<T>);
+        migrate_map!(Trust<T>);
+        migrate_map!(Dividends<T>);
+        migrate_map!(Emission<T>);
+        migrate_map!(LastUpdate<T>);
+        migrate_map!(SubnetRegistrationBlock<T>);
         // DMAPS
-        migrate_double_map!(Bonds);
-        migrate_double_map!(SetWeightCallsPerEpoch);
-        migrate_double_map!(Uids);
-        migrate_double_map!(Keys);
-        migrate_double_map!(Name);
-        migrate_double_map!(Address);
-        migrate_double_map!(Metadata);
-        migrate_double_map!(RegistrationBlock);
-        migrate_double_map!(Weights);
-        migrate_double_map!(DelegationFee);
+        migrate_double_map!(Bonds<T>);
+        migrate_double_map!(SetWeightCallsPerEpoch<T>);
+        migrate_double_map!(Uids<T>);
+        migrate_double_map!(Keys<T>);
+        migrate_double_map!(Name<T>);
+        migrate_double_map!(Address<T>);
+        migrate_double_map!(Metadata<T>);
+        migrate_double_map!(RegistrationBlock<T>);
+        migrate_double_map!(Weights<T>);
+        migrate_double_map!(migrations::v13::old_storage::DelegationFee<T>);
 
         // SUBNET EMISSION MODULE
         // !  We still did not introduce the new pallet, set it from old storage
-        migrate_storage_alias!(old_storage::PendingEmission<T>);
-        migrate_storage_alias!(old_storage::SubnetEmission<T>);
+        migrate_map!(old_storage::PendingEmission<T>);
+        migrate_map!(old_storage::SubnetEmission<T>);
         migrate_api!(get_subnet_consensus_type, set_subnet_consensus_type);
 
         // GOVERNANCE MODULE
@@ -577,5 +568,48 @@ pub mod v12 {
         }
 
         Ok(())
+    }
+}
+
+pub mod v13 {
+    use super::*;
+    use frame_support::traits::OnRuntimeUpgrade;
+    use sp_runtime::Percent;
+
+    pub mod old_storage {
+        use super::*;
+        use frame_support::{storage_alias, Blake2_128Concat, Identity};
+        use sp_runtime::Percent;
+
+        #[storage_alias]
+        pub type DelegationFee<T: Config> =
+            StorageDoubleMap<Pallet<T>, Identity, u16, Blake2_128Concat, AccountIdOf<T>, Percent>;
+    }
+
+    pub struct MigrateToV13<T>(sp_std::marker::PhantomData<T>);
+
+    impl<T: Config> OnRuntimeUpgrade for MigrateToV13<T> {
+        fn on_runtime_upgrade() -> Weight {
+            let on_chain_version = StorageVersion::get::<Pallet<T>>();
+            if on_chain_version != 12 {
+                log::info!("Storage v13 already updated");
+                return Weight::zero();
+            }
+            log::info!("Migrating storage to v13");
+
+            let old_delegation_fee_keys = old_storage::DelegationFee::<T>::iter()
+                .map(|(_, key, _)| key)
+                .collect::<BTreeSet<_>>();
+            let _ = old_storage::DelegationFee::<T>::clear(u32::MAX, None);
+
+            for key in old_delegation_fee_keys {
+                DelegationFee::<T>::set(key, Percent::from_percent(5));
+            }
+
+            log::info!("Migrated storage to v13");
+
+            StorageVersion::new(13).put::<Pallet<T>>();
+            T::DbWeight::get().reads_writes(1, 1)
+        }
     }
 }

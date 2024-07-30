@@ -265,7 +265,6 @@ impl<T: Config> Pallet<T> {
         let _ = Metadata::<T>::clear_prefix(netuid, u32::MAX, None);
         let _ = Uids::<T>::clear_prefix(netuid, u32::MAX, None);
         let _ = Keys::<T>::clear_prefix(netuid, u32::MAX, None);
-        let _ = DelegationFee::<T>::clear_prefix(netuid, u32::MAX, None);
 
         // --- 2. Remove consnesus vectors
         // ===============================
