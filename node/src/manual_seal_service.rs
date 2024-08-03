@@ -6,14 +6,21 @@ use sc_client_api::Backend;
 use sc_consensus_manual_seal::consensus::{
     aura::AuraConsensusDataProvider, timestamp::SlotTimestampProvider,
 };
-use sc_executor::WasmExecutor;
+use sc_executor::{with_externalities_safe, WasmExecutor};
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
+use sp_externalities::Externalities;
+use sp_state_machine::{Ext, OverlayedChanges};
 use std::sync::Arc;
 
+type CustomHostFunctions = (
+    sp_io::SubstrateHostFunctions,
+    testthing::offworker::HostFunctions,
+);
+
 pub(crate) type FullClient =
-    sc_service::TFullClient<Block, RuntimeApi, WasmExecutor<sp_io::SubstrateHostFunctions>>;
+    sc_service::TFullClient<Block, RuntimeApi, WasmExecutor<CustomHostFunctions>>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
@@ -51,6 +58,8 @@ pub fn new_partial(
             telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
             executor,
         )?;
+    // call(&client, &backend).unwrap();
+
     let client = Arc::new(client);
 
     let telemetry = telemetry.map(|(worker, telemetry)| {
@@ -128,7 +137,9 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
                 )),
                 network_provider: network.clone(),
                 enable_http_requests: true,
-                custom_extensions: |_| vec![],
+                custom_extensions: |_| {
+                    vec![Box::new(testthing::OffworkerExt::new(Decrypter)) as Box<_>]
+                },
             })
             .run(client.clone(), task_manager.spawn_handle())
             .boxed(),
@@ -222,5 +233,41 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
         .spawn_blocking("manual-seal", None, authorship_future);
 
     network_starter.start_network();
+
     Ok(task_manager)
+}
+
+fn call(client: &FullClient, backend: &FullBackend) -> sp_blockchain::Result<()> {
+    // use sp_state_machine::Backend;
+
+    let at_hash = client.chain_info().best_hash;
+    // let state_version = client.runtime_version_at(at_hash).unwrap().state_version();
+
+    let mut changes = OverlayedChanges::default();
+    let state = backend.state_at(at_hash)?;
+
+    changes.start_transaction();
+    let mut ext = Ext::new(&mut changes, &state, None);
+
+    with_externalities_safe(&mut ext, || {
+        sp_io::storage::set(
+            &hex::decode("5c0d1176a568c1f92944340dbfed9e9c530ebca703c85910e7164cb7d1c9e47b")
+                .unwrap(),
+            &vec![0; 64],
+        );
+    })
+    .unwrap();
+
+    ext.commit();
+
+    Ok(())
+}
+
+struct Decrypter;
+
+impl testthing::OffworkerExtension for Decrypter {
+    fn decrypt_weight(&self, mut encrypted: Vec<u8>) -> Vec<u8> {
+        encrypted.reverse();
+        encrypted
+    }
 }

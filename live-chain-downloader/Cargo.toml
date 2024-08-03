@@ -1,0 +1,16 @@
+[package]
+name = "live-chain-downloader"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+env_logger.workspace = true
+tokio = { workspace = true, features = ["full"] }
+
+frame-remote-externalities.workspace = true
+serde.workspace = true
+sp-io.workspace = true
+sp-runtime.workspace = true
+
+[lints]
+workspace = true
