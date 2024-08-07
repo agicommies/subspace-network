@@ -99,12 +99,44 @@ impl<T: Config> YumaEpoch<T> {
 
         let stake = self.compute_stake()?;
         log::trace!("final stake: {stake:?}");
+        
+        let max_validators = self.max_allowed_validators;
+        let mut new_permits = vec![false; stake.as_ref().len()];
 
-        let new_permits: Vec<bool> = if let Some(max) = self.max_allowed_validators {
-            is_topk(stake.as_ref(), max as usize)
-        } else {
-            vec![true; stake.as_ref().len()]
-        };
+        let mut sorted_indexed_stake: Vec<(u16, u64)> = (0u16..(stake.as_ref().len() as u16)).into_iter()
+        .map(|idx| {
+            (idx, 
+            match PalletSubspace::<T>::get_key_for_uid(self.netuid, idx as u16) {
+                Some(key) => PalletSubspace::<T>::get_delegated_stake(&key),
+                None => 0
+            })
+        }).collect::<Vec<_>>();
+        sorted_indexed_stake.sort_by_key(|(_idx, stake)| *stake);
+        sorted_indexed_stake.reverse();
+
+        let current_block = PalletSubspace::<T>::get_current_block_number();
+        let min_stake = pallet_subspace::MinStakeThreshold::<T>::get();
+        let mut validator_count = 0;
+        for (idx, stake) in sorted_indexed_stake {
+            if max_validators.is_some_and(|max| max <= validator_count) {
+                break;
+            }
+            
+            if stake < min_stake {
+                continue;
+            }
+
+            match pallet_subspace::WeightSetAt::<T>::get(self.netuid, idx) {
+                Some(weight_block) => if current_block - weight_block > 7200 {
+                    continue;
+                }
+                None => continue,
+            }
+
+            validator_count += 1;
+            new_permits[idx as usize] = true;
+        }
+
         log::trace!("new permis: {new_permits:?}");
 
         let active_stake = self.compute_active_stake(&inactive, &stake);

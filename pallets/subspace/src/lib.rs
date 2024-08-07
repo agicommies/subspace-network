@@ -328,6 +328,10 @@ pub mod pallet {
     // Subnet PARAMS
     // ---------------------------------
 
+    #[pallet::storage]
+    pub type MinStakeThreshold<T: Config> =
+        StorageValue<_, u64, ValueQuery, ConstU64<50_000_000_000_000>>;
+
     pub struct DefaultSubnetParams<T: Config>(sp_std::marker::PhantomData<((), T)>);
 
     impl<T: Config> DefaultSubnetParams<T> {
@@ -496,9 +500,12 @@ pub mod pallet {
     pub type RegistrationBlock<T: Config> =
         StorageDoubleMap<_, Identity, u16, Identity, u16, u64, ValueQuery>;
 
-    #[pallet::storage] // --- DMAP ( netuid, uid ) --> weights
+    #[pallet::storage] // --- DMAP ( netuid, uid ) --> (u64, weights)
     pub type Weights<T: Config> =
         StorageDoubleMap<_, Identity, u16, Identity, u16, Vec<(u16, u16)>, ValueQuery>;
+
+    #[pallet::storage]
+    pub type WeightSetAt<T: Config> = StorageDoubleMap<_, Identity, u16, Identity, u16, u64>;
 
     #[pallet::type_value]
     pub fn DefaultDelegationFee<T: Config>() -> Percent {
