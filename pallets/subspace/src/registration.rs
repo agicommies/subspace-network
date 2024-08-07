@@ -282,6 +282,10 @@ impl<T: Config> Pallet<T> {
                 let incentive_perc =
                     I110F18::from_num(incentive_vec.get(uid as usize).copied().unwrap_or_default());
 
+                if dividend_perc == 0 && incentive_perc == 0{
+                    return (uid, I110F18::from_num(0), block_at_registration);
+                }
+
                 let dividend = dividend_perc
                     .saturating_div(dividend_perc.saturating_add(incentive_perc))
                     .saturating_mul(emission);
