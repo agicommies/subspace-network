@@ -119,7 +119,7 @@ impl<T: Config> YumaEpoch<T> {
         sorted_indexed_stake.reverse();
 
         let current_block = PalletSubspace::<T>::get_current_block_number();
-        let min_stake = pallet_subspace::MinStakeThreshold::<T>::get();
+        let min_stake = pallet_subspace::MinStakeThreshold::<T>::get(self.netuid);
         let mut validator_count = 0;
         for (idx, stake) in sorted_indexed_stake {
             if max_validators.is_some_and(|max| max <= validator_count) {
@@ -129,7 +129,7 @@ impl<T: Config> YumaEpoch<T> {
             if stake < min_stake {
                 continue;
             }
-            
+
             match pallet_subspace::WeightSetAt::<T>::get(self.netuid, idx) {
                 Some(weight_block) => {
                     if current_block - weight_block > 7200 {
@@ -138,7 +138,7 @@ impl<T: Config> YumaEpoch<T> {
                 }
                 None => continue,
             }
-            
+
             validator_count += 1;
             new_permits[idx as usize] = true;
         }
