@@ -106,11 +106,7 @@ impl<T: Config> Pallet<T> {
     fn finalize_weights(netuid: u16, uid: u16, uids: &[u16], values: &[u16]) -> DispatchResult {
         let normalized_values = Self::normalize_weights(values);
         let zipped_weights: Vec<(u16, u16)> = uids.iter().copied().zip(normalized_values).collect();
-        Weights::<T>::insert(
-            netuid,
-            uid,
-            zipped_weights,
-        );
+        Weights::<T>::insert(netuid, uid, zipped_weights);
         WeightSetAt::<T>::insert(netuid, uid, Self::get_current_block_number());
         let current_block = Self::get_current_block_number();
         Self::set_last_update_for_uid(netuid, uid, current_block);

@@ -46,6 +46,8 @@ pub mod v13 {
             }
             log::info!("Migrating storage to v13");
 
+            log::info!("Migrating delegation fees to new storage");
+
             let old_delegation_fee_keys = old_storage::DelegationFee::<T>::iter()
                 .map(|(_, key, _)| key)
                 .collect::<BTreeSet<_>>();
@@ -55,7 +57,7 @@ pub mod v13 {
                 DelegationFee::<T>::set(key, Percent::from_percent(5));
             }
 
-            // Add the metadata
+            // Add metadata to existing subnets
             for (netuid, _) in SubnetNames::<T>::iter() {
                 let metadata = match netuid {
                     3 => b"https://github.com/agicommies/synthia/".to_vec(),
@@ -109,6 +111,9 @@ pub mod v13 {
                     );
                 }
             }
+
+            // Change the name of subnet 2 from "commune" to "General"
+            SubnetNames::<T>::insert(2, b"General".to_vec());
 
             log::info!("Migrated storage to v13");
 
