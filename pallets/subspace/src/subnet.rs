@@ -265,15 +265,15 @@ impl<T: Config> Pallet<T> {
         let _ = Metadata::<T>::clear_prefix(netuid, u32::MAX, None);
 
         for (key, _) in Uids::<T>::iter_prefix(netuid) {
-            if Uids::<T>::iter().all(|(module_netuid, module_key, _)| key != module_key || netuid == module_netuid) {
+            if Uids::<T>::iter()
+                .all(|(module_netuid, module_key, _)| key != module_key || netuid == module_netuid)
+            {
                 DelegationFee::<T>::remove(&key);
             }
         }
 
         let _ = Uids::<T>::clear_prefix(netuid, u32::MAX, None);
         let _ = Keys::<T>::clear_prefix(netuid, u32::MAX, None);
-
-
 
         // --- 2. Remove consnesus vectors
         // ===============================
