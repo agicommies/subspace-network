@@ -1190,3 +1190,38 @@ fn yuma_does_not_fail_if_module_does_not_have_stake() {
         assert_ok!(YumaEpoch::<Test>::new(netuid, ONE).run());
     });
 }
+
+
+#[test]
+fn yuma_change_permits() {
+    new_test_ext().execute_with(|| {
+        zero_min_burn();
+
+        let netuid = 6;
+        let first_uid = register_module(netuid, 0, 1, false).unwrap();
+        let second_uid = register_module(netuid, 1, to_nano(51000), false).unwrap();
+        let third_uid = register_module(netuid, 2, to_nano(52000), false).unwrap();
+        
+        MaxAllowedValidators::<Test>::set(netuid, Some(2));
+        
+        set_weights(netuid, 2, vec![first_uid, second_uid], vec![50, 60]);
+        
+        assert_ok!(YumaEpoch::<Test>::new(netuid, ONE).run());
+        
+        assert_eq!(ValidatorPermits::<Test>::get(netuid)[first_uid as usize], false);
+        assert_eq!(ValidatorPermits::<Test>::get(netuid)[second_uid as usize], false);
+        assert_eq!(ValidatorPermits::<Test>::get(netuid)[third_uid as usize], true);
+        
+        let fourth_uid = register_module(netuid, 3, to_nano(54000), false).unwrap();
+        set_weights(netuid, 1, vec![third_uid, fourth_uid], vec![50, 60]);
+        set_weights(netuid, 3, vec![first_uid, second_uid], vec![50, 60]);
+        
+        assert_ok!(YumaEpoch::<Test>::new(netuid, ONE).run());
+        
+        assert_eq!(ValidatorPermits::<Test>::get(netuid)[first_uid as usize], false);
+        assert_eq!(ValidatorPermits::<Test>::get(netuid)[second_uid as usize], false);
+        assert_eq!(ValidatorPermits::<Test>::get(netuid)[third_uid as usize], true);
+        assert_eq!(ValidatorPermits::<Test>::get(netuid)[fourth_uid as usize], true);
+        
+    });
+}

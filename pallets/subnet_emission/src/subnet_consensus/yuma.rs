@@ -129,7 +129,7 @@ impl<T: Config> YumaEpoch<T> {
             if stake < min_stake {
                 continue;
             }
-
+            
             match pallet_subspace::WeightSetAt::<T>::get(self.netuid, idx) {
                 Some(weight_block) => {
                     if current_block - weight_block > 7200 {
@@ -138,13 +138,12 @@ impl<T: Config> YumaEpoch<T> {
                 }
                 None => continue,
             }
-
+            
             validator_count += 1;
             new_permits[idx as usize] = true;
         }
 
         log::trace!("new permis: {new_permits:?}");
-
         let active_stake = self.compute_active_stake(&inactive, &stake);
         log::trace!("final active stake: {active_stake:?}");
 

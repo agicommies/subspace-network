@@ -574,7 +574,7 @@ pub fn register_named_subnet(key: AccountId, netuid: u16, name: impl ToString) -
         founder: key,
         ..DefaultSubnetParams::<Test>::get()
     };
-
+    Test::set_subnet_consensus_type(netuid, Some(SubnetConsensus::Yuma));
     SubspaceMod::add_subnet(SubnetChangeset::<Test>::new(params).unwrap(), Some(netuid)).unwrap();
 
     Ok(())
