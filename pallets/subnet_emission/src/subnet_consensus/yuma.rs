@@ -104,11 +104,10 @@ impl<T: Config> YumaEpoch<T> {
         let mut new_permits = vec![false; stake.as_ref().len()];
 
         let mut sorted_indexed_stake: Vec<(u16, u64)> = (0u16..(stake.as_ref().len() as u16))
-            .into_iter()
             .map(|idx| {
                 (
                     idx,
-                    match PalletSubspace::<T>::get_key_for_uid(self.netuid, idx as u16) {
+                    match PalletSubspace::<T>::get_key_for_uid(self.netuid, idx) {
                         Some(key) => PalletSubspace::<T>::get_delegated_stake(&key),
                         None => 0,
                     },
@@ -132,15 +131,17 @@ impl<T: Config> YumaEpoch<T> {
 
             match pallet_subspace::WeightSetAt::<T>::get(self.netuid, idx) {
                 Some(weight_block) => {
-                    if current_block - weight_block > 7200 {
+                    if current_block.saturating_sub(weight_block) > 7200 {
                         continue;
                     }
                 }
                 None => continue,
             }
 
-            validator_count += 1;
-            new_permits[idx as usize] = true;
+            if let Some(permit) = new_permits.get_mut(idx as usize) {
+                validator_count = validator_count.saturating_add(1);
+                *permit = true;
+            }
         }
 
         log::trace!("new permis: {new_permits:?}");

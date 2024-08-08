@@ -282,7 +282,7 @@ impl<T: Config> Pallet<T> {
                 let incentive_perc =
                     I110F18::from_num(incentive_vec.get(uid as usize).copied().unwrap_or_default());
 
-                if dividend_perc == 0 && incentive_perc == 0{
+                if dividend_perc == 0 && incentive_perc == 0 {
                     return (uid, I110F18::from_num(0), block_at_registration);
                 }
 
@@ -293,7 +293,8 @@ impl<T: Config> Pallet<T> {
                     .saturating_div(dividend_perc.saturating_add(incentive_perc))
                     .saturating_mul(emission);
 
-                let pruning_score = (I110F18::from_num(0.3) * dividend) + incentive;
+                let pruning_score =
+                    (I110F18::from_num(0.3).saturating_mul(dividend)).saturating_add(incentive);
                 (uid, pruning_score, block_at_registration)
             })
             .collect();
