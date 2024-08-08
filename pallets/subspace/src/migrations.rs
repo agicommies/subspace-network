@@ -115,6 +115,10 @@ pub mod v13 {
             // Change the name of subnet 2 from "commune" to "General"
             SubnetNames::<T>::insert(2, b"General".to_vec());
 
+            for key in N::<T>::iter_keys() {
+                MinValidatorStake::<T>::insert(key, GetDefaultMinValidatorStake::<T>::get());
+            }
+
             log::info!("Migrated storage to v13");
 
             StorageVersion::new(13).put::<Pallet<T>>();
