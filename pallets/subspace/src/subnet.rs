@@ -55,7 +55,7 @@ impl<T: Config> SubnetChangeset<T> {
         );
 
         AdjustmentAlpha::<T>::insert(netuid, self.params.adjustment_alpha);
-        MinStakeThreshold::<T>::insert(netuid, self.params.min_stake_threshold);
+        MinValidatorStake::<T>::insert(netuid, self.params.min_validator_stake);
         if self.params.maximum_set_weight_calls_per_epoch == 0 {
             MaximumSetWeightCallsPerEpoch::<T>::remove(netuid);
         } else {
@@ -158,6 +158,11 @@ impl<T: Config> SubnetChangeset<T> {
             Error::<T>::InvalidMaxAllowedUids
         );
 
+        ensure!(
+            params.min_validator_stake <= 250_000_000_000_000,
+            Error::<T>::InvalidMinValidatorStake
+        );
+
         match Pallet::<T>::get_netuid_for_name(&params.name) {
             Some(id) if netuid.is_some_and(|netuid| netuid == id) => { /* subnet kept same name */ }
             Some(_) => return Err(Error::<T>::SubnetNameAlreadyExists.into()),
@@ -197,7 +202,7 @@ impl<T: Config> Pallet<T> {
             target_registrations_per_interval: TargetRegistrationsPerInterval::<T>::get(netuid),
             max_registrations_per_interval: MaxRegistrationsPerInterval::<T>::get(netuid),
             adjustment_alpha: AdjustmentAlpha::<T>::get(netuid),
-            min_stake_threshold: MinStakeThreshold::<T>::get(netuid),
+            min_validator_stake: MinValidatorStake::<T>::get(netuid),
             governance_config: T::get_subnet_governance_configuration(netuid),
             metadata: SubnetMetadata::<T>::get(netuid),
         }
@@ -324,7 +329,7 @@ impl<T: Config> Pallet<T> {
         TargetRegistrationsPerInterval::<T>::remove(netuid);
         MaxRegistrationsPerInterval::<T>::remove(netuid);
         AdjustmentAlpha::<T>::remove(netuid);
-        MinStakeThreshold::<T>::remove(netuid);
+        MinValidatorStake::<T>::remove(netuid);
         SubnetRegistrationBlock::<T>::remove(netuid);
         SubnetMetadata::<T>::remove(netuid);
 

@@ -324,14 +324,18 @@ pub mod pallet {
     // Subnet PARAMS
     // ---------------------------------
 
+    #[pallet::storage]
+    pub type DefaultMinValidatorStake<T: Config> =
+        StorageValue<_, u64, ValueQuery, ConstU64<50_000_000_000_000>>;
+
     #[pallet::type_value]
-    pub fn DefaultMinStakeThreshold<T: Config>() -> u64 {
-        50_000_000_000_000
+    pub fn GetDefaultMinValidatorStake<T: Config>() -> u64 {
+        DefaultMinValidatorStake::<T>::get()
     }
 
     #[pallet::storage]
-    pub type MinStakeThreshold<T: Config> =
-        StorageMap<_, Identity, u16, u64, ValueQuery, DefaultMinStakeThreshold<T>>;
+    pub type MinValidatorStake<T: Config> =
+        StorageMap<_, Identity, u16, u64, ValueQuery, GetDefaultMinValidatorStake<T>>;
 
     pub struct DefaultSubnetParams<T: Config>(sp_std::marker::PhantomData<((), T)>);
 
@@ -357,7 +361,7 @@ pub mod pallet {
                 target_registrations_per_interval: 3,
                 max_registrations_per_interval: T::DefaultMaxRegistrationsPerInterval::get(),
                 adjustment_alpha: u64::MAX / 2,
-                min_stake_threshold: DefaultMinStakeThreshold::<T>::get(), // 50k
+                min_validator_stake: DefaultMinValidatorStake::<T>::get(), // 50k
                 governance_config: GovernanceConfiguration {
                     vote_mode: VoteMode::Authority,
                     ..Default::default()
@@ -395,7 +399,7 @@ pub mod pallet {
         pub target_registrations_per_interval: u16,
         pub max_registrations_per_interval: u16,
         pub adjustment_alpha: u64,
-        pub min_stake_threshold: u64,
+        pub min_validator_stake: u64,
         pub governance_config: GovernanceConfiguration,
     }
 
@@ -723,6 +727,8 @@ pub mod pallet {
         TargetIsDelegatingControl,
         /// There is no subnet that is running with the Rootnet consensus
         RootnetSubnetNotFound,
+        /// MinValidatorStake must be lower than 250k
+        InvalidMinValidatorStake,
     }
 
     // ---------------------------------
@@ -1014,7 +1020,7 @@ pub mod pallet {
             target_registrations_per_interval: u16,
             max_registrations_per_interval: u16,
             adjustment_alpha: u64,
-            min_stake_threshold: u64,
+            min_validator_stake: u64,
         ) -> DispatchResult {
             let params = SubnetParams {
                 founder,
@@ -1034,7 +1040,7 @@ pub mod pallet {
                 target_registrations_per_interval,
                 max_registrations_per_interval,
                 adjustment_alpha,
-                min_stake_threshold,
+                min_validator_stake,
                 governance_config: GovernanceConfiguration {
                     vote_mode,
                     ..T::get_subnet_governance_configuration(netuid)
@@ -1185,13 +1191,6 @@ where
     ) -> TransactionValidity {
         match call.is_sub_type() {
             Some(Call::set_weights { netuid, .. }) => {
-                if Pallet::<T>::get_delegated_stake(who)
-                    < pallet::MinStakeThreshold::<T>::get(netuid)
-                {
-                    return Err(TransactionValidityError::Invalid(
-                        frame_support::pallet_prelude::InvalidTransaction::Payment,
-                    ));
-                }
                 let priority: u64 = Self::get_priority_set_weights(who, *netuid);
                 Ok(ValidTransaction {
                     priority,

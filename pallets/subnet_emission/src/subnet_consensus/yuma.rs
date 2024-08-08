@@ -119,7 +119,7 @@ impl<T: Config> YumaEpoch<T> {
         sorted_indexed_stake.reverse();
 
         let current_block = PalletSubspace::<T>::get_current_block_number();
-        let min_stake = pallet_subspace::MinStakeThreshold::<T>::get(self.netuid);
+        let min_stake = pallet_subspace::MinValidatorStake::<T>::get(self.netuid);
         let mut validator_count = 0;
         for (idx, stake) in sorted_indexed_stake {
             if max_validators.is_some_and(|max| max <= validator_count) {

@@ -264,7 +264,7 @@ pub mod pallet {
             params.target_registrations_per_interval = target_registrations_per_interval;
             params.max_registrations_per_interval = max_registrations_per_interval;
             params.adjustment_alpha = adjustment_alpha;
-            params.min_stake_threshold = min_stake_threshold;
+            params.min_validator_stake = min_stake_threshold;
 
             Self::do_add_subnet_params_proposal(origin, subnet_id, data, params)
         }

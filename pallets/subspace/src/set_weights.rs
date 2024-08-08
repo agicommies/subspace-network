@@ -54,7 +54,7 @@ impl<T: Config> Pallet<T> {
         let Some(uid) = Self::get_uid_for_key(netuid, &key) else {
             return Err(Error::<T>::ModuleDoesNotExist.into());
         };
-        if Pallet::<T>::get_delegated_stake(&key) < pallet::MinStakeThreshold::<T>::get(netuid) {
+        if Pallet::<T>::get_delegated_stake(&key) < pallet::MinValidatorStake::<T>::get(netuid) {
             return Err(Error::<T>::NotEnoughStakeToSetWeights.into());
         }
         Self::validate_input(uid, &uids, &values, netuid)?;
