@@ -949,18 +949,9 @@ pub mod pallet {
             name: Vec<u8>,
             address: Vec<u8>,
             module_key: T::AccountId,
-            network_metadata: Option<Vec<u8>>,
             metadata: Option<Vec<u8>>,
         ) -> DispatchResult {
-            Self::do_register(
-                origin,
-                network_name,
-                name,
-                address,
-                module_key,
-                network_metadata,
-                metadata,
-            )
+            Self::do_register(origin, network_name, name, address, module_key, metadata)
         }
 
         #[pallet::call_index(8)]
@@ -1059,6 +1050,16 @@ pub mod pallet {
             target: T::AccountId,
         ) -> DispatchResult {
             Self::do_delegate_rootnet_control(origin, target)
+        }
+
+        #[pallet::call_index(12)]
+        #[pallet::weight((T::WeightInfo::register(), DispatchClass::Normal, Pays::No))]
+        pub fn register_network(
+            origin: OriginFor<T>,
+            name: Vec<u8>,
+            metadata: Option<Vec<u8>>,
+        ) -> DispatchResult {
+            Self::do_register_network(origin, name, metadata)
         }
     }
 }

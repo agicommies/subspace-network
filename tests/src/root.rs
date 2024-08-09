@@ -112,7 +112,6 @@ fn test_emission() {
                 b"0.0.0.0:30333".to_vec(),
                 key_id,
                 None,
-                None
             ));
             SubspaceMod::increase_stake(&key_id, &key_id, 1000);
         }
@@ -121,6 +120,11 @@ fn test_emission() {
             let key_id: u32 = i as u32 + 100;
             let key_origin = get_origin(key_id);
             SubspaceMod::add_balance_to_account(&key_id, 1_000_000_000_000_000);
+            let _ = SubspaceMod::register_network(
+                key_origin.clone(),
+                format!("net{}", i).as_bytes().to_vec(),
+                None,
+            );
             assert_ok!(SubspaceMod::register(
                 key_origin,
                 format!("net{}", i).as_bytes().to_vec(),
@@ -128,7 +132,6 @@ fn test_emission() {
                 b"0.0.0.0:30333".to_vec(),
                 key_id,
                 None,
-                None
             ));
             SubspaceMod::increase_stake(&key_id, &key_id, 1000);
         }
