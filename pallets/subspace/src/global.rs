@@ -69,7 +69,7 @@ impl<T: Config> GeneralBurnConfiguration<T> {
         }
     }
 
-    pub fn apply_module_burn(self) -> Result<(), DispatchError> {
+    pub fn apply_module_burn(self, netuid: u16) -> Result<(), DispatchError> {
         ensure!(self.min_burn >= 10_000_000_000, Error::<T>::InvalidMinBurn);
         ensure!(self.max_burn > self.min_burn, Error::<T>::InvalidMaxBurn);
         ensure!(
@@ -93,7 +93,7 @@ impl<T: Config> GeneralBurnConfiguration<T> {
             Error::<T>::InvalidMaxRegistrationsPerInterval
         );
 
-        SubnetBurnConfig::<T>::set(self);
+        ModuleBurnConfig::<T>::set(netuid, self);
 
         Ok(())
     }

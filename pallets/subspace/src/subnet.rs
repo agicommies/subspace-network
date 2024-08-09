@@ -44,7 +44,7 @@ impl<T: Config> SubnetChangeset<T> {
         TrustRatio::<T>::insert(netuid, self.params.trust_ratio);
         IncentiveRatio::<T>::insert(netuid, self.params.incentive_ratio);
         BondsMovingAverage::<T>::insert(netuid, self.params.bonds_ma);
-        let burn_config = GeneralBurnConfiguration {
+        let burn_config: GeneralBurnConfiguration<T> = GeneralBurnConfiguration {
             min_burn: self.params.min_burn,
             max_burn: self.params.max_burn,
             adjustment_alpha: self.params.adjustment_alpha,
@@ -53,8 +53,7 @@ impl<T: Config> SubnetChangeset<T> {
             max_registrations_per_interval: self.params.max_registrations_per_interval,
             _pd: PhantomData,
         };
-
-        ModuleBurnConfig::<T>::insert(netuid, burn_config);
+        burn_config.apply_module_burn(netuid)?;
         MinValidatorStake::<T>::insert(netuid, self.params.min_validator_stake);
         if self.params.maximum_set_weight_calls_per_epoch == 0 {
             MaximumSetWeightCallsPerEpoch::<T>::remove(netuid);
@@ -131,27 +130,6 @@ impl<T: Config> SubnetChangeset<T> {
             Error::<T>::InvalidMaxAllowedWeights
         );
 
-        // match registration parameters
-        ensure!(
-            params.target_registrations_interval >= 10,
-            Error::<T>::InvalidTargetRegistrationsInterval
-        );
-
-        ensure!(
-            params.target_registrations_per_interval >= 1,
-            Error::<T>::InvalidTargetRegistrationsPerInterval
-        );
-
-        ensure!(
-            params.max_registrations_per_interval >= 1,
-            Error::<T>::InvalidMaxRegistrationsPerInterval
-        );
-
-        ensure!(
-            params.adjustment_alpha > 0,
-            Error::<T>::InvalidAdjustmentAlpha
-        );
-
         ensure!(
             netuid.map_or(true, |netuid| params.max_allowed_uids
                 >= N::<T>::get(netuid)),
@@ -176,7 +154,7 @@ impl<T: Config> SubnetChangeset<T> {
                 core::str::from_utf8(name).map_err(|_| Error::<T>::InvalidSubnetName)?;
             }
         }
-
+        // ? Registration parameters omitted, they are using apply
         Ok(())
     }
 }
