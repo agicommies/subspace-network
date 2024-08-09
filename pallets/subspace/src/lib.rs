@@ -285,6 +285,10 @@ pub mod pallet {
     // Subnet registration parameters
     // ---------------------------------
 
+    #[pallet::storage]
+    pub type DefaultModuleMinBurn<T: Config> =
+        StorageValue<_, u64, ValueQuery, ConstU64<10_000_000_000>>;
+
     #[pallet::storage] // ITEM ( subnet_burn_config )
     pub type SubnetBurnConfig<T: Config> = StorageValue<_, GeneralBurnConfiguration<T>, ValueQuery>;
 

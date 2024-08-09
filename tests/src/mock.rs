@@ -14,7 +14,7 @@ use sp_core::{ConstU16, H256};
 use std::cell::RefCell;
 
 use pallet_subspace::{
-    subnet::SubnetChangeset, Address, BurnConfig, DefaultKey, DefaultMinValidatorStake,
+    subnet::SubnetChangeset, Address, DefaultKey, DefaultMinValidatorStake, DefaultModuleMinBurn,
     DefaultSubnetParams, Dividends, Emission, Incentive, LastUpdate, MaxRegistrationsPerBlock,
     Name, SubnetBurn, SubnetBurnConfig, SubnetParams, Tempo, TotalStake, N,
 };
@@ -672,8 +672,8 @@ pub fn round_first_five(num: u64) -> u64 {
 
 #[allow(dead_code)]
 pub fn zero_min_burn() {
-    BurnConfig::<Test>::mutate(|cfg| cfg.min_burn = 0);
     SubnetBurnConfig::<Test>::mutate(|cfg| cfg.min_burn = 0);
+    DefaultModuleMinBurn::<Test>::set(0);
 }
 
 #[allow(dead_code)]

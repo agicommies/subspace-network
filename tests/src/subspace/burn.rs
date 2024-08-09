@@ -1,50 +1,60 @@
 use crate::mock::*;
 use frame_support::assert_ok;
 use global::GeneralBurnConfiguration;
-use pallet_subspace::{global::BurnConfiguration, *};
+use pallet_subspace::*;
 
 #[test]
 fn module_registration_burn_increases() {
     new_test_ext().execute_with(|| {
         let min_burn = to_nano(10);
         let max_burn = to_nano(1000);
-
-        let burn_config = BurnConfiguration {
-            min_burn,
-            max_burn,
-            ..BurnConfiguration::<Test>::default()
-        };
-        assert_ok!(burn_config.apply());
-
         let target_reg_interval = 200;
         let target_reg_per_interval = 25;
 
+        SubnetBurnConfig::<Test>::mutate(|config| {
+            config.min_burn = min_burn;
+            config.max_burn = max_burn;
+            config.adjustment_alpha = 200;
+            config.target_registrations_per_interval = target_reg_per_interval;
+            config.target_registrations_interval = target_reg_interval;
+        });
+
+        let burn_config = GeneralBurnConfiguration {
+            min_burn,
+            max_burn,
+            adjustment_alpha: 200,
+            target_registrations_per_interval: target_reg_per_interval,
+            target_registrations_interval: target_reg_interval,
+
+            ..GeneralBurnConfiguration::<Test>::default()
+        };
+        assert_ok!(burn_config.clone().apply_module_burn(0));
+
         // register the general subnet
         assert_ok!(register_module(0, 0, to_nano(20), false));
-
-        // Adjust max registrations per block to a high number.
-        // We will be doing "registration raid"
-        AdjustmentAlpha::<Test>::insert(0, 200);
-        TargetRegistrationsPerInterval::<Test>::insert(0, 25);
-        TargetRegistrationsInterval::<Test>::insert(0, target_reg_interval); // for the netuid 0
-        TargetRegistrationsPerInterval::<Test>::insert(0, target_reg_per_interval); // for the netuid 0
 
         // register 500 modules on yuma subnet
         let netuid = 1;
         let n = 300u32;
         let initial_stake: u64 = to_nano(500);
 
+        assert_ok!(burn_config.apply_module_burn(netuid));
+
         MaxRegistrationsPerBlock::<Test>::set(1000);
         // this will perform 300 registrations and step in between
         for module_key in 1..n {
+            dbg!(module_key);
             // this registers five in block
             assert_ok!(register_module(netuid, module_key, initial_stake, false));
 
             if module_key % 5 == 0 {
                 // after that we step 30 blocks
                 // meaning that the average registration per block is 0.166..
-                TargetRegistrationsInterval::<Test>::insert(netuid, target_reg_interval); // for the netuid 0
-                TargetRegistrationsPerInterval::<Test>::insert(netuid, target_reg_per_interval); // fo
+                ModuleBurnConfig::<Test>::mutate(netuid, |config| {
+                    config.target_registrations_interval = target_reg_interval;
+                    config.target_registrations_per_interval = target_reg_per_interval;
+                });
+
                 step_block(30);
             }
         }
@@ -71,9 +81,9 @@ fn subnet_registration_burn_increases() {
             min_burn,
             max_burn,
             adjustment_alpha: 200,
-            adjustment_interval: 5,
-            expected_registrations: 1,
-            max_registrations: 10,
+            target_registrations_interval: 5,
+            target_registrations_per_interval: 1,
+            max_registrations_per_interval: 10,
             ..Default::default()
         };
         SubnetBurnConfig::<Test>::set(burn_config.clone());
@@ -88,7 +98,7 @@ fn subnet_registration_burn_increases() {
             // Have enough balance to register
             assert_ok!(register_subnet(i, i as u16));
 
-            step_block(burn_config.adjustment_interval / 2);
+            step_block(burn_config.target_registrations_interval / 2);
 
             // Check if burn has increased
             let current_burn = SubnetBurn::<Test>::get();
@@ -99,7 +109,7 @@ fn subnet_registration_burn_increases() {
                 max_burn
             );
 
-            if i as u16 % burn_config.adjustment_interval == 0 {
+            if i as u16 % burn_config.target_registrations_interval == 0 {
                 assert!(
                     current_burn > initial_burn,
                     "Burn should increase. Current: {}, Initial: {}",
