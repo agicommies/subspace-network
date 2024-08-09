@@ -91,14 +91,14 @@ fn subnet_update_changes_all_parameter_values() {
             trust_ratio,
             maximum_set_weight_calls_per_epoch,
             bonds_ma,
+            min_burn,
+            max_burn,
             target_registrations_interval,
             target_registrations_per_interval,
             max_registrations_per_interval,
             adjustment_alpha,
             min_validator_stake,
             governance_config,
-            min_burn,
-            max_burn,
         } = params.clone();
 
         SubnetChangeset::<Test>::update(netuid, params).unwrap().apply(netuid).unwrap();
@@ -119,6 +119,8 @@ fn subnet_update_changes_all_parameter_values() {
             Some(maximum_set_weight_calls_per_epoch)
         );
         assert_eq!(BondsMovingAverage::<Test>::get(netuid), bonds_ma);
+        assert_eq!(ModuleBurnConfig::<Test>::get(netuid).min_burn, min_burn);
+        assert_eq!(ModuleBurnConfig::<Test>::get(netuid).max_burn, max_burn);
         assert_eq!(
             ModuleBurnConfig::<Test>::get(netuid).target_registrations_interval,
             target_registrations_interval
@@ -171,10 +173,6 @@ fn removes_subnet_from_storage() {
                     trust_ratio,
                     maximum_set_weight_calls_per_epoch: _,
                     bonds_ma,
-                    target_registrations_interval,
-                    target_registrations_per_interval,
-                    max_registrations_per_interval,
-                    adjustment_alpha,
                     min_validator_stake: _,
                     governance_config,
                     ..

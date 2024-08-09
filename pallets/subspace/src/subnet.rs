@@ -216,7 +216,7 @@ impl<T: Config> Pallet<T> {
         // Insert the minimum burn to the netuid,
         // to prevent free registrations the first target registration interval.
         let min_burn = GeneralBurnConfiguration::<T>::default_for(BurnType::Module).min_burn;
-        Burn::<T>::insert(netuid, min_burn);
+        Burn::<T>::set(netuid, min_burn);
 
         SubnetGaps::<T>::mutate(|subnets| subnets.remove(&netuid));
         T::create_yuma_subnet(netuid);

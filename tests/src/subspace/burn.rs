@@ -1,3 +1,5 @@
+use std::u32;
+
 use crate::mock::*;
 use frame_support::assert_ok;
 use global::GeneralBurnConfiguration;
@@ -11,24 +13,18 @@ fn module_registration_burn_increases() {
         let target_reg_interval = 200;
         let target_reg_per_interval = 25;
 
-        SubnetBurnConfig::<Test>::mutate(|config| {
-            config.min_burn = min_burn;
-            config.max_burn = max_burn;
-            config.adjustment_alpha = 200;
-            config.target_registrations_per_interval = target_reg_per_interval;
-            config.target_registrations_interval = target_reg_interval;
-        });
-
-        let burn_config = GeneralBurnConfiguration {
+        // Adjust max registrations per block to a high number.
+        // We will be doing "registration raid"
+        let module_burn_config: GeneralBurnConfiguration<Test> = GeneralBurnConfiguration {
             min_burn,
             max_burn,
-            adjustment_alpha: 200,
-            target_registrations_per_interval: target_reg_per_interval,
+            adjustment_alpha: 9223372036854775807,
             target_registrations_interval: target_reg_interval,
-
-            ..GeneralBurnConfiguration::<Test>::default()
+            target_registrations_per_interval: target_reg_per_interval,
+            max_registrations_per_interval: 1_000,
+            ..Default::default()
         };
-        assert_ok!(burn_config.clone().apply_module_burn(0));
+        ModuleBurnConfig::set(0, module_burn_config.clone());
 
         // register the general subnet
         assert_ok!(register_module(0, 0, to_nano(20), false));
@@ -38,23 +34,18 @@ fn module_registration_burn_increases() {
         let n = 300u32;
         let initial_stake: u64 = to_nano(500);
 
-        assert_ok!(burn_config.apply_module_burn(netuid));
-
         MaxRegistrationsPerBlock::<Test>::set(1000);
+
+        let network = format!("test{netuid}");
+        assert_ok!(register_named_subnet(u32::MAX, netuid, network));
+        ModuleBurnConfig::set(netuid, module_burn_config);
         // this will perform 300 registrations and step in between
         for module_key in 1..n {
-            dbg!(module_key);
             // this registers five in block
             assert_ok!(register_module(netuid, module_key, initial_stake, false));
-
             if module_key % 5 == 0 {
                 // after that we step 30 blocks
                 // meaning that the average registration per block is 0.166..
-                ModuleBurnConfig::<Test>::mutate(netuid, |config| {
-                    config.target_registrations_interval = target_reg_interval;
-                    config.target_registrations_per_interval = target_reg_per_interval;
-                });
-
                 step_block(30);
             }
         }
@@ -63,7 +54,6 @@ fn module_registration_burn_increases() {
         // We performed 300 registrations
         // this means avg.  0.166.. per block
         // burn has incrased by 90% > up
-
         let subnet_zero_burn = Burn::<Test>::get(0);
         assert_eq!(subnet_zero_burn, min_burn);
         let subnet_one_burn = Burn::<Test>::get(1);

@@ -459,15 +459,15 @@ impl<T: Config> Pallet<T> {
             Self::adjust_burn_parameters(
                 block_number,
                 module_config.target_registrations_interval,
-                module_config.target_registrations_interval,
+                RegistrationsThisInterval::<T>::get(netuid),
                 module_config.target_registrations_per_interval,
                 module_config.adjustment_alpha,
                 module_config.min_burn,
                 module_config.max_burn,
                 module_burn,
                 |adjusted_burn| {
-                    Burn::<T>::insert(netuid, adjusted_burn);
-                    RegistrationsThisInterval::<T>::insert(netuid, 0);
+                    Burn::<T>::set(netuid, adjusted_burn);
+                    RegistrationsThisInterval::<T>::set(netuid, 0);
                 },
             );
         }

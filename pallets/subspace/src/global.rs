@@ -40,7 +40,7 @@ impl<T: Config> Default for GeneralBurnConfiguration<T> {
 impl<T: Config> GeneralBurnConfiguration<T> {
     fn subnet_burn_default() -> Self {
         Self {
-            min_burn: 2_000_000_000_000,
+            min_burn: T::DefaultSubnetMinBurn::get(),
             max_burn: 100_000_000_000_000,
             adjustment_alpha: u64::MAX / 2,
             target_registrations_interval: 5_400,
@@ -52,7 +52,7 @@ impl<T: Config> GeneralBurnConfiguration<T> {
 
     pub fn module_burn_default() -> Self {
         Self {
-            min_burn: DefaultModuleMinBurn::<T>::get(),
+            min_burn: T::DefaultModuleMinBurn::get(),
             max_burn: 150_000_000_000,
             adjustment_alpha: u64::MAX / 2,
             target_registrations_interval: 142,
@@ -71,7 +71,7 @@ impl<T: Config> GeneralBurnConfiguration<T> {
 
     pub fn apply_module_burn(self, netuid: u16) -> Result<(), DispatchError> {
         ensure!(
-            self.min_burn >= DefaultModuleMinBurn::<T>::get(),
+            self.min_burn >= T::DefaultModuleMinBurn::get(),
             Error::<T>::InvalidMinBurn
         );
         ensure!(self.max_burn > self.min_burn, Error::<T>::InvalidMaxBurn);

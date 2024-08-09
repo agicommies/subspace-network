@@ -101,6 +101,10 @@ pub mod pallet {
         type DefaultMaxRegistrationsPerInterval: Get<u16>;
         /// The default number of subnets that can be registered per interval.
         type DefaultMaxSubnetRegistrationsPerInterval: Get<u16>;
+        /// The default minimum burn amount required for module registration.
+        type DefaultModuleMinBurn: Get<u64>;
+        /// The default minimum burn amount required for module registration.
+        type DefaultSubnetMinBurn: Get<u64>;
 
         /// The weight information of this pallet.
         type WeightInfo: WeightInfo;
@@ -285,12 +289,14 @@ pub mod pallet {
     // Subnet registration parameters
     // ---------------------------------
 
-    #[pallet::storage]
-    pub type DefaultModuleMinBurn<T: Config> =
-        StorageValue<_, u64, ValueQuery, ConstU64<10_000_000_000>>;
+    #[pallet::type_value]
+    pub fn SubnetBurnConfigDefault<T: Config>() -> GeneralBurnConfiguration<T> {
+        GeneralBurnConfiguration::<T>::default_for(BurnType::Subnet)
+    }
 
-    #[pallet::storage] // ITEM ( subnet_burn_config )
-    pub type SubnetBurnConfig<T: Config> = StorageValue<_, GeneralBurnConfiguration<T>, ValueQuery>;
+    #[pallet::storage]
+    pub type SubnetBurnConfig<T: Config> =
+        StorageValue<_, GeneralBurnConfiguration<T>, ValueQuery, SubnetBurnConfigDefault<T>>;
 
     #[pallet::storage] // --- MAP ( netuid ) -> module_burn_config
     pub type ModuleBurnConfig<T: Config> =
@@ -304,7 +310,7 @@ pub mod pallet {
 
     #[pallet::type_value]
     pub fn DefaultSubnetBurn<T: Config>() -> u64 {
-        SubnetBurnConfig::<T>::get().min_burn
+        GeneralBurnConfiguration::<T>::default_for(BurnType::Subnet).min_burn
     }
 
     #[pallet::storage] // --- ITEM ( subnet_burn )

@@ -565,6 +565,7 @@ fn test_subnet_immunity() {
         MaxAllowedSubnets::<Test>::set(1);
 
         SubspaceMod::add_balance_to_account(&0, SubnetBurn::<Test>::get());
+        dbg!(SubnetBurn::<Test>::get());
         assert_ok!(SubspaceMod::register(
             get_origin(0),
             b"net1".to_vec(),
